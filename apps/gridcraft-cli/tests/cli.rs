@@ -5,29 +5,29 @@ use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
 fn bin() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_sheetcraft-cli"))
+    Command::new(env!("CARGO_BIN_EXE_gridcraft-cli"))
 }
 
 fn run(args: &[&str]) -> Output {
-    bin().args(args).output().expect("run sheetcraft-cli")
+    bin().args(args).output().expect("run gridcraft-cli")
 }
 
 fn ok(args: &[&str]) -> String {
     let o = run(args);
-    assert!(o.status.success(), "sheetcraft-cli {args:?} failed: {}", String::from_utf8_lossy(&o.stderr));
+    assert!(o.status.success(), "gridcraft-cli {args:?} failed: {}", String::from_utf8_lossy(&o.stderr));
     String::from_utf8(o.stdout).unwrap()
 }
 
 fn tmpdir(name: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("sheetcraft-cli-test-{}-{name}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("gridcraft-cli-test-{}-{name}", std::process::id()));
     std::fs::create_dir_all(&d).unwrap();
     d
 }
 
 #[test]
 fn version_and_usage() {
-    assert_eq!(ok(&["--version"]).trim(), format!("sheetcraft-cli {}", env!("CARGO_PKG_VERSION")));
-    assert_eq!(ok(&["version"]).trim(), format!("sheetcraft-cli {}", env!("CARGO_PKG_VERSION")));
+    assert_eq!(ok(&["--version"]).trim(), format!("gridcraft-cli {}", env!("CARGO_PKG_VERSION")));
+    assert_eq!(ok(&["version"]).trim(), format!("gridcraft-cli {}", env!("CARGO_PKG_VERSION")));
     let o = run(&["frobnicate"]);
     assert!(!o.status.success());
     assert!(String::from_utf8_lossy(&o.stderr).contains("unknown subcommand"));
@@ -147,6 +147,6 @@ fn mcp_over_stdio() {
     let text = String::from_utf8(out.stdout).unwrap();
     let lines: Vec<serde_json::Value> = text.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
     assert_eq!(lines.len(), 2, "{text}");
-    assert_eq!(lines[0]["result"]["serverInfo"]["name"], "sheetcraft");
+    assert_eq!(lines[0]["result"]["serverInfo"]["name"], "gridcraft");
     assert!(lines[1]["result"]["content"][0]["text"].as_str().unwrap().contains("42"));
 }

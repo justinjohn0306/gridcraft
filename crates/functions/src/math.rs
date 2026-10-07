@@ -3,7 +3,7 @@
 
 use std::f64::consts::PI;
 
-use sheetcraft_core::{Array, CellError, Value};
+use gridcraft_core::{Array, CellError, Value};
 
 use crate::criteria::Criterion;
 use crate::util::{

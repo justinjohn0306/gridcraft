@@ -3,8 +3,8 @@
 
 use std::fmt::Write as _;
 
-use sheetcraft_core::{CellRef, MAX_COLS, MAX_ROWS};
-use sheetcraft_model::{Anchor, Color, Image, Shape, ShapeKind, Sheet, Theme};
+use gridcraft_core::{CellRef, MAX_COLS, MAX_ROWS};
+use gridcraft_model::{Anchor, Color, Image, Shape, ShapeKind, Sheet, Theme};
 
 use crate::IoError;
 use crate::read::Ctx;
@@ -233,7 +233,7 @@ pub fn srgb(c: &Color, theme: &Theme) -> Option<String> {
 /// One drawing object to write.
 pub enum Obj<'a> {
     Image(&'a Image, String),
-    Chart(&'a sheetcraft_model::Chart, String),
+    Chart(&'a gridcraft_model::Chart, String),
     Shape(&'a Shape),
 }
 

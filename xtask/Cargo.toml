@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
-description = "SheetCraft workspace tooling: cargo xtask ci | layers | assets | wasm | parity | version | stats | ico"
+description = "GridCraft workspace tooling: cargo xtask ci | layers | assets | wasm | parity | version | stats | ico"
 
 [lints]
 workspace = true
@@ -13,8 +13,8 @@ workspace = true
 # `cargo xtask parity` reads the command catalog from the engine. CI steps that only need the
 # version or the layer/asset checks run with --no-default-features and skip compiling it.
 default = ["engine"]
-engine = ["dep:sheetcraft-engine"]
+engine = ["dep:gridcraft-engine"]
 
 [dependencies]
 serde_json = { workspace = true }
-sheetcraft-engine = { workspace = true, optional = true }
+gridcraft-engine = { workspace = true, optional = true }

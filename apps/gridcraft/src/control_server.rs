@@ -6,8 +6,8 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration;
 
+use gridcraft_ui_egui::ControlRequest;
 use serde_json::{Value as Json, json};
-use sheetcraft_ui_egui::ControlRequest;
 
 const MAX_LINE: usize = 64 * 1024 * 1024;
 
@@ -21,7 +21,7 @@ pub fn start(port: u16, ctx: egui::Context) -> std::io::Result<Receiver<ControlR
             let _ = std::thread::Builder::new().name("control-conn".into()).spawn(move || serve(stream, tx, ctx));
         }
     })?;
-    eprintln!("SheetCraft control channel listening on 127.0.0.1:{port}");
+    eprintln!("GridCraft control channel listening on 127.0.0.1:{port}");
     Ok(rx)
 }
 

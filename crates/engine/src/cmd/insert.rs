@@ -1,9 +1,9 @@
 //! Insert tab: tables, charts, sparklines, pictures, shapes, hyperlinks, comments and notes,
 //! conditional formatting (Home › Styles) and symbols.
 
+use gridcraft_core::{CellRef, RangeRef};
+use gridcraft_model::*;
 use serde_json::{Value as Json, json};
-use sheetcraft_core::{CellRef, RangeRef};
-use sheetcraft_model::*;
 
 use super::*;
 use crate::selection::current_region;
@@ -221,7 +221,7 @@ fn insert_table(s: &mut Session, p: &Json) -> Result<Json> {
             let sh = cx.sheet_mut(sheet)?;
             sh.cells.shift_rows_in_cols(r.start.col, r.end.col, r.start.row, 1);
             for (i, c) in (r.start.col..=r.end.col).enumerate() {
-                sh.set_value(CellRef::new(r.start.row, c), sheetcraft_core::Value::text(format!("Column{}", i + 1)));
+                sh.set_value(CellRef::new(r.start.row, c), gridcraft_core::Value::text(format!("Column{}", i + 1)));
             }
             cx.structural = true;
             RangeRef::new(r.start, CellRef::new(r.end.row + 1, r.end.col))
@@ -240,7 +240,7 @@ fn insert_table(s: &mut Session, p: &Json) -> Result<Json> {
                 k += 1;
             }
             // Headers are text.
-            sh.set_value(CellRef::new(r.start.row, c), sheetcraft_core::Value::text(n.as_str()));
+            sh.set_value(CellRef::new(r.start.row, c), gridcraft_core::Value::text(n.as_str()));
             names.push(n);
         }
         sh.tables.push(Table {
@@ -334,9 +334,9 @@ fn write_totals(sh: &mut Sheet, ti: usize) {
         if let Some(code) = col.totals.subtotal_code() {
             let f = format!("=SUBTOTAL({code},{}[{}])", t.name, col.name);
             sh.cells
-                .set(c, Cell { formula: Some(std::sync::Arc::new(Formula::new(&f))), value: sheetcraft_core::Value::Empty, style: sh.style_id(c) });
+                .set(c, Cell { formula: Some(std::sync::Arc::new(Formula::new(&f))), value: gridcraft_core::Value::Empty, style: sh.style_id(c) });
         } else if let Some(l) = &col.totals_label {
-            sh.set_value(c, sheetcraft_core::Value::text(l.as_str()));
+            sh.set_value(c, gridcraft_core::Value::text(l.as_str()));
         } else {
             sh.cells.remove(c);
         }
@@ -388,7 +388,7 @@ fn table_rename(s: &mut Session, p: &Json) -> Result<Json> {
     if name.is_empty()
         || name.contains(' ')
         || name.chars().next().is_some_and(|c| c.is_ascii_digit())
-        || sheetcraft_core::CellRef::parse(&name).is_some()
+        || gridcraft_core::CellRef::parse(&name).is_some()
     {
         return Err(EngineError::Other("The name that you entered is not valid.".into()));
     }
@@ -408,11 +408,11 @@ fn table_rename(s: &mut Session, p: &Json) -> Result<Json> {
             for (c, f) in keys {
                 let Some(e) = f.expr() else { continue };
                 let ne = e.map(&mut |x| match x {
-                    sheetcraft_formula::Expr::Struct(mut st) if st.table.eq_ignore_ascii_case(&old) => {
+                    gridcraft_formula::Expr::Struct(mut st) if st.table.eq_ignore_ascii_case(&old) => {
                         st.table = name.clone();
-                        sheetcraft_formula::Expr::Struct(st)
+                        gridcraft_formula::Expr::Struct(st)
                     }
-                    sheetcraft_formula::Expr::Name(n) if n.eq_ignore_ascii_case(&old) => sheetcraft_formula::Expr::Name(name.clone()),
+                    gridcraft_formula::Expr::Name(n) if n.eq_ignore_ascii_case(&old) => gridcraft_formula::Expr::Name(name.clone()),
                     o => o,
                 });
                 if let Some(cell) = sh.cells.get_mut(c) {
@@ -480,17 +480,17 @@ pub fn chart_kind(t: &str, sub: &str) -> ChartKind {
 
 /// Builds series from a block: first row/column as names/categories when they're text.
 pub fn series_from_range(sh: &Sheet, r: RangeRef, by_rows: bool) -> Vec<Series> {
-    let q = sheetcraft_formula::quote_sheet(&sh.name);
+    let q = gridcraft_formula::quote_sheet(&sh.name);
     let abs = |r: RangeRef| {
         format!(
             "{q}!${}${}:${}${}",
-            sheetcraft_core::col_to_letters(r.start.col),
+            gridcraft_core::col_to_letters(r.start.col),
             r.start.row + 1,
-            sheetcraft_core::col_to_letters(r.end.col),
+            gridcraft_core::col_to_letters(r.end.col),
             r.end.row + 1
         )
     };
-    let abs1 = |c: CellRef| format!("{q}!${}${}", sheetcraft_core::col_to_letters(c.col), c.row + 1);
+    let abs1 = |c: CellRef| format!("{q}!${}${}", gridcraft_core::col_to_letters(c.col), c.row + 1);
     let is_text = |c: CellRef| sh.value(c).is_text() || sh.value(c).is_empty();
     let header_row = r.height() > 1
         && (r.start.col..=r.end.col).any(|c| sh.value(CellRef::new(r.start.row, c)).is_text())
@@ -552,7 +552,7 @@ fn insert_chart(s: &mut Session, p: &Json) -> Result<Json> {
     let at = cell_param(p, "at").unwrap_or_else(|| CellRef::new(r.start.row, r.end.col + 2));
     let title = str_param(p, "title").map(str::to_string).or_else(|| {
         if series.len() == 1 {
-            series[0].name.as_ref().map(|n| sheetcraft_calc::evaluate(&d.wb, sheet, at, n).display())
+            series[0].name.as_ref().map(|n| gridcraft_calc::evaluate(&d.wb, sheet, at, n).display())
         } else {
             Some("Chart Title".into())
         }
@@ -575,7 +575,7 @@ fn insert_chart(s: &mut Session, p: &Json) -> Result<Json> {
         style: 1,
         x_title: None,
         y_title: None,
-        source: Some(format!("{}!{}", sheetcraft_formula::quote_sheet(&sh.name), r.a1())),
+        source: Some(format!("{}!{}", gridcraft_formula::quote_sheet(&sh.name), r.a1())),
         by_rows,
     };
     edit(s, |cx| {
@@ -846,7 +846,7 @@ fn insert_link(s: &mut Session, p: &Json) -> Result<Json> {
         });
         let sh = cx.sheet_mut(sheet)?;
         if let Some(t) = text.clone().or_else(|| sh.value(at).is_empty().then(|| target.clone())) {
-            sh.cells.set(at, Cell { value: sheetcraft_core::Value::text(t.as_str()), formula: None, style: link_style });
+            sh.cells.set(at, Cell { value: gridcraft_core::Value::text(t.as_str()), formula: None, style: link_style });
         } else {
             sh.set_style(at, link_style);
         }
@@ -996,7 +996,7 @@ fn add_cf(s: &mut Session, p: &Json) -> Result<Json> {
             let a = rule.get("value").map(super::edit::json_to_input).unwrap_or_default();
             let b = rule.get("value2").map(super::edit::json_to_input);
             let quote = |v: String| {
-                if sheetcraft_core::parse::parse_number_text(&v).is_some() || v.starts_with('=') {
+                if gridcraft_core::parse::parse_number_text(&v).is_some() || v.starts_with('=') {
                     v.trim_start_matches('=').to_string()
                 } else {
                     format!("\"{}\"", v.replace('"', "\"\""))

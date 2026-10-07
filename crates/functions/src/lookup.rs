@@ -5,7 +5,7 @@
 
 use std::cmp::Ordering;
 
-use sheetcraft_core::{Array, CellError, Value, col_to_letters, compare};
+use gridcraft_core::{Array, CellError, Value, col_to_letters, compare};
 
 use crate::criteria::{has_wildcards, lookup_equal};
 use crate::util::{R, arg, array_val, as_array, has, int, num, opt_bool, opt_int, opt_num, text, text_val};
@@ -512,7 +512,7 @@ pub(crate) fn specs() -> Vec<FnSpec> {
 
 #[cfg(test)]
 mod tests {
-    use sheetcraft_core::{CellError, Value};
+    use gridcraft_core::{CellError, Value};
 
     use crate::util::testutil::*;
 

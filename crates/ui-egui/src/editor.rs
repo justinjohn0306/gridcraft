@@ -2,7 +2,7 @@
 //! autocomplete and argument hints.
 
 use egui::Color32;
-use sheetcraft_engine::core::{CellRef, RangeRef};
+use gridcraft_engine::core::{CellRef, RangeRef};
 
 /// Colours for references in a formula being edited (our own palette).
 pub const REF_COLORS: [Color32; 8] = [
@@ -194,12 +194,12 @@ impl EditState {
 pub fn formula_refs(text: &str) -> Vec<(usize, usize, RangeRef, Option<String>, usize)> {
     let body = text.strip_prefix('=').or_else(|| text.strip_prefix('+')).unwrap_or(text);
     let offset = text.len() - body.len();
-    let Ok(toks) = sheetcraft_engine::formula::lexer::tokenize(body) else { return vec![] };
+    let Ok(toks) = gridcraft_engine::formula::lexer::tokenize(body) else { return vec![] };
     let mut out: Vec<(usize, usize, RangeRef, Option<String>, usize)> = Vec::new();
     let mut seen: Vec<String> = Vec::new();
     let mut i = 0;
     while i < toks.len() {
-        use sheetcraft_engine::formula::lexer::Tok;
+        use gridcraft_engine::formula::lexer::Tok;
         let (sheet, start, j) = match &toks[i].tok {
             Tok::Sheet(a, _) => (Some(a.clone()), toks[i].start, i + 1),
             _ => (None, toks[i].start, i),
@@ -236,7 +236,7 @@ pub fn formula_refs(text: &str) -> Vec<(usize, usize, RangeRef, Option<String>, 
 
 /// Excel-style AutoComplete: the one distinct text entry in the same column (contiguous data
 /// above and below) that starts with `typed` (case-insensitive). `None` when ambiguous.
-pub fn column_completion(sheet: &sheetcraft_engine::model::Sheet, at: CellRef, typed: &str) -> Option<String> {
+pub fn column_completion(sheet: &gridcraft_engine::model::Sheet, at: CellRef, typed: &str) -> Option<String> {
     if typed.is_empty() || typed.starts_with('=') || typed.chars().all(|c| c.is_ascii_digit() || c == '.' || c == '-') {
         return None;
     }
@@ -245,8 +245,8 @@ pub fn column_completion(sheet: &sheetcraft_engine::model::Sheet, at: CellRef, t
     let mut ambiguous = false;
     let mut scan = |row: u32| -> bool {
         match sheet.value(CellRef::new(row, at.col)) {
-            sheetcraft_engine::core::Value::Empty => false,
-            sheetcraft_engine::core::Value::Text(t) => {
+            gridcraft_engine::core::Value::Empty => false,
+            gridcraft_engine::core::Value::Text(t) => {
                 if t.to_lowercase().starts_with(&lower) && t.len() > typed.len() {
                     match &found {
                         Some(f) if !f.eq_ignore_ascii_case(&t) => ambiguous = true,

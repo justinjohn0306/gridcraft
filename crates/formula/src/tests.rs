@@ -122,7 +122,7 @@ fn insert_delete() {
 
 #[test]
 fn moves_and_renames() {
-    let mv = Edit::Move { from: sheetcraft_core::RangeRef::parse("A1:B2").unwrap(), to_row: 9, to_col: 3 };
+    let mv = Edit::Move { from: gridcraft_core::RangeRef::parse("A1:B2").unwrap(), to_row: 9, to_col: 3 };
     let e = parse("A1+B2+C3+SUM(A1:B2)").unwrap();
     assert_eq!(print(&adjust(e, "S", "S", &mv)), "D10+E11+C3+SUM(D10:E11)");
     let e = parse("Old!A1+'Old'!B2").unwrap();
@@ -132,7 +132,7 @@ fn moves_and_renames() {
 #[test]
 fn r1c1() {
     let e = parse("A1+$B$2+SUM(C:C)").unwrap();
-    assert_eq!(print_r1c1(&e, sheetcraft_core::CellRef::new(1, 1)), "R[-1]C[-1]+R2C2+SUM(C[1])");
+    assert_eq!(print_r1c1(&e, gridcraft_core::CellRef::new(1, 1)), "R[-1]C[-1]+R2C2+SUM(C[1])");
 }
 
 #[test]

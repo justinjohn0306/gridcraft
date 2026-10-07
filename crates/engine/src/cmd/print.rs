@@ -3,16 +3,16 @@
 //! Sheets are paginated like Excel's default "down, then over": the print area (or the used
 //! range plus drawing objects) is split into bands of rows and columns that fit the printable
 //! area at the page scale, honouring manual breaks, repeated title rows/columns, headings, Fit
-//! To and centring. Each page is drawn into a PDF with `sheetcraft-pdf`: fills, gridlines,
+//! To and centring. Each page is drawn into a PDF with `gridcraft-pdf`: fills, gridlines,
 //! borders, formatted text (fonts mapped to the standard 14 PDF fonts), merged cells, wrapping,
 //! overflow into empty neighbours, conditional formats, table styles, charts, images, shapes and
 //! sparklines. Headers and footers support `&L`/`&C`/`&R` sections and the `&P &N &D &T &A &F &Z`
 //! codes.
 
+use gridcraft_core::{CellRef, MAX_COLS, MAX_ROWS, RangeRef, Value};
+use gridcraft_model::*;
+use gridcraft_pdf::{Font, Page, PdfDoc, Rgb};
 use serde_json::{Value as Json, json};
-use sheetcraft_core::{CellRef, MAX_COLS, MAX_ROWS, RangeRef, Value};
-use sheetcraft_model::*;
-use sheetcraft_pdf::{Font, Page, PdfDoc, Rgb};
 
 use super::*;
 
@@ -464,8 +464,8 @@ fn rgb_of(c: Color, wb: &Workbook) -> Option<Rgb> {
     c.resolve(&wb.theme)
 }
 
-fn numfmt_rgb(c: sheetcraft_numfmt::FormatColor) -> Rgb {
-    use sheetcraft_numfmt::FormatColor as F;
+fn numfmt_rgb(c: gridcraft_numfmt::FormatColor) -> Rgb {
+    use gridcraft_numfmt::FormatColor as F;
     match c {
         F::Black | F::Indexed(_) => [0, 0, 0],
         F::Blue => [0, 0, 255],
@@ -539,9 +539,9 @@ fn cell_look(wb: &Workbook, si: usize, sh: &Sheet, c: CellRef, cf: &mut Option<c
 /// PDF measurement for chart layout.
 struct PdfMeasure;
 
-impl sheetcraft_chart::Measure for PdfMeasure {
+impl gridcraft_chart::Measure for PdfMeasure {
     fn text_width(&self, text: &str, size: f32, bold: bool) -> f32 {
-        sheetcraft_pdf::text_width(if bold { Font::HelveticaBold } else { Font::Helvetica }, size, text)
+        gridcraft_pdf::text_width(if bold { Font::HelveticaBold } else { Font::Helvetica }, size, text)
     }
 }
 
@@ -563,8 +563,8 @@ impl Xf {
 }
 
 /// Draws chart primitives onto a page.
-fn draw_prims(pg: &mut Page, prims: &[sheetcraft_chart::Prim], xf: Xf) {
-    use sheetcraft_chart::{HAlign as H, Prim, VAlign as V};
+fn draw_prims(pg: &mut Page, prims: &[gridcraft_chart::Prim], xf: Xf) {
+    use gridcraft_chart::{HAlign as H, Prim, VAlign as V};
     let k = xf.k;
     for p in prims {
         match p {
@@ -603,7 +603,7 @@ fn draw_prims(pg: &mut Page, prims: &[sheetcraft_chart::Prim], xf: Xf) {
             Prim::Text { x, y, text, size, color, bold, align, valign, rotation } => {
                 let font = if *bold { Font::HelveticaBold } else { Font::Helvetica };
                 let size = size * k;
-                let w = sheetcraft_pdf::text_width(font, size, text);
+                let w = gridcraft_pdf::text_width(font, size, text);
                 let dx = match align {
                     H::Left => 0.0,
                     H::Center => -w / 2.0,
@@ -631,18 +631,18 @@ fn wrap_lines(text: &str, font: Font, size: f32, width: f32) -> Vec<String> {
         let mut line = String::new();
         for word in para.split(' ') {
             let cand = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
-            if line.is_empty() || sheetcraft_pdf::text_width(font, size, &cand) <= width {
+            if line.is_empty() || gridcraft_pdf::text_width(font, size, &cand) <= width {
                 line = cand;
             } else {
                 out.push(std::mem::take(&mut line));
                 line = word.to_string();
             }
             // Break a single over-long word by characters.
-            while sheetcraft_pdf::text_width(font, size, &line) > width && line.chars().count() > 1 {
+            while gridcraft_pdf::text_width(font, size, &line) > width && line.chars().count() > 1 {
                 let mut cut = String::new();
                 let mut rest = String::new();
                 for ch in line.chars() {
-                    if rest.is_empty() && sheetcraft_pdf::text_width(font, size, &format!("{cut}{ch}")) <= width || cut.is_empty() {
+                    if rest.is_empty() && gridcraft_pdf::text_width(font, size, &format!("{cut}{ch}")) <= width || cut.is_empty() {
                         cut.push(ch);
                     } else {
                         rest.push(ch);
@@ -887,9 +887,9 @@ fn draw_text(pg: &mut Page, b: &Block, c: CellRef, l: &Look, rect: (f32, f32, f3
     } else if code == "General"
         && let Value::Number(n) = v
     {
-        let digit = sheetcraft_pdf::text_width(font, size, "0").max(0.1);
+        let digit = gridcraft_pdf::text_width(font, size, "0").max(0.1);
         let max_chars = (avail / digit).floor().max(1.0) as usize;
-        sheetcraft_numfmt::format_general_fit(n, max_chars.min(11)).unwrap_or_else(|| "#".repeat(max_chars.min(255)))
+        gridcraft_numfmt::format_general_fit(n, max_chars.min(11)).unwrap_or_else(|| "#".repeat(max_chars.min(255)))
     } else {
         crate::display::cell_text(wb, sh, c)
     };
@@ -899,15 +899,15 @@ fn draw_text(pg: &mut Page, b: &Block, c: CellRef, l: &Look, rect: (f32, f32, f3
     if text.is_empty() {
         return;
     }
-    let mut tw = sheetcraft_pdf::text_width(font, size, &text);
+    let mut tw = gridcraft_pdf::text_width(font, size, &text);
     if st.align.shrink && !wrap && tw > avail && tw > 0.0 {
         size = (size * avail / tw).max(1.0);
-        tw = sheetcraft_pdf::text_width(font, size, &text);
+        tw = gridcraft_pdf::text_width(font, size, &text);
     }
     if is_num && !wrap && tw > avail + 0.01 && !sh.show_formulas {
-        let hash = sheetcraft_pdf::text_width(font, size, "#").max(0.1);
+        let hash = gridcraft_pdf::text_width(font, size, "#").max(0.1);
         text = "#".repeat(((avail / hash).floor().max(1.0) as usize).min(255));
-        tw = sheetcraft_pdf::text_width(font, size, &text);
+        tw = gridcraft_pdf::text_width(font, size, &text);
     }
     let h_align = match st.align.h {
         HAlign::General => {
@@ -984,7 +984,7 @@ fn draw_text(pg: &mut Page, b: &Block, c: CellRef, l: &Look, rect: (f32, f32, f3
         let mut yy = y + pad + size * 0.8;
         for ch in chars {
             let s = ch.to_string();
-            let cw = sheetcraft_pdf::text_width(font, size, &s);
+            let cw = gridcraft_pdf::text_width(font, size, &s);
             pg.text(x + (w - cw) / 2.0, yy, size, font, color, &s);
             yy += line_h;
             if yy > y + h + line_h {
@@ -995,7 +995,7 @@ fn draw_text(pg: &mut Page, b: &Block, c: CellRef, l: &Look, rect: (f32, f32, f3
         return;
     }
     for (i, line) in lines.iter().enumerate() {
-        let lw = sheetcraft_pdf::text_width(font, size, line);
+        let lw = gridcraft_pdf::text_width(font, size, line);
         let lx = match h_align {
             HAlign::Right => x + w - pad - lw - indent,
             HAlign::Center => x + (w - lw) / 2.0,
@@ -1053,14 +1053,14 @@ fn draw_objects(pg: &mut Page, wb: &Workbook, si: usize, sh: &Sheet, b: &Block) 
         if !block.contains(sp.cell) {
             continue;
         }
-        let vals: Vec<Option<f64>> = match sheetcraft_calc::evaluate(wb, si, sp.cell, &sp.source) {
+        let vals: Vec<Option<f64>> = match gridcraft_calc::evaluate(wb, si, sp.cell, &sp.source) {
             Value::Array(a) => a.iter().take(10_000).map(Value::as_f64).collect(),
             v => vec![v.as_f64()],
         };
         let color = rgb_of(sp.color, wb).unwrap_or([0x15, 0x60, 0x82]);
         let (x, y, w, h) = b.rect(RangeRef::cell(sp.cell));
         let (wpx, hpx) = (w / b.k, h / b.k);
-        let prims = sheetcraft_chart::render_sparkline(sp.kind, &vals, [color[0], color[1], color[2], 255], sp.markers, wpx, hpx);
+        let prims = gridcraft_chart::render_sparkline(sp.kind, &vals, [color[0], color[1], color[2], 255], sp.markers, wpx, hpx);
         draw_prims(pg, &prims, Xf { ox: x, oy: y, k: b.k });
     }
     for im in &sh.images {
@@ -1113,7 +1113,7 @@ fn draw_objects(pg: &mut Page, wb: &Workbook, si: usize, sh: &Sheet, b: &Block) 
             let lines = wrap_lines(&shp.text, Font::Helvetica, size, (w - 4.0 * b.k).max(size));
             let mut yy = y + 2.0 * b.k + size * 0.8;
             for l in lines.iter().take(500) {
-                let lw = sheetcraft_pdf::text_width(Font::Helvetica, size, l);
+                let lw = gridcraft_pdf::text_width(Font::Helvetica, size, l);
                 let lx = if shp.kind == ShapeKind::TextBox { x + 2.0 * b.k } else { x + (w - lw) / 2.0 };
                 pg.text(lx, yy, size, Font::Helvetica, [0, 0, 0], l);
                 yy += size * 1.2;
@@ -1126,8 +1126,8 @@ fn draw_objects(pg: &mut Page, wb: &Workbook, si: usize, sh: &Sheet, b: &Block) 
             continue;
         }
         let (x, y, _, _) = place(r);
-        let data = sheetcraft_chart::resolve(wb, si, ch);
-        let prims = sheetcraft_chart::render(ch, &data, r.2 as f32, r.3 as f32, &PdfMeasure);
+        let data = gridcraft_chart::resolve(wb, si, ch);
+        let prims = gridcraft_chart::render(ch, &data, r.2 as f32, r.3 as f32, &PdfMeasure);
         draw_prims(pg, &prims, Xf { ox: x, oy: y, k: b.k });
     }
     pg.restore();
@@ -1147,8 +1147,8 @@ fn draw_headings(pg: &mut Page, b: &Block, col_heads: bool, row_heads: bool, at:
             }
             pg.fill_rect(x0, y, x1 - x0, size.1, fill);
             pg.rect_stroke(x0, y, x1 - x0, size.1, lw, line);
-            let t = sheetcraft_core::col_to_letters(col);
-            let tw = sheetcraft_pdf::text_width(Font::Helvetica, fsize, &t);
+            let t = gridcraft_core::col_to_letters(col);
+            let tw = gridcraft_pdf::text_width(Font::Helvetica, fsize, &t);
             pg.text(x0 + (x1 - x0 - tw) / 2.0, y + size.1 / 2.0 + fsize * 0.35, fsize, Font::Helvetica, [0x40, 0x40, 0x40], &t);
         }
     }
@@ -1162,7 +1162,7 @@ fn draw_headings(pg: &mut Page, b: &Block, col_heads: bool, row_heads: bool, at:
             pg.fill_rect(x, y0, size.0, y1 - y0, fill);
             pg.rect_stroke(x, y0, size.0, y1 - y0, lw, line);
             let t = (row + 1).to_string();
-            let tw = sheetcraft_pdf::text_width(Font::Helvetica, fsize, &t);
+            let tw = gridcraft_pdf::text_width(Font::Helvetica, fsize, &t);
             pg.text(x + (size.0 - tw) / 2.0, y0 + (y1 - y0) / 2.0 + fsize * 0.35, fsize, Font::Helvetica, [0x40, 0x40, 0x40], &t);
         }
     }
@@ -1182,11 +1182,11 @@ fn draw_header_footer(pg: &mut Page, lay: &SheetLayout, cx: &HfContext) {
                 continue;
             }
             let size = sec.size.unwrap_or(10.0).clamp(1.0, 72.0);
-            let font = Font::styled(sheetcraft_pdf::Family::Sans, sec.bold, sec.italic);
+            let font = Font::styled(gridcraft_pdf::Family::Sans, sec.bold, sec.italic);
             let lines: Vec<&str> = sec.text.split('\n').take(20).collect();
             let n = lines.len() as f32;
             for (j, line) in lines.iter().enumerate() {
-                let lw = sheetcraft_pdf::text_width(font, size, line);
+                let lw = gridcraft_pdf::text_width(font, size, line);
                 let x = match i {
                     0 => l,
                     1 => (pw - lw) / 2.0,
@@ -1241,7 +1241,7 @@ pub fn render_pdf(wb: &Workbook, layouts: &[SheetLayout], file: &str, path: &str
     doc.info.title = if wb.props.title.is_empty() { file.to_string() } else { wb.props.title.clone() };
     doc.info.author = wb.props.author.clone();
     let total: usize = layouts.iter().map(|l| l.pages.len()).sum();
-    let now = sheetcraft_calc::now_serial();
+    let now = gridcraft_calc::now_serial();
     let date = crate::display::format(&Value::Number(now.floor()), "m/d/yyyy", wb).text;
     let time = crate::display::format(&Value::Number(now), "h:mm AM/PM", wb).text;
     let mut page_no = 0usize;
@@ -1349,7 +1349,7 @@ fn print_preview(s: &mut Session, p: &Json) -> Result<Json> {
                 "sheet": name,
                 "range": r.a1(),
                 "rows": format!("{}:{}", rb.0 + 1, rb.1 + 1),
-                "columns": format!("{}:{}", sheetcraft_core::col_to_letters(cb.0), sheetcraft_core::col_to_letters(cb.1)),
+                "columns": format!("{}:{}", gridcraft_core::col_to_letters(cb.0), gridcraft_core::col_to_letters(cb.1)),
                 "scale": (lay.scale * 1000.0).round() / 10.0,
                 "paper": lay.settings.paper,
                 "orientation": if lay.settings.orientation == Orientation::Landscape { "landscape" } else { "portrait" },
@@ -1441,7 +1441,7 @@ fn page_setup(s: &mut Session, p: &Json) -> Result<Json> {
         let mut v: Vec<u32> = a
             .iter()
             .filter_map(|x| match x {
-                Json::String(t) => sheetcraft_core::letters_to_col(t.trim().trim_start_matches('$')),
+                Json::String(t) => gridcraft_core::letters_to_col(t.trim().trim_start_matches('$')),
                 Json::Number(n) => n.as_u64().filter(|c| *c >= 2 && *c <= MAX_COLS as u64).map(|c| c as u32 - 1),
                 _ => None,
             })
@@ -1628,7 +1628,7 @@ mod tests {
     fn export_writes_file() {
         let mut s = s();
         s.execute("cell.set", json!({"cell": "B2", "input": "hello"})).unwrap();
-        let dir = std::env::temp_dir().join(format!("sheetcraft-print-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("gridcraft-print-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("out.pdf");
         let r = s.execute("file.exportPdf", json!({"path": path.to_str().unwrap()})).unwrap();
@@ -1758,7 +1758,7 @@ mod tests {
         assert_eq!(bands(0, 1_000_000, |_| 10.0, |_| 5.0, &[], 3).len(), 3);
         let w = wrap_lines("the quick brown fox jumps", Font::Helvetica, 10.0, 50.0);
         assert!(w.len() >= 2);
-        assert!(w.iter().all(|l| sheetcraft_pdf::text_width(Font::Helvetica, 10.0, l) <= 50.0 || !l.contains(' ')));
+        assert!(w.iter().all(|l| gridcraft_pdf::text_width(Font::Helvetica, 10.0, l) <= 50.0 || !l.contains(' ')));
         let w = wrap_lines("Supercalifragilistic", Font::Helvetica, 10.0, 20.0);
         assert!(w.len() > 2);
     }

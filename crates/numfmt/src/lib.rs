@@ -1,4 +1,4 @@
-//! SheetCraft number formats: Excel format codes (`#,##0.00;[Red](#,##0.00)`, dates, fractions,
+//! GridCraft number formats: Excel format codes (`#,##0.00;[Red](#,##0.00)`, dates, fractions,
 //! scientific…), the General display format and the `TEXT()` worksheet function. en-US only.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
@@ -10,7 +10,7 @@ mod render;
 
 use std::sync::Arc;
 
-use sheetcraft_core::{CellError, DateSystem, Value};
+use gridcraft_core::{CellError, DateSystem, Value};
 
 pub use builtin::{builtin_format, builtin_id};
 pub use decimal::format_general_fit;
@@ -304,7 +304,7 @@ pub fn text_function(v: &Value, code: &str, sys: DateSystem) -> Result<String, C
         Value::Empty => 0.0,
         Value::Number(n) => n,
         Value::Bool(b) => return Ok(if b { "TRUE" } else { "FALSE" }.into()),
-        Value::Text(t) => match sheetcraft_core::parse::parse_number_text(&t) {
+        Value::Text(t) => match gridcraft_core::parse::parse_number_text(&t) {
             Some(n) => n,
             None => return Ok(fmt.format_text(&t).text),
         },

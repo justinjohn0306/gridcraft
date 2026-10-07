@@ -1,16 +1,16 @@
 [package]
-name = "sheetcraft-chart"
+name = "gridcraft-chart"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "SheetCraft charts: data resolution, layout into toolkit-free primitives, sparklines and a small rasteriser"
+description = "GridCraft charts: data resolution, layout into toolkit-free primitives, sparklines and a small rasteriser"
 
 [lints]
 workspace = true
 
 [dependencies]
-sheetcraft-core = { workspace = true }
-sheetcraft-model = { workspace = true }
-sheetcraft-calc = { workspace = true }
-sheetcraft-numfmt = { workspace = true }
+gridcraft-core = { workspace = true }
+gridcraft-model = { workspace = true }
+gridcraft-calc = { workspace = true }
+gridcraft-numfmt = { workspace = true }
 serde = { workspace = true }

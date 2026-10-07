@@ -1,4 +1,4 @@
-//! SheetCraft file formats: XLSX (Office Open XML SpreadsheetML, transitional and strict) and CSV.
+//! GridCraft file formats: XLSX (Office Open XML SpreadsheetML, transitional and strict) and CSV.
 //!
 //! Clean-room implementation from ECMA-376 / ISO/IEC 29500 and observed behaviour. All entry
 //! points work on byte slices (no file system access), so the crate builds for WebAssembly.
@@ -28,8 +28,8 @@ mod xml;
 #[cfg(test)]
 mod tests;
 
-use sheetcraft_core::DateSystem;
-use sheetcraft_model::Workbook;
+use gridcraft_core::DateSystem;
+use gridcraft_model::Workbook;
 
 pub use csv::{read_csv, write_csv};
 

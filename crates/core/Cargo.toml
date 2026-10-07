@@ -1,9 +1,9 @@
 [package]
-name = "sheetcraft-core"
+name = "gridcraft-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "SheetCraft core types: cell addresses, values, errors, date serials"
+description = "GridCraft core types: cell addresses, values, errors, date serials"
 
 [lints]
 workspace = true

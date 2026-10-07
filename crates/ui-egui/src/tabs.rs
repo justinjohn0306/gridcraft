@@ -1,8 +1,8 @@
 //! Sheet tabs and the status bar.
 
 use egui::{Align2, Color32, Rect, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
+use gridcraft_engine::model::Visibility;
 use serde_json::json;
-use sheetcraft_engine::model::Visibility;
 
 use crate::SheetApp;
 use crate::icons::{self, Icon};
@@ -185,14 +185,14 @@ pub fn status_bar(app: &mut SheetApp, ui: &mut Ui) {
         |ui| {
             ui.horizontal_centered(|ui| {
                 let mode = match app.session.mode {
-                    sheetcraft_engine::Mode::Ready => "Ready",
-                    sheetcraft_engine::Mode::Enter => "Enter",
-                    sheetcraft_engine::Mode::Edit => "Edit",
-                    sheetcraft_engine::Mode::Point => "Point",
+                    gridcraft_engine::Mode::Ready => "Ready",
+                    gridcraft_engine::Mode::Enter => "Enter",
+                    gridcraft_engine::Mode::Edit => "Edit",
+                    gridcraft_engine::Mode::Point => "Point",
                 };
                 ui.label(egui::RichText::new(mode).font(theme::ui_font(12.5)).color(t.text_dim));
                 if let Some(d) = app.session.active() {
-                    if d.wb.calc.mode == sheetcraft_engine::model::CalcMode::Manual {
+                    if d.wb.calc.mode == gridcraft_engine::model::CalcMode::Manual {
                         ui.add_space(12.0);
                         ui.label(egui::RichText::new("Calculate").font(theme::ui_font(12.5)).color(t.text_dim));
                     }
@@ -256,11 +256,11 @@ pub fn status_bar(app: &mut SheetApp, ui: &mut Ui) {
                         && let Some(sh) = d.wb.active()
                         && !d.selection.is_single_cell()
                     {
-                        let st = sheetcraft_engine::display::stats(sh, &d.selection.ranges);
+                        let st = gridcraft_engine::display::stats(sh, &d.selection.ranges);
                         let fmt = |v: f64| {
                             let code = d.wb.styles.get(sh.style_id(d.selection.active)).num_fmt.as_str().to_string();
                             let code = if code == "General" { "#,##0.##########".to_string() } else { code };
-                            sheetcraft_engine::display::format(&sheetcraft_engine::core::Value::Number(v), &code, &d.wb)
+                            gridcraft_engine::display::format(&gridcraft_engine::core::Value::Number(v), &code, &d.wb)
                                 .text
                                 .trim_end_matches('.')
                                 .to_string()

@@ -1,4 +1,4 @@
-//! Floating objects on the sheet: charts (rendered by `sheetcraft-chart` into primitives that
+//! Floating objects on the sheet: charts (rendered by `gridcraft-chart` into primitives that
 //! we paint with egui), pictures and shapes.
 
 use std::collections::HashMap;
@@ -6,8 +6,8 @@ use std::sync::Mutex;
 
 use egui::epaint::{PathShape, PathStroke};
 use egui::{Align2, Color32, FontId, Painter, Pos2, Rect, Stroke, StrokeKind, pos2, vec2};
-use sheetcraft_chart::{HAlign, Prim, VAlign};
-use sheetcraft_engine::model::{Anchor, ShapeKind, Sheet, Workbook};
+use gridcraft_chart::{HAlign, Prim, VAlign};
+use gridcraft_engine::model::{Anchor, ShapeKind, Sheet, Workbook};
 
 use crate::SheetApp;
 use crate::grid::Geo;
@@ -22,7 +22,7 @@ struct EguiMeasure<'a> {
     z: f32,
 }
 
-impl sheetcraft_chart::Measure for EguiMeasure<'_> {
+impl gridcraft_chart::Measure for EguiMeasure<'_> {
     fn text_width(&self, text: &str, size: f32, bold: bool) -> f32 {
         let font = if bold { theme::ui_bold(size * self.z) } else { theme::ui_font(size * self.z) };
         self.painter.layout_no_wrap(text.to_string(), font, Color32::BLACK).size().x / self.z.max(0.01)
@@ -218,9 +218,9 @@ pub fn paint_objects(app: &SheetApp, p: &Painter, geo: &Geo, wb: &Workbook, si: 
                 p.add(PathShape::convex_polygon(vec![pos2(r.center().x, r.top()), r.right_bottom(), r.left_bottom()], fill, Stroke::new(1.0, line)));
             }
             ShapeKind::Ink => {
-                let w = sheetcraft_engine::cmd::draw::ink_width(sp) * geo.z;
+                let w = gridcraft_engine::cmd::draw::ink_width(sp) * geo.z;
                 let pts: Vec<Pos2> =
-                    sheetcraft_engine::cmd::draw::ink_points(sp).iter().map(|q| pos2(r.left() + q[0] * geo.z, r.top() + q[1] * geo.z)).collect();
+                    gridcraft_engine::cmd::draw::ink_points(sp).iter().map(|q| pos2(r.left() + q[0] * geo.z, r.top() + q[1] * geo.z)).collect();
                 if pts.len() >= 2 {
                     let col = if w > 8.0 { line.gamma_multiply(0.45) } else { line };
                     p.add(PathShape::line(pts, PathStroke::new(w, col)));
@@ -288,15 +288,15 @@ pub fn paint_objects(app: &SheetApp, p: &Painter, geo: &Geo, wb: &Workbook, si: 
         // Soft shadow + white card.
         p.rect_filled(r.translate(vec2(0.0, 1.5)), 2.0, Color32::from_black_alpha(18));
         p.rect_filled(r, 0.0, Color32::WHITE);
-        let data = sheetcraft_chart::resolve(wb, si, ch);
+        let data = gridcraft_chart::resolve(wb, si, ch);
         let m = EguiMeasure { painter: p, z: geo.z };
-        let prims = sheetcraft_chart::render(ch, &data, ch.anchor.width, ch.anchor.height, &m);
+        let prims = gridcraft_chart::render(ch, &data, ch.anchor.width, ch.anchor.height, &m);
         paint_prims(&p.with_clip_rect(r.intersect(p.clip_rect())), r.min, &prims, geo.z);
         if app.selected_chart == Some(ch.id) {
             selection_frame(p, r);
             // Highlight the source data like Excel does.
             for s in &ch.series {
-                if let Ok(sheetcraft_engine::formula::Expr::Ref(rf)) = sheetcraft_engine::formula::parse(&s.values)
+                if let Ok(gridcraft_engine::formula::Expr::Ref(rf)) = gridcraft_engine::formula::parse(&s.values)
                     && rf.sheet_name().is_none_or(|n| n.eq_ignore_ascii_case(&sh.name))
                 {
                     let rr = geo.range_rect(sh, rf.range());

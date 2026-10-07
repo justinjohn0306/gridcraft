@@ -1,8 +1,8 @@
 //! Date and time functions.
 
-use sheetcraft_core::date::{DateTime, datetime_from_serial, days_in_month, is_leap, serial_from_ymd};
-use sheetcraft_core::parse::parse_input;
-use sheetcraft_core::{CellError, DateSystem, Value};
+use gridcraft_core::date::{DateTime, datetime_from_serial, days_in_month, is_leap, serial_from_ymd};
+use gridcraft_core::parse::parse_input;
+use gridcraft_core::{CellError, DateSystem, Value};
 
 use crate::util::{R, S, arg, as_array, has, num, num_val, opt_bool, opt_num, scalar, text, to_int};
 use crate::{Arg, Ctx, FnSpec};
@@ -565,7 +565,7 @@ pub(crate) fn specs() -> Vec<FnSpec> {
 
 #[cfg(test)]
 mod tests {
-    use sheetcraft_core::{CellError, Value};
+    use gridcraft_core::{CellError, Value};
 
     use crate::util::testutil::*;
 
@@ -748,7 +748,7 @@ mod tests {
 
     #[test]
     fn system_1904() {
-        let mut ctx = TestCtx { sys: sheetcraft_core::DateSystem::D1904, ..TestCtx::default() };
+        let mut ctx = TestCtx { sys: gridcraft_core::DateSystem::D1904, ..TestCtx::default() };
         let spec = crate::lookup("DATE").unwrap();
         close(crate::call(spec, &[n(2000.0), n(1.0), n(1.0)], &mut ctx), 35064.0);
         let spec = crate::lookup("WEEKDAY").unwrap();

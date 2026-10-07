@@ -1,10 +1,10 @@
 //! UI interaction tests: real egui input through the whole app (no GPU needed).
 
 use egui::{Event, Key, Modifiers};
+use gridcraft_engine::Session;
+use gridcraft_engine::core::{CellRef, Value};
+use gridcraft_ui_egui::SheetApp;
 use serde_json::json;
-use sheetcraft_engine::Session;
-use sheetcraft_engine::core::{CellRef, Value};
-use sheetcraft_ui_egui::SheetApp;
 
 fn harness(session: Session) -> egui_kittest::Harness<'static, SheetApp> {
     let mut h = egui_kittest::Harness::builder().with_size(egui::vec2(1200.0, 800.0)).build_ui_state(

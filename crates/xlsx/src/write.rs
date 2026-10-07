@@ -3,9 +3,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 
-use sheetcraft_core::RangeRef;
-use sheetcraft_formula::quote_sheet;
-use sheetcraft_model::{CalcMode, Style, Visibility, Workbook};
+use gridcraft_core::RangeRef;
+use gridcraft_formula::quote_sheet;
+use gridcraft_model::{CalcMode, Style, Visibility, Workbook};
 
 use crate::IoError;
 use crate::package::ZipOut;
@@ -113,7 +113,7 @@ impl Out {
 
 /// `$A$1:$D$20` (or `$1:$3` / `$A:$C`).
 pub fn abs_range(r: &RangeRef) -> String {
-    let c = |col: u32| sheetcraft_core::col_to_letters(col);
+    let c = |col: u32| gridcraft_core::col_to_letters(col);
     if r.is_full_rows() && !r.is_full_cols() {
         return format!("${}:${}", r.start.row + 1, r.end.row + 1);
     }
@@ -220,7 +220,7 @@ pub fn write_xlsx(wb: &Workbook) -> Result<Vec<u8>, IoError> {
     }
 
     let mut w = format!("{XML_DECL}<workbook xmlns=\"{NS_MAIN}\" xmlns:r=\"{NS_REL}\">");
-    w.push_str(if wb.date_system == sheetcraft_core::DateSystem::D1904 { "<workbookPr date1904=\"1\"/>" } else { "<workbookPr/>" });
+    w.push_str(if wb.date_system == gridcraft_core::DateSystem::D1904 { "<workbookPr date1904=\"1\"/>" } else { "<workbookPr/>" });
     if wb.protected_structure {
         w.push_str("<workbookProtection lockStructure=\"1\"/>");
     }
@@ -295,7 +295,7 @@ pub fn write_xlsx(wb: &Workbook) -> Result<Vec<u8>, IoError> {
     core.push_str("</cp:coreProperties>");
     out.part("docProps/core.xml", Some("application/vnd.openxmlformats-package.core-properties+xml"), core.into_bytes());
     let mut app = String::from(XML_DECL);
-    app.push_str("<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\"><Application>SheetCraft</Application>");
+    app.push_str("<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\"><Application>GridCraft</Application>");
     if !p.company.is_empty() {
         let _ = write!(app, "<Company>{}</Company>", esc(&p.company));
     }

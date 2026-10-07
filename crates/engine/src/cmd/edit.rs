@@ -1,8 +1,8 @@
 //! Cell entry, selection, undo/redo, clipboard, clear, fill, find & replace.
 
+use gridcraft_core::{CellRef, MAX_COLS, MAX_ROWS, RangeRef, Value};
+use gridcraft_model::{Cell, Formula, StyleId};
 use serde_json::{Value as Json, json};
-use sheetcraft_core::{CellRef, MAX_COLS, MAX_ROWS, RangeRef, Value};
-use sheetcraft_model::{Cell, Formula, StyleId};
 
 use super::*;
 use crate::selection::{current_region, jump};
@@ -120,7 +120,7 @@ pub fn specs() -> Vec<CommandSpec> {
 
 /// What typing `input` into a cell produces (constant or formula, plus an automatic number
 /// format). Errors when the formula can't be parsed.
-pub(crate) fn input_to_cell(input: &str, old: Option<&Cell>, wb: &mut sheetcraft_model::Workbook) -> Result<Option<Cell>> {
+pub(crate) fn input_to_cell(input: &str, old: Option<&Cell>, wb: &mut gridcraft_model::Workbook) -> Result<Option<Cell>> {
     let style = old.map(|c| c.style).unwrap_or_default();
     if input.is_empty() {
         let c = Cell { value: Value::Empty, formula: None, style };
@@ -133,19 +133,19 @@ pub(crate) fn input_to_cell(input: &str, old: Option<&Cell>, wb: &mut sheetcraft
     let is_formula = input.starts_with('=')
         || (input.len() > 1
             && (input.starts_with('+') || input.starts_with('-'))
-            && sheetcraft_core::parse::parse_number_text(input).is_none()
+            && gridcraft_core::parse::parse_number_text(input).is_none()
             && input.chars().nth(1).is_some_and(|c| c.is_ascii_alphabetic() || c == '('));
     if is_formula {
         let body = input.strip_prefix('=').unwrap_or(input);
         // Excel closes missing parentheses for you.
         let mut text = body.to_string();
-        let mut parsed = sheetcraft_formula::parse(&text);
+        let mut parsed = gridcraft_formula::parse(&text);
         for _ in 0..8 {
             if parsed.is_ok() {
                 break;
             }
             text.push(')');
-            parsed = sheetcraft_formula::parse(&text);
+            parsed = gridcraft_formula::parse(&text);
         }
         let expr = parsed.map_err(|e| EngineError::Other(format!("There's a problem with this formula: {e}")))?;
         let mut cell = Cell::formula(Formula::from_expr(expr));
@@ -168,17 +168,17 @@ pub(crate) fn input_to_cell(input: &str, old: Option<&Cell>, wb: &mut sheetcraft
                 None
             };
             if let Some(code) = auto {
-                cell.style = wb.styles.derive(style, |s| s.num_fmt = sheetcraft_model::NumFmt::new(code));
+                cell.style = wb.styles.derive(style, |s| s.num_fmt = gridcraft_model::NumFmt::new(code));
             }
         }
         return Ok(Some(cell));
     }
-    let parsed = sheetcraft_core::parse::parse_input(input, wb.date_system);
+    let parsed = gridcraft_core::parse::parse_input(input, wb.date_system);
     let mut style = style;
     if let Some(code) = parsed.format {
         let cur = wb.styles.get(style).num_fmt.as_str().to_string();
         if cur == "General" {
-            style = wb.styles.derive(style, |s| s.num_fmt = sheetcraft_model::NumFmt::new(code));
+            style = wb.styles.derive(style, |s| s.num_fmt = gridcraft_model::NumFmt::new(code));
         }
     }
     // Wrap text automatically when the input has line breaks (Alt+Enter).
@@ -308,7 +308,7 @@ fn range_fill(s: &mut Session, p: &Json) -> Result<Json> {
                 if let Some(f) = &cell.formula
                     && let Some(e) = f.expr()
                 {
-                    let shifted = sheetcraft_formula::adjust::shift_relative(e, at.row as i64 - origin.row as i64, at.col as i64 - origin.col as i64);
+                    let shifted = gridcraft_formula::adjust::shift_relative(e, at.row as i64 - origin.row as i64, at.col as i64 - origin.col as i64);
                     cell.formula = Some(std::sync::Arc::new(Formula::from_expr(shifted)));
                 }
                 cell.style = cx.wb.sheet(sheet).and_then(|sh| sh.cell(at)).map(|c| c.style).unwrap_or(cell.style);
@@ -777,7 +777,7 @@ fn paste_special(s: &mut Session, p: &Json) -> Result<Json> {
     edit(s, |cx| {
         // Styles from another workbook must be re-interned.
         let mut style_map = std::collections::HashMap::new();
-        let mut map_style = |id: StyleId, wb: &mut sheetcraft_model::Workbook| -> StyleId {
+        let mut map_style = |id: StyleId, wb: &mut gridcraft_model::Workbook| -> StyleId {
             if same_doc {
                 return id;
             }
@@ -817,14 +817,14 @@ fn paste_special(s: &mut Session, p: &Json) -> Result<Json> {
                                 return Some(std::sync::Arc::new(Formula::from_expr(e)));
                             }
                             let moved =
-                                sheetcraft_formula::adjust::shift_relative(e, dest.row as i64 - sc.row as i64, dest.col as i64 - sc.col as i64);
+                                gridcraft_formula::adjust::shift_relative(e, dest.row as i64 - sc.row as i64, dest.col as i64 - sc.col as i64);
                             Some(std::sync::Arc::new(Formula::from_expr(moved)))
                         };
                         if link {
                             let sheet_prefix = if dest_sheet == clip.sheet && same_doc {
                                 String::new()
                             } else {
-                                format!("{}!", sheetcraft_formula::quote_sheet(&src_sheet_name))
+                                format!("{}!", gridcraft_formula::quote_sheet(&src_sheet_name))
                             };
                             new.formula = Some(std::sync::Arc::new(Formula::new(&format!("={sheet_prefix}{}", sc.a1()))));
                             new.value = Value::Empty;
@@ -878,7 +878,7 @@ fn paste_special(s: &mut Session, p: &Json) -> Result<Json> {
                                         "multiply" => Value::number(x * y),
                                         "divide" => {
                                             if y == 0.0 {
-                                                Value::Error(sheetcraft_core::CellError::Div0)
+                                                Value::Error(gridcraft_core::CellError::Div0)
                                             } else {
                                                 Value::number(x / y)
                                             }
@@ -930,7 +930,7 @@ fn paste_special(s: &mut Session, p: &Json) -> Result<Json> {
             // References elsewhere to the moved block now point to its new place.
             let dest_name = cx.wb.sheet(dest_sheet).map(|s| s.name.clone()).unwrap_or_default();
             if dest_sheet == clip.sheet {
-                let e = sheetcraft_formula::adjust::Edit::Move { from: src, to_row: at.row, to_col: at.col };
+                let e = gridcraft_formula::adjust::Edit::Move { from: src, to_row: at.row, to_col: at.col };
                 rewrite_all_formulas(&mut cx.wb, &src_sheet_name, &e);
             }
             let _ = dest_name;
@@ -947,7 +947,7 @@ fn paste_special(s: &mut Session, p: &Json) -> Result<Json> {
 }
 
 /// Applies a reference adjustment to every formula in the workbook (and names, CF, DV).
-pub(crate) fn rewrite_all_formulas(wb: &mut sheetcraft_model::Workbook, target: &str, e: &sheetcraft_formula::adjust::Edit) {
+pub(crate) fn rewrite_all_formulas(wb: &mut gridcraft_model::Workbook, target: &str, e: &gridcraft_formula::adjust::Edit) {
     for si in 0..wb.sheets.len() {
         let host = wb.sheets.get(si).map(|s| s.name.clone()).unwrap_or_default();
         let keys: Vec<(CellRef, std::sync::Arc<Formula>)> =
@@ -958,8 +958,8 @@ pub(crate) fn rewrite_all_formulas(wb: &mut sheetcraft_model::Workbook, target: 
         let Some(sheet) = wb.sheet_mut(si) else { continue };
         for (c, f) in keys {
             let Some(expr) = f.expr() else { continue };
-            let new = sheetcraft_formula::adjust::adjust(expr, &host, target, e);
-            let text = sheetcraft_formula::print(&new);
+            let new = gridcraft_formula::adjust::adjust(expr, &host, target, e);
+            let text = gridcraft_formula::print(&new);
             if text != f.text
                 && let Some(cell) = sheet.cells.get_mut(c)
             {
@@ -970,10 +970,10 @@ pub(crate) fn rewrite_all_formulas(wb: &mut sheetcraft_model::Workbook, target: 
         }
     }
     for n in wb.names.iter_mut() {
-        if let Ok(expr) = sheetcraft_formula::parse(&n.formula) {
+        if let Ok(expr) = gridcraft_formula::parse(&n.formula) {
             // Names are workbook-level: unqualified refs don't occur; qualified ones adjust.
-            let new = sheetcraft_formula::adjust::adjust(expr, "\u{0}", target, e);
-            n.formula = sheetcraft_formula::print(&new);
+            let new = gridcraft_formula::adjust::adjust(expr, "\u{0}", target, e);
+            n.formula = gridcraft_formula::print(&new);
         }
     }
 }

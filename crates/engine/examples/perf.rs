@@ -1,10 +1,10 @@
 //! Performance scenarios on large workbooks (release build):
-//! `cargo run --release -p sheetcraft-engine --example perf -- [rows]`
+//! `cargo run --release -p gridcraft-engine --example perf -- [rows]`
 
 use std::time::Instant;
 
+use gridcraft_engine::Session;
 use serde_json::json;
-use sheetcraft_engine::Session;
 
 fn main() {
     let rows: usize = std::env::args().nth(1).and_then(|s| s.parse().ok()).unwrap_or(100_000);

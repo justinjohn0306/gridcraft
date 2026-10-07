@@ -122,7 +122,7 @@ pub struct Theme {
 }
 
 impl Default for Theme {
-    /// SheetCraft's own default theme ("Craft"): original palette.
+    /// GridCraft's own default theme ("Craft"): original palette.
     fn default() -> Self {
         Theme {
             name: "Craft".into(),

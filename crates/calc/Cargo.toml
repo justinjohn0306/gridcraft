@@ -1,17 +1,17 @@
 [package]
-name = "sheetcraft-calc"
+name = "gridcraft-calc"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "SheetCraft calculation engine: dependency graph, recalculation, evaluator, dynamic arrays"
+description = "GridCraft calculation engine: dependency graph, recalculation, evaluator, dynamic arrays"
 
 [lints]
 workspace = true
 
 [dependencies]
-sheetcraft-core = { workspace = true }
-sheetcraft-formula = { workspace = true }
-sheetcraft-functions = { workspace = true }
-sheetcraft-numfmt = { workspace = true }
-sheetcraft-model = { workspace = true }
+gridcraft-core = { workspace = true }
+gridcraft-formula = { workspace = true }
+gridcraft-functions = { workspace = true }
+gridcraft-numfmt = { workspace = true }
+gridcraft-model = { workspace = true }
 log = { workspace = true }

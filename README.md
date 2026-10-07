@@ -7,7 +7,7 @@
   </a>
 </p>
 
-<h1 align="center">SheetCraft</h1>
+<h1 align="center">GridCraft</h1>
 
 <p align="center">
   <b>Spreadsheets and data; an open-source, clean-room reimplementation of Microsoft Excel, rebuilt in pure Rust.</b>
@@ -31,7 +31,7 @@
 </p>
 
 <p align="center">
-  <a href="https://getartcraft.com/apps/sheetcraft"><b>SheetCraft on getartcraft.com</b></a> ·
+  <a href="https://getartcraft.com/apps/gridcraft"><b>GridCraft on getartcraft.com</b></a> ·
   <a href="https://getartcraft.com/">ArtCraft</a> ·
   <a href="https://getartcraft.com/apps">All Crafting Apps</a>
 </p>
@@ -39,8 +39,8 @@
 <br>
 
 <p align="center">
-  <img src="docs/images/hero-sales.png" alt="SheetCraft showing a quarterly sales dashboard: a styled table with banded rows, filter buttons, a totals row, data bars, arrow icons and sparklines, next to a clustered column chart and a pie chart" width="100%">
-  <br><sub><b>Quarterly Sales Dashboard</b>: a table with a totals row, conditional formatting, sparklines and two live charts — built entirely from SheetCraft commands (<code>File → New → Sample</code>).</sub>
+  <img src="docs/images/hero-sales.png" alt="GridCraft showing a quarterly sales dashboard: a styled table with banded rows, filter buttons, a totals row, data bars, arrow icons and sparklines, next to a clustered column chart and a pie chart" width="100%">
+  <br><sub><b>Quarterly Sales Dashboard</b>: a table with a totals row, conditional formatting, sparklines and two live charts — built entirely from GridCraft commands (<code>File → New → Sample</code>).</sub>
 </p>
 
 > [!NOTE]
@@ -50,7 +50,7 @@
 
 <p align="center">
   <a href="#a-look-around">A look around</a> ·
-  <a href="#why-sheetcraft">Why SheetCraft</a> ·
+  <a href="#why-gridcraft">Why GridCraft</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#for-agents-mcp-cli-and-the-control-channel">For agents</a> ·
   <a href="#architecture">Architecture</a> ·
@@ -72,11 +72,11 @@
 </tr>
 </table>
 
-## Why SheetCraft
+## Why GridCraft
 
 - **Familiar.** Excel's ribbon, formula bar, Name Box, sheet tabs, keyboard shortcuts, fill
   handle, point-mode formula entry with coloured references, Format Cells, Paste Special,
-  conditional formatting, tables, charts and more. If you know Excel, you already know SheetCraft.
+  conditional formatting, tables, charts and more. If you know Excel, you already know GridCraft.
 - **Compatible.** XLSX is the native format: styles, themes, formulas (including dynamic arrays),
   tables, conditional formats, validation, comments, hyperlinks, charts, pictures, sparklines and
   print settings round-trip. CSV and TSV too.
@@ -94,18 +94,18 @@
 ## Quick start
 
 ```sh
-cargo run --release -p sheetcraft                              # desktop app
-cargo run --release -p sheetcraft -- --sample sales            # open a sample (sales, budget, grades)
-cargo run --release -p sheetcraft -- book.xlsx                 # open a workbook
-cargo run --release -p sheetcraft -- --sample sales --control 7979   # + JSON control channel
+cargo run --release -p gridcraft                              # desktop app
+cargo run --release -p gridcraft -- --sample sales            # open a sample (sales, budget, grades)
+cargo run --release -p gridcraft -- book.xlsx                 # open a workbook
+cargo run --release -p gridcraft -- --sample sales --control 7979   # + JSON control channel
 cargo xtask ci                                                 # fmt, clippy, tests, assets, layering, wasm
 ```
 
 ### Web
 
 ```sh
-cd apps/sheetcraft-web && trunk build --release     # → dist/web (serve it with any static server)
-cd apps/sheetcraft-web && trunk serve --release     # http://127.0.0.1:8771  (?sample=sales opens a sample)
+cd apps/gridcraft-web && trunk build --release     # → dist/web (serve it with any static server)
+cd apps/gridcraft-web && trunk serve --release     # http://127.0.0.1:8771  (?sample=sales opens a sample)
 ```
 
 You need [trunk](https://trunkrs.dev) and the `wasm32-unknown-unknown` target. Open uses the
@@ -114,23 +114,23 @@ browser's file picker (dropping files works too) and Save downloads the workbook
 ## For agents: MCP, CLI and the control channel
 
 ```sh
-claude mcp add sheetcraft -- sheetcraft-cli mcp                 # headless MCP server
-sheetcraft-cli mcp --connect 7979                               # MCP bridged to a running window
-sheetcraft-cli eval '=XLOOKUP("b",{"a","b"},{1,2})'             # → 2
-sheetcraft-cli run --sample budget --cmd 'home.bold={"range":"B4:F4"}' --out budget.xlsx
-sheetcraft-cli cat budget.xlsx --range B4:F15                   # aligned text table
-sheetcraft-cli commands --search chart                          # every command and its params
+claude mcp add gridcraft -- gridcraft-cli mcp                 # headless MCP server
+gridcraft-cli mcp --connect 7979                               # MCP bridged to a running window
+gridcraft-cli eval '=XLOOKUP("b",{"a","b"},{1,2})'             # → 2
+gridcraft-cli run --sample budget --cmd 'home.bold={"range":"B4:F4"}' --out budget.xlsx
+gridcraft-cli cat budget.xlsx --range B4:F15                   # aligned text table
+gridcraft-cli commands --search chart                          # every command and its params
 ```
 
 The MCP server offers tools such as `read_range`, `write_range`, `set_cell`, `evaluate_formula`,
 `format_range`, `insert_chart`, `create_table`, `sort_range`, `filter` and `execute_command`
-(which reaches every one of SheetCraft's commands). The desktop app's control channel adds real
+(which reaches every one of GridCraft's commands). The desktop app's control channel adds real
 pointer and keyboard input, dialogs and screenshots. See [`docs/mcp.md`](docs/mcp.md),
 [`docs/cli.md`](docs/cli.md) and [`docs/control-protocol.md`](docs/control-protocol.md).
 
 ## Architecture
 
-SheetCraft is an engine-first Cargo workspace with enforced layering (`cargo xtask layers`). The
+GridCraft is an engine-first Cargo workspace with enforced layering (`cargo xtask layers`). The
 egui frontend is a separate crate, so the UI can be swapped without touching the engine.
 
 | Layer | Crates |
@@ -141,7 +141,7 @@ egui frontend is a separate crate, so the UI can be swapped without touching the
 | L3 | `chart` (toolkit-free chart layout and rendering) |
 | L5 | `engine` (session, commands, history, clipboard, fill, sort, filter, file I/O) |
 | L6 | `ui-egui` (Excel-style UI, control channel) · `mcp` (MCP server) |
-| L7 | `apps/sheetcraft`, `apps/sheetcraft-cli`, `apps/sheetcraft-web` |
+| L7 | `apps/gridcraft`, `apps/gridcraft-cli`, `apps/gridcraft-web` |
 
 - **Contributor and agent rules** (clean-room, asset policy, never-crash, quality gates): [`AGENTS.md`](AGENTS.md)
 - **Bundled assets:** each one is listed with its licence in [`ATTRIBUTION.md`](ATTRIBUTION.md)
@@ -149,14 +149,14 @@ egui frontend is a separate crate, so the UI can be swapped without touching the
 
 ## Roadmap
 
-SheetCraft is pre-alpha and moving fast. Today it covers 60% of Excel's ribbon and menu
+GridCraft is pre-alpha and moving fast. Today it covers 60% of Excel's ribbon and menu
 commands ([`docs/parity.md`](docs/parity.md)) and about 93% of its worksheet functions. PivotTables,
 printing and PDF, page layout view, deeper chart formatting and scripting come next. The plan
 and estimates are in [ROADMAP.md](ROADMAP.md).
 
 ## The Crafting Apps
 
-SheetCraft is one of the **Crafting Apps**: free, open-source creative tools from the
+GridCraft is one of the **Crafting Apps**: free, open-source creative tools from the
 [ArtCraft](https://getartcraft.com/) team, each written from scratch in Rust and each able to
 stand on its own.
 
@@ -169,7 +169,7 @@ stand on its own.
 | <img src="https://raw.githubusercontent.com/storytold/printcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.printcraft.png" alt="" width="32" height="32"> | **PrintCraft** | Reading, organizing and protecting PDFs | [GitHub](https://github.com/storytold/printcraft) | [Website](https://getartcraft.com/apps/printcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/effectcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.effectcraft.png" alt="" width="32" height="32"> | **EffectCraft** | Motion graphics and visual effects | [GitHub](https://github.com/storytold/effectcraft) | [Website](https://getartcraft.com/apps/effectcraft) |
 | <img src="https://raw.githubusercontent.com/storytold/designcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.designcraft.png" alt="" width="32" height="32"> | **DesignCraft** | Page layout and publishing | [GitHub](https://github.com/storytold/designcraft) | [Website](https://getartcraft.com/apps/designcraft) |
-| <img src="https://raw.githubusercontent.com/storytold/sheetcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.sheetcraft.png" alt="" width="32" height="32"> | **SheetCraft** | **Spreadsheets and data · you are here** | [GitHub](https://github.com/storytold/sheetcraft) | [Website](https://getartcraft.com/apps/sheetcraft) |
+| <img src="https://raw.githubusercontent.com/storytold/gridcraft/main/assets/app-icon/hicolor/64x64/apps/ai.storyteller.gridcraft.png" alt="" width="32" height="32"> | **GridCraft** | **Spreadsheets and data · you are here** | [GitHub](https://github.com/storytold/gridcraft) | [Website](https://getartcraft.com/apps/gridcraft) |
 
 And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video studio for artists who want real control.
 
@@ -192,27 +192,27 @@ And [**ArtCraft**](https://getartcraft.com/) itself, our AI image and video stud
   <a href="https://discord.gg/artcraft"><b>discord.gg/artcraft</b></a> ·
   <a href="https://getartcraft.com/">getartcraft.com</a> ·
   <a href="https://getartcraft.com/apps">The Crafting Apps</a> ·
-  <a href="https://getartcraft.com/apps/sheetcraft">SheetCraft</a>
+  <a href="https://getartcraft.com/apps/gridcraft">GridCraft</a>
 </p>
 
 ## License and credits
 
-SheetCraft is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
-Copyright (c) 2026 ArtCraft Team and the SheetCraft contributors. Required notices are in [NOTICE](NOTICE).
+GridCraft is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.
+Copyright (c) 2026 ArtCraft Team and the GridCraft contributors. Required notices are in [NOTICE](NOTICE).
 
 Bundled fonts, icons, images and other assets keep their own open licenses; each one is listed
 with its author, source and license in [ATTRIBUTION.md](ATTRIBUTION.md).
 
 All UI icons are drawn in code and are original; the sample workbooks and every screenshot in
-this README were made with SheetCraft itself. SheetCraft bundles no fonts: it uses the fonts
+this README were made with GridCraft itself. GridCraft bundles no fonts: it uses the fonts
 installed on your system.
 
 The ArtCraft name, wordmark and logos in [`docs/brand/`](docs/brand/) are trademarks of the
 ArtCraft Team and are not covered by this license. They may be used only unmodified, and only as
-part of this repository and SheetCraft, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
+part of this repository and GridCraft, under [`docs/brand/LICENSE-brand.txt`](docs/brand/LICENSE-brand.txt).
 Forks and modified versions must remove them.
 
-<sub>Microsoft, Excel and Microsoft 365 are trademarks or registered trademarks of Microsoft Corporation in the United States and/or other countries. SheetCraft is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Microsoft Corporation; these names are used only to describe the workflows it is compatible with.</sub>
+<sub>Microsoft, Excel and Microsoft 365 are trademarks or registered trademarks of Microsoft Corporation in the United States and/or other countries. GridCraft is an independent, open-source project and is not affiliated with, sponsored by or endorsed by Microsoft Corporation; these names are used only to describe the workflows it is compatible with.</sub>
 
 <br>
 

@@ -1,5 +1,5 @@
-use sheetcraft_core::{CellError, CellRef, Value};
-use sheetcraft_model::{Cell, Formula, Workbook};
+use gridcraft_core::{CellError, CellRef, Value};
+use gridcraft_model::{Cell, Formula, Workbook};
 
 use crate::Calc;
 
@@ -20,7 +20,7 @@ impl T {
         let cell = if input.starts_with('=') {
             Cell::formula(Formula::new(input))
         } else {
-            Cell::value(sheetcraft_core::parse::parse_input(input, self.wb.date_system).value)
+            Cell::value(gridcraft_core::parse::parse_input(input, self.wb.date_system).value)
         };
         self.wb.sheet_mut(0).unwrap().cells.set(c(at), cell);
         self.calc.cells_changed(&mut self.wb, &[(0, c(at))]);
@@ -174,8 +174,8 @@ fn let_lambda() {
 #[test]
 fn names_and_sheets() {
     let mut t = T::new();
-    t.wb.names.push(sheetcraft_model::DefinedName { name: "Rate".into(), scope: None, formula: "0.5".into(), comment: String::new(), hidden: false });
-    t.wb.sheets.push(std::sync::Arc::new(sheetcraft_model::Sheet::new("Data")));
+    t.wb.names.push(gridcraft_model::DefinedName { name: "Rate".into(), scope: None, formula: "0.5".into(), comment: String::new(), hidden: false });
+    t.wb.sheets.push(std::sync::Arc::new(gridcraft_model::Sheet::new("Data")));
     t.wb.sheet_mut(1).unwrap().set_value(c("A1"), Value::Number(8.0));
     t.calc.rebuild(&t.wb);
     t.set("A1", "=Rate*Data!A1");
@@ -198,7 +198,7 @@ fn subtotal_skips_hidden() {
     t.set("A1", "1");
     t.set("A2", "2");
     t.set("A3", "3");
-    t.wb.sheet_mut(0).unwrap().rows.insert(1, sheetcraft_model::LineInfo { hidden: true, ..Default::default() });
+    t.wb.sheet_mut(0).unwrap().rows.insert(1, gridcraft_model::LineInfo { hidden: true, ..Default::default() });
     t.set("B1", "=SUBTOTAL(109,A1:A3)");
     t.set("B2", "=SUBTOTAL(9,A1:A3)");
     assert_eq!(t.num("B1"), 4.0);

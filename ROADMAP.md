@@ -1,6 +1,6 @@
-# SheetCraft roadmap
+# GridCraft roadmap
 
-SheetCraft aims at full Microsoft Excel parity — and to be better: faster, open (XLSX is the
+GridCraft aims at full Microsoft Excel parity — and to be better: faster, open (XLSX is the
 native format), fully scriptable by agents (MCP + control channel + CLI), and available on the
 web.
 
@@ -81,4 +81,4 @@ work** (≈ 9–10 days running continuously with 3–4 parallel agents), broken
 
 - `cargo xtask parity` — catalog coverage (feature names from Excel's ribbon and menus).
 - `cargo test --workspace` — engine, formula, function, XLSX and UI behaviour.
-- `cargo run --release -p sheetcraft-ui-egui --example snapshot -- --sample sales out.png` — look at the UI offscreen.
+- `cargo run --release -p gridcraft-ui-egui --example snapshot -- --sample sales out.png` — look at the UI offscreen.

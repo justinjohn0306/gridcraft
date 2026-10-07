@@ -1,5 +1,5 @@
-//! SheetCraft's egui frontend: an Excel-style window (title bar with Quick Access Toolbar,
-//! ribbon, formula bar, grid, sheet tabs, status bar) over `sheetcraft-engine`.
+//! GridCraft's egui frontend: an Excel-style window (title bar with Quick Access Toolbar,
+//! ribbon, formula bar, grid, sheet tabs, status bar) over `gridcraft-engine`.
 //!
 //! The UI is thin: it reads engine state and acts through [`SheetApp::run`] (engine commands by
 //! id). Everything it can do is also reachable over the control channel ([`control`]).
@@ -22,10 +22,10 @@ pub mod widgets;
 
 use std::collections::HashMap;
 
+use gridcraft_engine::core::{CellRef, RangeRef};
+use gridcraft_engine::{Session, UiRequest};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
-use sheetcraft_engine::core::{CellRef, RangeRef};
-use sheetcraft_engine::{Session, UiRequest};
 
 pub use control::{ControlRequest, ControlResponse};
 
@@ -161,7 +161,7 @@ impl SheetApp {
             if e.contains("is not available right now") {
                 self.toast = Some((e, now_ms()));
             } else {
-                self.message = Some(("SheetCraft".into(), clean_error(&e)));
+                self.message = Some(("GridCraft".into(), clean_error(&e)));
             }
         }
     }
@@ -205,7 +205,7 @@ impl SheetApp {
         for req in self.session.take_ui_requests() {
             match req {
                 UiRequest::Dialog(name, params) => self.open_dialog(&name, params),
-                UiRequest::Message(m) => self.message = Some(("SheetCraft".into(), m)),
+                UiRequest::Message(m) => self.message = Some(("GridCraft".into(), m)),
                 UiRequest::EditCell(text) => self.begin_edit(text, false),
                 UiRequest::OpenUrl(u) => {
                     if let Some(f) = &self.services.open_url {
@@ -236,7 +236,7 @@ impl SheetApp {
                     }
                 } else if let Some(dl) = &self.services.download
                     && let Ok(r) = self.session.run("file.saveBytes", json!({"format": "xlsx"}))
-                    && let Some(b) = r.get("base64").and_then(Json::as_str).and_then(sheetcraft_engine::io::base64_decode)
+                    && let Some(b) = r.get("base64").and_then(Json::as_str).and_then(gridcraft_engine::io::base64_decode)
                 {
                     let name = r.get("name").and_then(Json::as_str).unwrap_or("Book.xlsx").to_string();
                     dl(&name, &b);
@@ -253,7 +253,7 @@ impl SheetApp {
                 self.ui.recent.insert(0, path.to_string());
                 self.ui.recent.truncate(20);
             }
-            Err(e) => self.message = Some(("SheetCraft".into(), clean_error(&e))),
+            Err(e) => self.message = Some(("GridCraft".into(), clean_error(&e))),
         }
         self.after_engine();
     }
@@ -286,26 +286,26 @@ impl SheetApp {
             ed.completion = editor::column_completion(sh, at, &ed.text);
         }
         self.editor = Some(ed);
-        self.session.mode = if replace { sheetcraft_engine::Mode::Enter } else { sheetcraft_engine::Mode::Edit };
+        self.session.mode = if replace { gridcraft_engine::Mode::Enter } else { gridcraft_engine::Mode::Edit };
     }
 
     /// Commits the edit; `then` moves the selection (dr, dc) afterwards.
     pub fn commit_edit(&mut self, dr: i64, dc: i64, array: bool, fill_selection: bool) -> bool {
         let Some(ed) = self.editor.take() else { return true };
-        self.session.mode = sheetcraft_engine::Mode::Ready;
+        self.session.mode = gridcraft_engine::Mode::Ready;
         let text = match &ed.completion {
             Some(full) if full.to_lowercase().starts_with(&ed.text.to_lowercase()) => full.clone(),
             _ => ed.text.clone(),
         };
         // Data validation.
         if let Some(d) = self.session.active()
-            && let Some((dv, msg)) = sheetcraft_engine::cmd::data::check_validation(&d.wb, ed.sheet, ed.cell, &text)
+            && let Some((dv, msg)) = gridcraft_engine::cmd::data::check_validation(&d.wb, ed.sheet, ed.cell, &text)
         {
-            if dv.error_style == sheetcraft_engine::model::ErrorStyle::Stop {
-                let title = if dv.error_title.is_empty() { "SheetCraft".to_string() } else { dv.error_title.clone() };
+            if dv.error_style == gridcraft_engine::model::ErrorStyle::Stop {
+                let title = if dv.error_title.is_empty() { "GridCraft".to_string() } else { dv.error_title.clone() };
                 self.message = Some((title, msg));
                 self.editor = Some(ed);
-                self.session.mode = sheetcraft_engine::Mode::Edit;
+                self.session.mode = gridcraft_engine::Mode::Edit;
                 return false;
             }
             self.toast = Some((msg, now_ms()));
@@ -324,9 +324,9 @@ impl SheetApp {
                 true
             }
             Err(e) => {
-                self.message = Some(("SheetCraft".into(), clean_error(&e)));
+                self.message = Some(("GridCraft".into(), clean_error(&e)));
                 self.editor = Some(ed);
-                self.session.mode = sheetcraft_engine::Mode::Edit;
+                self.session.mode = gridcraft_engine::Mode::Edit;
                 false
             }
         }
@@ -334,7 +334,7 @@ impl SheetApp {
 
     pub fn cancel_edit(&mut self) {
         self.editor = None;
-        self.session.mode = sheetcraft_engine::Mode::Ready;
+        self.session.mode = gridcraft_engine::Mode::Ready;
     }
 
     /// Enter/Tab move inside a multi-cell selection, otherwise to the next cell.
@@ -373,9 +373,9 @@ impl SheetApp {
             .map(|i| std::mem::take(&mut *i.lock().unwrap_or_else(std::sync::PoisonError::into_inner)))
             .unwrap_or_default();
         for (name, bytes) in arrived {
-            let b64 = sheetcraft_engine::io::base64_encode(&bytes);
+            let b64 = gridcraft_engine::io::base64_encode(&bytes);
             if let Err(e) = self.session.run("file.open", json!({"name": name, "base64": b64})) {
-                self.message = Some(("SheetCraft".into(), clean_error(&e)));
+                self.message = Some(("GridCraft".into(), clean_error(&e)));
             }
             self.after_engine();
         }

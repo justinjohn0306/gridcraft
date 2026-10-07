@@ -3,7 +3,7 @@
 # exports VERSION and NFPM_ARCH.
 #
 #   nfpm package -f packaging/linux/nfpm.yaml -p deb -t dist/release/
-name: sheetcraft
+name: gridcraft
 arch: ${NFPM_ARCH}
 platform: linux
 version: ${VERSION}
@@ -12,15 +12,15 @@ version_schema: semver
 release: 1
 section: misc
 priority: optional
-maintainer: ${SHEETCRAFT_MAINTAINER}
+maintainer: ${GRIDCRAFT_MAINTAINER}
 vendor: Learning Machines LLC
-homepage: https://getartcraft.com/apps/sheetcraft
+homepage: https://getartcraft.com/apps/gridcraft
 license: MIT OR Apache-2.0
 description: |-
   Open-source, native spreadsheet that works the way Excel users expect.
   Opens and saves .xlsx workbooks and CSV/TSV files; hundreds of worksheet
   functions; formatting, sorting, filtering and charts.
-  Includes sheetcraft-cli, a headless evaluator, converter and command runner.
+  Includes gridcraft-cli, a headless evaluator, converter and command runner.
 
 # The binaries link only glibc and libgcc_s directly. Windowing (X11/Wayland, xkbcommon) and the
 # GPU (Vulkan, EGL/GL) are loaded at runtime, so they are dependencies/recommendations here
@@ -55,11 +55,11 @@ overrides:
       - xdg-desktop-portal
 
 contents:
-  - src: ${STAGE}/usr/bin/sheetcraft
-    dst: /usr/bin/sheetcraft
+  - src: ${STAGE}/usr/bin/gridcraft
+    dst: /usr/bin/gridcraft
     file_info: { mode: 0755 }
-  - src: ${STAGE}/usr/bin/sheetcraft-cli
-    dst: /usr/bin/sheetcraft-cli
+  - src: ${STAGE}/usr/bin/gridcraft-cli
+    dst: /usr/bin/gridcraft-cli
     file_info: { mode: 0755 }
   - src: ${STAGE}/usr/share/
     dst: /usr/share/

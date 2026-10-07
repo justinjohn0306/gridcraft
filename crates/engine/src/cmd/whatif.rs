@@ -8,11 +8,11 @@
 
 use std::collections::{HashMap, HashSet};
 
+use gridcraft_calc::Calc;
+use gridcraft_core::{CellRef, RangeRef, Value};
+use gridcraft_model::{CalcMode, Cell, DefinedName, Sheet, StyleId, Workbook};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
-use sheetcraft_calc::Calc;
-use sheetcraft_core::{CellRef, RangeRef, Value};
-use sheetcraft_model::{CalcMode, Cell, DefinedName, Sheet, StyleId, Workbook};
 
 use super::*;
 
@@ -162,7 +162,7 @@ fn json_value(v: &Json, wb: &Workbook) -> Value {
         Json::Bool(b) => Value::Bool(*b),
         Json::Number(n) => n.as_f64().map(Value::number).unwrap_or_default(),
         Json::String(s) if s.is_empty() => Value::Empty,
-        Json::String(s) => sheetcraft_core::parse::parse_input(s, wb.date_system).value,
+        Json::String(s) => gridcraft_core::parse::parse_input(s, wb.date_system).value,
         other => Value::text(other.to_string()),
     }
 }
@@ -309,7 +309,7 @@ fn goal_seek(s: &mut Session, p: &Json) -> Result<Json> {
     let (ssi, set) = cell_arg(s, p, "set", CMD)?;
     let (csi, chg) = cell_arg(s, p, "changing", CMD)?;
     let target = f64_param(p, "to")
-        .or_else(|| str_param(p, "to").and_then(sheetcraft_core::parse::parse_number_text))
+        .or_else(|| str_param(p, "to").and_then(gridcraft_core::parse::parse_number_text))
         .filter(|v| v.is_finite())
         .ok_or_else(|| bad(CMD, "`to` must be a number"))?;
     let d = s.doc()?;
@@ -403,7 +403,7 @@ fn store_scenarios(wb: &mut Workbook, list: &[Scenario]) {
             .map(|c| format!("\"{}\"", c.iter().collect::<String>().replace('"', "\"\"")))
             .collect::<Vec<_>>()
             .join("&"),
-        comment: "SheetCraft Scenario Manager data".into(),
+        comment: "GridCraft Scenario Manager data".into(),
         hidden: true,
     });
 }
@@ -584,7 +584,7 @@ fn scenario_summary(s: &mut Session, p: &Json) -> Result<Json> {
         for (i, c) in changing.iter().enumerate() {
             let fmt = changing_fmts.get(i).cloned().unwrap_or_default();
             let st = cx.wb.styles.derive(StyleId::DEFAULT, |st| st.num_fmt = fmt);
-            put(&mut sheet, row, 1, Value::text(format!("${}${}", sheetcraft_core::col_to_letters(c.col), c.row + 1)), StyleId::DEFAULT);
+            put(&mut sheet, row, 1, Value::text(format!("${}${}", gridcraft_core::col_to_letters(c.col), c.row + 1)), StyleId::DEFAULT);
             let cur = current.get(i).cloned().unwrap_or_default();
             put(&mut sheet, row, 2, cur.clone(), st);
             for (k, m) in per.iter().enumerate() {
@@ -598,7 +598,7 @@ fn scenario_summary(s: &mut Session, p: &Json) -> Result<Json> {
             for (i, c) in results.iter().enumerate() {
                 let fmt = result_fmts.get(i).cloned().unwrap_or_default();
                 let st = cx.wb.styles.derive(StyleId::DEFAULT, |st| st.num_fmt = fmt);
-                put(&mut sheet, row, 1, Value::text(format!("${}${}", sheetcraft_core::col_to_letters(c.col), c.row + 1)), StyleId::DEFAULT);
+                put(&mut sheet, row, 1, Value::text(format!("${}${}", gridcraft_core::col_to_letters(c.col), c.row + 1)), StyleId::DEFAULT);
                 put(&mut sheet, row, 2, current_results.get(i).cloned().unwrap_or_default(), st);
                 for (k, r) in scenario_results.iter().enumerate() {
                     put(&mut sheet, row, 3 + k as u32, r.get(i).cloned().unwrap_or_default(), st);
@@ -613,8 +613,8 @@ fn scenario_summary(s: &mut Session, p: &Json) -> Result<Json> {
             Value::text("Notes: Current Values column represents values of changing cells at time Scenario Summary Report was created."),
             StyleId::DEFAULT,
         );
-        sheet.cols.insert(1, sheetcraft_model::LineInfo { size: Some(110.0), ..Default::default() });
-        sheet.cols.insert(2, sheetcraft_model::LineInfo { size: Some(100.0), ..Default::default() });
+        sheet.cols.insert(1, gridcraft_model::LineInfo { size: Some(110.0), ..Default::default() });
+        sheet.cols.insert(2, gridcraft_model::LineInfo { size: Some(100.0), ..Default::default() });
         cx.wb.sheets.push(std::sync::Arc::new(sheet));
         cx.structural = true;
         Ok(cx.wb.sheets.len() - 1)
@@ -710,7 +710,7 @@ enum Cond {
     /// Column offset in the list, comparison operator and operand text.
     Compare(u32, Value),
     /// A computed criterion: formula relative to the first data row, evaluated at `at`.
-    Computed(sheetcraft_formula::Expr, CellRef),
+    Computed(gridcraft_formula::Expr, CellRef),
 }
 
 /// Splits `">=10"` into (`">="`, `"10"`); text without an operator means "begins with".
@@ -741,7 +741,7 @@ pub(crate) fn criterion_matches(v: &Value, text: &str, crit: &Value) -> bool {
             _ => true,
         };
     }
-    let num = sheetcraft_core::parse::parse_number_text(operand);
+    let num = gridcraft_core::parse::parse_number_text(operand);
     let lower_text = text.to_lowercase();
     let lower_op = operand.to_lowercase();
     use std::cmp::Ordering;
@@ -750,7 +750,7 @@ pub(crate) fn criterion_matches(v: &Value, text: &str, crit: &Value) -> bool {
         (Value::Number(_), None) => None,
         (Value::Empty, _) => None,
         (_, Some(_)) if op != "begins" => None,
-        _ => Some(sheetcraft_core::compare_text(text, operand)),
+        _ => Some(gridcraft_core::compare_text(text, operand)),
     };
     let wild = |pat: &str| super::edit::wildcard(&lower_text, pat);
     match op {
@@ -845,8 +845,8 @@ fn advanced_filter(s: &mut Session, p: &Json) -> Result<Json> {
                     criterion_matches(&v, &text, crit)
                 }
                 Cond::Computed(e, at) => {
-                    let shifted = sheetcraft_formula::adjust::shift_relative(e.clone(), row as i64 - first_data as i64, 0);
-                    let v = sheetcraft_calc::recalc::evaluate_expr(wb, csi, *at, &shifted);
+                    let shifted = gridcraft_formula::adjust::shift_relative(e.clone(), row as i64 - first_data as i64, 0);
+                    let v = gridcraft_calc::recalc::evaluate_expr(wb, csi, *at, &shifted);
                     matches!(v.scalar().to_bool(), Ok(true))
                 }
             })
@@ -913,7 +913,7 @@ fn advanced_filter(s: &mut Session, p: &Json) -> Result<Json> {
             if *k {
                 if let Some(e) = shm.rows.get_mut(row) {
                     e.hidden = false;
-                    if *e == sheetcraft_model::LineInfo::default() {
+                    if *e == gridcraft_model::LineInfo::default() {
                         shm.rows.remove(row);
                     }
                 }
@@ -964,7 +964,7 @@ impl Agg {
             "countNums" | "countnums" => Value::number(self.nums as f64),
             "average" => {
                 if self.nums == 0 {
-                    Value::Error(sheetcraft_core::CellError::Div0)
+                    Value::Error(gridcraft_core::CellError::Div0)
                 } else {
                     Value::number(self.sum / self.nums as f64)
                 }
@@ -1077,8 +1077,8 @@ fn consolidate(s: &mut Session, p: &Json) -> Result<Json> {
         }
     }
     let (out_r0, out_c0) = (dest.row + top as u32, dest.col + left as u32);
-    if out_r0 as u64 + row_keys.len() as u64 > sheetcraft_core::MAX_ROWS as u64
-        || out_c0 as u64 + col_keys.len() as u64 > sheetcraft_core::MAX_COLS as u64
+    if out_r0 as u64 + row_keys.len() as u64 > gridcraft_core::MAX_ROWS as u64
+        || out_c0 as u64 + col_keys.len() as u64 > gridcraft_core::MAX_COLS as u64
     {
         return Err(EngineError::Other("The consolidated data doesn't fit below and right of the destination.".into()));
     }
@@ -1121,8 +1121,8 @@ fn consolidate(s: &mut Session, p: &Json) -> Result<Json> {
 
 #[cfg(test)]
 mod tests {
+    use gridcraft_core::{CellRef, Value};
     use serde_json::json;
-    use sheetcraft_core::{CellRef, Value};
 
     use crate::Session;
 

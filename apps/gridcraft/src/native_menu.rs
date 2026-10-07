@@ -4,10 +4,10 @@
 use std::str::FromStr;
 use std::sync::mpsc::{Receiver, channel};
 
+use gridcraft_ui_egui::SheetApp;
 use muda::accelerator::Accelerator;
 use muda::{Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use serde_json::{Value, json};
-use sheetcraft_ui_egui::SheetApp;
 
 type Entry = (&'static str, &'static str, Option<&'static str>);
 
@@ -170,7 +170,7 @@ fn tree() -> Vec<(&'static str, Vec<Entry>)> {
             "Help",
             vec![
                 ("Agent Control (MCP)…", "dialog:agents", None),
-                ("SheetCraft on getartcraft.com", "url:https://getartcraft.com/apps/sheetcraft", None),
+                ("GridCraft on getartcraft.com", "url:https://getartcraft.com/apps/gridcraft", None),
                 ("Join the ArtCraft Discord…", "url:https://discord.gg/artcraft", None),
             ],
         ),
@@ -185,8 +185,8 @@ pub struct NativeMenu {
 impl NativeMenu {
     pub fn install(ctx: &egui::Context) -> NativeMenu {
         let menu = Menu::new();
-        let app_menu = Submenu::new("SheetCraft", true);
-        let about = MenuItem::with_id("url:https://getartcraft.com/apps/sheetcraft", "About SheetCraft", true, None);
+        let app_menu = Submenu::new("GridCraft", true);
+        let about = MenuItem::with_id("url:https://getartcraft.com/apps/gridcraft", "About GridCraft", true, None);
         let _ = app_menu.append_items(&[
             &about,
             &PredefinedMenuItem::separator(),

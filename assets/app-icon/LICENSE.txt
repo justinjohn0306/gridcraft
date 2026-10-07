@@ -1,8 +1,8 @@
-SheetCraft app icon (sheetcraft.svg and every file derived from it in this directory:
-sheetcraft-1024.png, sheetcraft-macos-512.png, sheetcraft.icns, sheetcraft.ico, hicolor/).
+GridCraft app icon (gridcraft.svg and every file derived from it in this directory:
+gridcraft-1024.png, gridcraft-macos-512.png, gridcraft.icns, gridcraft.ico, hicolor/).
 
-PLACEHOLDER artwork: original work written for this project by SheetCraft contributors (simple
-hand-written SVG geometry). No third-party material. Licensed like the rest of SheetCraft, under
+PLACEHOLDER artwork: original work written for this project by GridCraft contributors (simple
+hand-written SVG geometry). No third-party material. Licensed like the rest of GridCraft, under
 either of
 
   * Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0)

@@ -1,8 +1,8 @@
 //! View tab (sheet view state that's saved with the file) and Page Layout settings.
 
+use gridcraft_core::{CellRef, RangeRef};
+use gridcraft_model::Orientation;
 use serde_json::{Value as Json, json};
-use sheetcraft_core::{CellRef, RangeRef};
-use sheetcraft_model::Orientation;
 
 use super::*;
 
@@ -295,7 +295,7 @@ fn header_footer(s: &mut Session, p: &Json) -> Result<Json> {
     })
 }
 
-/// SheetCraft's own theme set (original palettes).
+/// GridCraft's own theme set (original palettes).
 pub fn themes() -> Vec<(&'static str, [u32; 12])> {
     vec![
         ("Craft", [0xFFFFFF, 0x000000, 0xE8E8E8, 0x0E2841, 0x156082, 0xE97132, 0x196B24, 0x0F9ED5, 0xA02B93, 0x4EA72E, 0x467886, 0x96607D]),

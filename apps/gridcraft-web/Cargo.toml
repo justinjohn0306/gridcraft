@@ -1,6 +1,6 @@
 [package]
-name = "sheetcraft-web"
-description = "SheetCraft in the browser (eframe web runner, WebGPU with WebGL2 fallback)"
+name = "gridcraft-web"
+description = "GridCraft in the browser (eframe web runner, WebGPU with WebGL2 fallback)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,12 +10,12 @@ publish = false
 workspace = true
 
 [[bin]]
-name = "sheetcraft-web"
+name = "gridcraft-web"
 path = "src/main.rs"
 
 [dependencies]
-sheetcraft-engine = { workspace = true }
-sheetcraft-ui-egui = { workspace = true }
+gridcraft-engine = { workspace = true }
+gridcraft-ui-egui = { workspace = true }
 egui = { workspace = true }
 log = { workspace = true }
 serde_json = { workspace = true }

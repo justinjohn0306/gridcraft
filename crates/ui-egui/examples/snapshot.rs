@@ -1,11 +1,11 @@
-//! Renders the whole SheetCraft window offscreen (wgpu, no window) to a PNG.
+//! Renders the whole GridCraft window offscreen (wgpu, no window) to a PNG.
 //!
-//! `cargo run --release -p sheetcraft-ui-egui --example snapshot -- [--sample sales] [--in file.xlsx]
+//! `cargo run --release -p gridcraft-ui-egui --example snapshot -- [--sample sales] [--in file.xlsx]
 //!  [--size 1440x900] [--scale 2] [--cmd 'id={json}']... [--tab Insert] [--dark] out.png`
 
+use gridcraft_engine::Session;
+use gridcraft_ui_egui::SheetApp;
 use serde_json::json;
-use sheetcraft_engine::Session;
-use sheetcraft_ui_egui::SheetApp;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();

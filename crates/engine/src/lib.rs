@@ -1,4 +1,4 @@
-//! The SheetCraft engine façade.
+//! The GridCraft engine façade.
 //!
 //! Every user-visible action is a command with a stable id (`cell.set`, `home.bold`,
 //! `data.sortAscending`…) and JSON parameters. The egui UI, the CLI, the control channel and MCP
@@ -19,19 +19,19 @@ pub mod tables;
 
 use std::sync::Arc;
 
+use gridcraft_calc::Calc;
+use gridcraft_core::{CellRef, RangeRef};
+use gridcraft_model::Workbook;
 use serde::Serialize;
 use serde_json::Value as Json;
-use sheetcraft_calc::Calc;
-use sheetcraft_core::{CellRef, RangeRef};
-use sheetcraft_model::Workbook;
 
 pub use cmd::{CommandInfo, CommandSpec, command_specs, find_command};
+pub use gridcraft_calc as calc;
+pub use gridcraft_core as core;
+pub use gridcraft_formula as formula;
+pub use gridcraft_model as model;
+pub use gridcraft_numfmt as numfmt;
 pub use selection::Selection;
-pub use sheetcraft_calc as calc;
-pub use sheetcraft_core as core;
-pub use sheetcraft_formula as formula;
-pub use sheetcraft_model as model;
-pub use sheetcraft_numfmt as numfmt;
 
 #[derive(Debug, thiserror::Error)]
 pub enum EngineError {
@@ -157,9 +157,9 @@ impl Default for Prefs {
         Prefs {
             enter_direction: "down".into(),
             autocomplete: true,
-            user_name: "SheetCraft User".into(),
-            default_font: sheetcraft_model::DEFAULT_FONT.into(),
-            default_font_size: sheetcraft_model::DEFAULT_FONT_SIZE,
+            user_name: "GridCraft User".into(),
+            default_font: gridcraft_model::DEFAULT_FONT.into(),
+            default_font_size: gridcraft_model::DEFAULT_FONT_SIZE,
             sheets_in_new_workbook: 1,
             r1c1: false,
             user_dictionary: vec![],
@@ -248,7 +248,7 @@ impl Session {
         let mut wb = Workbook::new();
         for _ in 1..self.prefs.sheets_in_new_workbook.clamp(1, 255) {
             let name = wb.next_sheet_name();
-            wb.sheets.push(Arc::new(sheetcraft_model::Sheet::new(name)));
+            wb.sheets.push(Arc::new(gridcraft_model::Sheet::new(name)));
         }
         self.add_document(DocState::new(wb, None, format!("Book{n}")))
     }
@@ -314,7 +314,7 @@ impl Session {
 }
 
 /// Convenience: the active workbook's active sheet.
-pub fn active_sheet(s: &Session) -> Option<&sheetcraft_model::Sheet> {
+pub fn active_sheet(s: &Session) -> Option<&gridcraft_model::Sheet> {
     s.active().and_then(|d| d.wb.active())
 }
 

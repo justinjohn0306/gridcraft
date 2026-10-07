@@ -121,7 +121,7 @@ pub fn color_palette(ui: &mut Ui, theme_colors: &[u32; 12], none_label: &str) ->
             for &i in &order {
                 let base = theme_colors.get(i).copied().unwrap_or(0);
                 let rgb = [(base >> 16) as u8, (base >> 8) as u8, base as u8];
-                let c = sheetcraft_engine::model::style::apply_tint(rgb, tint);
+                let c = gridcraft_engine::model::style::apply_tint(rgb, tint);
                 let col = Color32::from_rgb(c[0], c[1], c[2]);
                 let (r, resp) = ui.allocate_exact_size(vec2(16.0, 14.0), Sense::click());
                 ui.painter().rect_filled(r, 1.0, col);
@@ -140,7 +140,7 @@ pub fn color_palette(ui: &mut Ui, theme_colors: &[u32; 12], none_label: &str) ->
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
         for hex in ["#C00000", "#FF0000", "#FFC000", "#FFFF00", "#92D050", "#00B050", "#00B0F0", "#0070C0", "#002060", "#7030A0"] {
-            let col = sheetcraft_engine::model::Color::from_hex(hex)
+            let col = gridcraft_engine::model::Color::from_hex(hex)
                 .and_then(|c| c.resolve(&Default::default()))
                 .map(theme::color32)
                 .unwrap_or(Color32::BLACK);

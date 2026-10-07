@@ -37,9 +37,9 @@ impl Hasher for FxHasher {
 type HashMap<K, V> = std::collections::HashMap<K, V, BuildHasherDefault<FxHasher>>;
 type HashSet<K> = std::collections::HashSet<K, BuildHasherDefault<FxHasher>>;
 
-use sheetcraft_core::{Array, CellError, CellRef, RangeRef, Value};
-use sheetcraft_formula::Expr;
-use sheetcraft_model::{CalcMode, Workbook};
+use gridcraft_core::{Array, CellError, CellRef, RangeRef, Value};
+use gridcraft_formula::Expr;
+use gridcraft_model::{CalcMode, Workbook};
 
 use crate::eval::{Area, Evaluator, Host, precedents};
 
@@ -403,7 +403,7 @@ impl Calc {
         let t1 = prof_now();
         let n = dirty.len();
         self.run(wb, dirty, false);
-        if std::env::var_os("SHEETCRAFT_PROFILE").is_some() {
+        if std::env::var_os("GRIDCRAFT_PROFILE").is_some() {
             eprintln!("recalc: {} seeds, closure {} cells {:.1} ms, run {:.1} ms", seeds.len(), n, t1 - t0, prof_now() - t1);
         }
     }
@@ -478,7 +478,7 @@ impl Calc {
                 (host.results, host.spills, host.cycles)
             };
             self.rng = rng;
-            if std::env::var_os("SHEETCRAFT_PROFILE").is_some() {
+            if std::env::var_os("GRIDCRAFT_PROFILE").is_some() {
                 eprintln!("  eval {} formulas {:.1} ms", results.len(), prof_now() - tp);
             }
             let tw = prof_now();
@@ -511,8 +511,8 @@ impl Calc {
                 if let Some(arr) = new {
                     let end = CellRef::new(k.1.row.saturating_add(arr.rows as u32 - 1), k.1.col.saturating_add(arr.cols as u32 - 1));
                     let range = RangeRef::new(k.1, end);
-                    let blocked = end.row >= sheetcraft_core::MAX_ROWS
-                        || end.col >= sheetcraft_core::MAX_COLS
+                    let blocked = end.row >= gridcraft_core::MAX_ROWS
+                        || end.col >= gridcraft_core::MAX_COLS
                         || range.iter().any(|c| c != k.1 && (sheet.cells.has(c) || sheet.spill.contains_key(&c)))
                         || sheet.merges.iter().any(|m| m.intersects(&range));
                     if blocked {
@@ -538,7 +538,7 @@ impl Calc {
             if full {
                 // Everything was already evaluated once; spill dependents need another pass.
             }
-            if std::env::var_os("SHEETCRAFT_PROFILE").is_some() {
+            if std::env::var_os("GRIDCRAFT_PROFILE").is_some() {
                 eprintln!("  write-back {:.1} ms", prof_now() - tw);
             }
             spill_changes.sort_by_key(|(s, c)| (*s, c.row, c.col));
@@ -568,7 +568,7 @@ pub fn now_serial() -> f64 {
 /// validation, Evaluate Formula, Name Manager previews, the CLI `eval`).
 pub fn evaluate(wb: &Workbook, sheet: usize, at: CellRef, formula: &str) -> Value {
     let body = formula.strip_prefix('=').unwrap_or(formula);
-    let Ok(expr) = sheetcraft_formula::parse(body) else { return Value::Error(CellError::Name) };
+    let Ok(expr) = gridcraft_formula::parse(body) else { return Value::Error(CellError::Name) };
     evaluate_expr(wb, sheet, at, &expr)
 }
 

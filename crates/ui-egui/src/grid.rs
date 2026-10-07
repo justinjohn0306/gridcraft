@@ -6,10 +6,10 @@
 use std::sync::Arc;
 
 use egui::{Align2, Color32, CursorIcon, FontId, Painter, Pos2, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
+use gridcraft_engine::cf::{CfCache, CfLook};
+use gridcraft_engine::core::{CellRef, MAX_COLS, MAX_ROWS, RangeRef, Value, col_to_letters};
+use gridcraft_engine::model::{BorderStyle, Color, HAlign, LineIndex, PatternType, Sheet, Style, Underline, VAlign, Workbook};
 use serde_json::json;
-use sheetcraft_engine::cf::{CfCache, CfLook};
-use sheetcraft_engine::core::{CellRef, MAX_COLS, MAX_ROWS, RangeRef, Value, col_to_letters};
-use sheetcraft_engine::model::{BorderStyle, Color, HAlign, LineIndex, PatternType, Sheet, Style, Underline, VAlign, Workbook};
 
 use crate::SheetApp;
 use crate::editor::{EditState, REF_COLORS};
@@ -199,8 +199,8 @@ fn col32(c: Color, wb: &Workbook, default: Color32) -> Color32 {
     c.resolve(&wb.theme).map(theme::color32).unwrap_or(default)
 }
 
-fn numfmt_color(c: sheetcraft_engine::numfmt::FormatColor) -> Color32 {
-    use sheetcraft_engine::numfmt::FormatColor as F;
+fn numfmt_color(c: gridcraft_engine::numfmt::FormatColor) -> Color32 {
+    use gridcraft_engine::numfmt::FormatColor as F;
     match c {
         F::Black => Color32::BLACK,
         F::Blue => Color32::from_rgb(0, 0, 255),
@@ -217,7 +217,7 @@ fn numfmt_color(c: sheetcraft_engine::numfmt::FormatColor) -> Color32 {
 fn look(wb: &Workbook, si: usize, sh: &Sheet, c: CellRef, cf: &mut CfCache) -> (Look, Option<CfLook>) {
     let mut style = wb.styles.get(sh.style_id(c)).clone();
     if let Some(t) = sh.table_at(c) {
-        style = sheetcraft_engine::tables::table_cell_style(wb, si, t, c);
+        style = gridcraft_engine::tables::table_cell_style(wb, si, t, c);
     }
     let cfl = cf.look(wb, si, c);
     if let Some(l) = &cfl
@@ -301,12 +301,12 @@ fn display_text(
         && let Value::Number(n) = v
     {
         let max_chars = ((width_px - 4.0) / char_w).floor().max(1.0) as usize;
-        return match sheetcraft_engine::numfmt::format_general_fit(*n, max_chars.min(11)) {
+        return match gridcraft_engine::numfmt::format_general_fit(*n, max_chars.min(11)) {
             Some(t) => (t, None, true, None),
             None => ("#".repeat(max_chars.max(1)), None, true, None),
         };
     }
-    let f = sheetcraft_engine::display::format(v, code, wb);
+    let f = gridcraft_engine::display::format(v, code, wb);
     (f.text, f.color.map(numfmt_color), f.numeric, f.fill)
 }
 
@@ -729,12 +729,12 @@ fn paint_quadrant(
             continue;
         }
         let rect = geo.cell_rect(sh, sp.cell).shrink(3.0);
-        let vals: Vec<Option<f64>> = match sheetcraft_engine::calc::evaluate(wb, si, sp.cell, &sp.source) {
+        let vals: Vec<Option<f64>> = match gridcraft_engine::calc::evaluate(wb, si, sp.cell, &sp.source) {
             Value::Array(a) => a.data.iter().map(Value::as_f64).collect(),
             v => vec![v.as_f64()],
         };
         let col = sp.color.resolve(&wb.theme).unwrap_or([0x2B, 0x7C, 0xD3]);
-        let prims = sheetcraft_chart::render_sparkline(sp.kind, &vals, [col[0], col[1], col[2], 255], sp.markers, rect.width(), rect.height());
+        let prims = gridcraft_chart::render_sparkline(sp.kind, &vals, [col[0], col[1], col[2], 255], sp.markers, rect.width(), rect.height());
         crate::chartview::paint_prims(p, rect.min, &prims, 1.0);
     }
     // Filter buttons.
@@ -798,7 +798,7 @@ fn paint_border(p: &Painter, pts: [Pos2; 2], style: BorderStyle, col: Color32) {
 }
 
 fn paint_cf_icon(p: &Painter, r: Rect, set: &str, idx: usize) {
-    let n = sheetcraft_engine::cf::icon_count(set);
+    let n = gridcraft_engine::cf::icon_count(set);
     let palette3 = [Color32::from_rgb(0xD1, 0x3B, 0x2F), Color32::from_rgb(0xF2, 0xB8, 0x2E), Color32::from_rgb(0x2E, 0x9E, 0x4F)];
     let col = if n <= 3 {
         palette3.get(idx).copied().unwrap_or(Color32::GRAY)
@@ -835,7 +835,7 @@ fn paint_cf_icon(p: &Painter, r: Rect, set: &str, idx: usize) {
     }
 }
 
-fn paint_selection(p: &Painter, geo: &Geo, sh: &Sheet, sel: &sheetcraft_engine::Selection, t: &Tokens, app: &SheetApp) {
+fn paint_selection(p: &Painter, geo: &Geo, sh: &Sheet, sel: &gridcraft_engine::Selection, t: &Tokens, app: &SheetApp) {
     // Fill all areas except the active cell.
     for r in &sel.ranges {
         if r.is_single() && sel.ranges.len() == 1 {
@@ -907,7 +907,7 @@ fn paint_selection(p: &Painter, geo: &Geo, sh: &Sheet, sel: &sheetcraft_engine::
     }
 }
 
-fn paint_headers(p: &Painter, geo: &Geo, sh: &Sheet, sel: &sheetcraft_engine::Selection, t: &Tokens, quads: &[((u32, u32), (u32, u32), Rect)]) {
+fn paint_headers(p: &Painter, geo: &Geo, sh: &Sheet, sel: &gridcraft_engine::Selection, t: &Tokens, quads: &[((u32, u32), (u32, u32), Rect)]) {
     let font = theme::ui_font((11.5 * (geo.z / DISPLAY_SCALE).max(0.75)).min(16.0));
     let r = geo.rect;
     let top = Rect::from_min_max(pos2(geo.cells.left(), r.top()), pos2(r.right(), geo.cells.top()));
@@ -1051,7 +1051,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         if app.session.draw_tool == "eraser" && (resp.clicked() || resp.dragged()) {
             if let Some(p) = pos
                 && let Some(("shape", id, _)) = crate::chartview::hit(app, geo, sh, p)
-                && sh.shapes.iter().any(|s| s.id == id && s.kind == sheetcraft_engine::model::ShapeKind::Ink)
+                && sh.shapes.iter().any(|s| s.id == id && s.kind == gridcraft_engine::model::ShapeKind::Ink)
             {
                 let _ = app.run("object.delete", json!({"kind": "shape", "id": id}));
             }
@@ -1132,7 +1132,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         {
             let sheet_name = (ed.sheet != wb.active_sheet).then(|| sh.name.clone());
             let r = match sheet_name {
-                Some(n) => format!("{}!{}", sheetcraft_engine::formula::quote_sheet(&n), c.a1()),
+                Some(n) => format!("{}!{}", gridcraft_engine::formula::quote_sheet(&n), c.a1()),
                 None => c.a1(),
             };
             ed.insert_ref(&r);
@@ -1257,10 +1257,8 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
             }
             Drag::ResizeCol { col, start, orig } => {
                 let w = (orig + (p.x - start) / geo.z).max(0.0);
-                app.toast = Some((
-                    format!("Width: {:.2} ({} pixels)", sheetcraft_engine::cmd::format::points_to_chars(w as f64), w.round()),
-                    crate::now_ms(),
-                ));
+                app.toast =
+                    Some((format!("Width: {:.2} ({} pixels)", gridcraft_engine::cmd::format::points_to_chars(w as f64), w.round()), crate::now_ms()));
                 let cols = if sel.ranges.iter().any(|r| r.is_full_cols() && col >= r.start.col && col <= r.end.col) {
                     sel.current().a1()
                 } else {
@@ -1320,7 +1318,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
                 if t != src {
                     let mode = if mods.command { "copy" } else { "series" };
                     if let Err(e) = app.run("edit.autoFill", json!({"source": src.a1(), "target": t.a1(), "mode": mode})) {
-                        app.message = Some(("SheetCraft".into(), crate::clean_error(&e)));
+                        app.message = Some(("GridCraft".into(), crate::clean_error(&e)));
                     }
                 }
             }
@@ -1475,7 +1473,7 @@ fn is_filter_button(sh: &Sheet, geo: &Geo, p: Pos2) -> bool {
     header && filter_button_rect(geo, sh, c).contains(p)
 }
 
-fn object_anchor(sh: &Sheet, kind: &str, id: u32) -> Option<sheetcraft_engine::model::Anchor> {
+fn object_anchor(sh: &Sheet, kind: &str, id: u32) -> Option<gridcraft_engine::model::Anchor> {
     match kind {
         "chart" => sh.charts.iter().find(|c| c.id == id).map(|c| c.anchor),
         "image" => sh.images.iter().find(|c| c.id == id).map(|c| c.anchor),
@@ -1505,7 +1503,7 @@ fn select_ranges(app: &mut SheetApp, r: RangeRef, add: bool, active: CellRef) {
 /// Grid keyboard handling when no text field has focus.
 fn keyboard(app: &mut SheetApp, ctx: &egui::Context, resp: &egui::Response, geo: &Geo, sh: &Sheet) {
     // Focus left on an editor that no longer exists goes back to the grid.
-    let stale = [egui::Id::new("sheetcraft.cell_editor"), egui::Id::new("sheetcraft.formula_bar")];
+    let stale = [egui::Id::new("gridcraft.cell_editor"), egui::Id::new("gridcraft.formula_bar")];
     if app.editor.is_none() && ctx.memory(|m| m.focused()).is_some_and(|f| stale.contains(&f)) {
         resp.request_focus();
     }
@@ -1640,7 +1638,7 @@ fn in_cell_editor(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo, sh: &Sheet, 
     };
     ui.painter().rect_filled(erect, 0.0, fill);
     ui.painter().rect_stroke(erect.expand(1.0), 0.0, Stroke::new(2.0, Tokens::get(ui.ctx()).sel_border), StrokeKind::Middle);
-    let id = egui::Id::new("sheetcraft.cell_editor");
+    let id = egui::Id::new("gridcraft.cell_editor");
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(erect.shrink2(vec2(2.0, 1.0))));
     crate::formula_bar::editor_widget(app, &mut child, id, font, false, erect.width() - 4.0);
 }
@@ -1671,13 +1669,13 @@ fn filter_menu(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
             if let Some(d) = d {
                 let wbm = Arc::make_mut(&mut d.wb);
                 if let Some(s) = wbm.sheet_mut(si) {
-                    s.autofilter = Some(sheetcraft_engine::model::AutoFilter { range: r, criteria: vec![] });
+                    s.autofilter = Some(gridcraft_engine::model::AutoFilter { range: r, criteria: vec![] });
                 }
             }
         }
     }
     let wb = app.session.active().map(|d| d.wb.clone()).unwrap_or(wb);
-    let values = sheetcraft_engine::cmd::data::filter_values(&wb, si, col);
+    let values = gridcraft_engine::cmd::data::filter_values(&wb, si, col);
     let mut close = false;
     let area = egui::Area::new(egui::Id::new("filter_menu")).fixed_pos(at + vec2(-180.0, 10.0)).order(egui::Order::Foreground);
     area.show(ui.ctx(), |ui| {
@@ -1783,7 +1781,7 @@ fn context_menu(app: &mut SheetApp, ui: &mut egui::Ui) {
                         "ui:filterValue" => {
                             if let Some(d) = app.session.active() {
                                 let a = d.selection.active;
-                                let text = d.wb.active().map(|sh| sheetcraft_engine::display::cell_text(&d.wb, sh, a)).unwrap_or_default();
+                                let text = d.wb.active().map(|sh| gridcraft_engine::display::cell_text(&d.wb, sh, a)).unwrap_or_default();
                                 let has = d.wb.active().is_some_and(|sh| sh.autofilter.is_some());
                                 if !has {
                                     let _ = app.run("data.filter", json!({}));
@@ -1835,7 +1833,7 @@ pub fn point_move(app: &mut SheetApp, ed: &mut EditState, dr: i64, dc: i64, exte
 /// The dropdown arrow beside a cell with an in-cell list validation.
 pub fn validation_arrow(sh: &Sheet, geo: &Geo, c: CellRef) -> Option<Rect> {
     let dv = sh.validations.iter().find(|d| d.ranges.iter().any(|r| r.contains(c)))?;
-    if dv.kind != sheetcraft_engine::model::ValidationKind::List || !dv.in_cell_dropdown {
+    if dv.kind != gridcraft_engine::model::ValidationKind::List || !dv.in_cell_dropdown {
         return None;
     }
     let r = geo.cell_rect(sh, c);
@@ -1852,7 +1850,7 @@ fn paint_overlays(
     wb: &Workbook,
     si: usize,
     sh: &Sheet,
-    sel: &sheetcraft_engine::Selection,
+    sel: &gridcraft_engine::Selection,
 ) {
     // Validation dropdown arrow for the active cell.
     if app.editor.is_none()
@@ -1951,7 +1949,7 @@ fn list_picker(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
         app.grid.list_picker = None;
         return;
     };
-    let items = sheetcraft_engine::cmd::data::list_items(&wb, si, &dv);
+    let items = gridcraft_engine::cmd::data::list_items(&wb, si, &dv);
     let r = geo.cell_rect(sh, c);
     let mut close = false;
     egui::Area::new(egui::Id::new("dv_list")).fixed_pos(r.left_bottom()).order(egui::Order::Foreground).show(ui.ctx(), |ui| {

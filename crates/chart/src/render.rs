@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::f32::consts::{PI, TAU};
 
-use sheetcraft_model::{Chart, ChartKind, LegendPos, Theme};
+use gridcraft_model::{Chart, ChartKind, LegendPos, Theme};
 
 use crate::axis::{Fmt, Scale, clean, fixed_scale, nice_scale};
 use crate::resolve::{MAX_POINTS, MAX_SERIES, series_color};

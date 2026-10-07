@@ -22,7 +22,7 @@ const IO_TIMEOUT: Duration = Duration::from_secs(30);
 /// Longest reply line accepted from the app (guards against a runaway peer).
 const MAX_REPLY: u64 = 256 * 1024 * 1024;
 
-/// A running SheetCraft app, reached through its loopback control port.
+/// A running GridCraft app, reached through its loopback control port.
 pub struct Remote {
     addr: String,
     conn: Option<(BufReader<TcpStream>, TcpStream)>,
@@ -91,7 +91,7 @@ impl Backend for Remote {
                 self.conn = None;
                 self.roundtrip(&line).map_err(|e| {
                     self.conn = None;
-                    format!("SheetCraft app at {} is not reachable: {e}", self.addr)
+                    format!("GridCraft app at {} is not reachable: {e}", self.addr)
                 })?
             }
         };
@@ -108,6 +108,6 @@ impl Backend for Remote {
     }
 
     fn describe(&self) -> String {
-        format!("connected to the SheetCraft app at {}", self.addr)
+        format!("connected to the GridCraft app at {}", self.addr)
     }
 }

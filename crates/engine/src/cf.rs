@@ -3,8 +3,8 @@
 
 use std::collections::HashMap;
 
-use sheetcraft_core::{CellRef, RangeRef, Value, compare};
-use sheetcraft_model::*;
+use gridcraft_core::{CellRef, RangeRef, Value, compare};
+use gridcraft_model::*;
 
 /// The conditional look of one cell.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -77,7 +77,7 @@ fn threshold(wb: &Workbook, sheet: usize, at: CellRef, st: &RuleStats, k: &CfVal
         CfValueKind::Number(n) => *n,
         CfValueKind::Percent(p) => min + (max - min) * p / 100.0,
         CfValueKind::Percentile(p) => percentile(&st.sorted, *p),
-        CfValueKind::Formula(f) => sheetcraft_calc::evaluate(wb, sheet, at, f).to_number().unwrap_or(0.0),
+        CfValueKind::Formula(f) => gridcraft_calc::evaluate(wb, sheet, at, f).to_number().unwrap_or(0.0),
     }
 }
 
@@ -128,7 +128,7 @@ impl CfCache {
             let text = v.display();
             let matched_style: Option<&Style> = match &cf.rule {
                 CfRule::CellIs { op, a, b, style } => {
-                    let eval = |f: &str| sheetcraft_calc::evaluate(wb, sheet, c, &relative(f, first, c));
+                    let eval = |f: &str| gridcraft_calc::evaluate(wb, sheet, c, &relative(f, first, c));
                     let av = eval(a);
                     let ok = match op {
                         CfOperator::Between | CfOperator::NotBetween => {
@@ -147,7 +147,7 @@ impl CfCache {
                     (ok && !v.is_empty()).then_some(style.as_ref())
                 }
                 CfRule::Expression { formula, style } => {
-                    sheetcraft_calc::evaluate(wb, sheet, c, &relative(formula, first, c)).to_bool().unwrap_or(false).then_some(style.as_ref())
+                    gridcraft_calc::evaluate(wb, sheet, c, &relative(formula, first, c)).to_bool().unwrap_or(false).then_some(style.as_ref())
                 }
                 CfRule::ContainsText { text: t, style } => text.to_lowercase().contains(&t.to_lowercase()).then_some(style.as_ref()),
                 CfRule::NotContainsText { text: t, style } => (!text.to_lowercase().contains(&t.to_lowercase())).then_some(style.as_ref()),
@@ -186,13 +186,13 @@ impl CfCache {
                 },
                 CfRule::TimePeriod { period, style } => match v.as_f64() {
                     Some(n) => {
-                        let today = sheetcraft_calc::now_serial().floor();
+                        let today = gridcraft_calc::now_serial().floor();
                         let d = n.floor();
-                        let wd = sheetcraft_core::date::datetime_from_serial(wb.date_system, today).map(|x| x.weekday as f64).unwrap_or(0.0);
+                        let wd = gridcraft_core::date::datetime_from_serial(wb.date_system, today).map(|x| x.weekday as f64).unwrap_or(0.0);
                         let week_start = today - wd;
                         let (ty, tm) =
-                            sheetcraft_core::date::datetime_from_serial(wb.date_system, today).map(|x| (x.year, x.month)).unwrap_or((2026, 1));
-                        let ym = sheetcraft_core::date::datetime_from_serial(wb.date_system, d).map(|x| (x.year, x.month));
+                            gridcraft_core::date::datetime_from_serial(wb.date_system, today).map(|x| (x.year, x.month)).unwrap_or((2026, 1));
+                        let ym = gridcraft_core::date::datetime_from_serial(wb.date_system, d).map(|x| (x.year, x.month));
                         let month_off = |k: i32| {
                             let m = tm as i32 + k;
                             let y = ty + (m - 1).div_euclid(12);
@@ -299,12 +299,10 @@ fn relative(f: &str, first: CellRef, c: CellRef) -> String {
     if first == c {
         return f.to_string();
     }
-    match sheetcraft_formula::parse(f.trim_start_matches('=')) {
-        Ok(e) => sheetcraft_formula::print(&sheetcraft_formula::adjust::shift_relative(
-            e,
-            c.row as i64 - first.row as i64,
-            c.col as i64 - first.col as i64,
-        )),
+    match gridcraft_formula::parse(f.trim_start_matches('=')) {
+        Ok(e) => {
+            gridcraft_formula::print(&gridcraft_formula::adjust::shift_relative(e, c.row as i64 - first.row as i64, c.col as i64 - first.col as i64))
+        }
         Err(_) => f.to_string(),
     }
 }

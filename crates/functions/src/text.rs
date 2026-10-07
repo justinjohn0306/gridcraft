@@ -1,7 +1,7 @@
 //! Text functions.
 
-use sheetcraft_core::parse::parse_number_text;
-use sheetcraft_core::{CellError, Value, number_to_text};
+use gridcraft_core::parse::parse_number_text;
+use gridcraft_core::{CellError, Value, number_to_text};
 
 use crate::criteria::wildcard_find;
 use crate::util::{
@@ -852,7 +852,7 @@ pub(crate) fn specs() -> Vec<FnSpec> {
 
 #[cfg(test)]
 mod tests {
-    use sheetcraft_core::{CellError, Value};
+    use gridcraft_core::{CellError, Value};
 
     use crate::util::testutil::*;
 

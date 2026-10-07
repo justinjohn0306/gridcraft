@@ -3,8 +3,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write as _;
 
-use sheetcraft_core::{CellError, CellRef, RangeRef, Value};
-use sheetcraft_model::{
+use gridcraft_core::{CellError, CellRef, RangeRef, Value};
+use gridcraft_model::{
     AutoFilter, Cell, CfOperator, CfRule, CfValueKind, Color, CondFormat, ErrorStyle, FilterCriterion, LineInfo, Orientation, Sheet, SparklineKind,
     Style, Table, TotalsFn, Validation, ValidationKind, Workbook,
 };
@@ -36,7 +36,7 @@ fn cf_op_name(op: CfOperator) -> &'static str {
 /// Valid table name: letters, digits, `_` and `.`, starting with a letter or `_`.
 fn table_name(name: &str, used: &mut HashSet<String>, n: u32) -> String {
     let mut s: String = name.chars().map(|c| if c.is_alphanumeric() || c == '_' || c == '.' { c } else { '_' }).collect();
-    if s.is_empty() || !s.starts_with(|c: char| c.is_alphabetic() || c == '_') || sheetcraft_core::CellRef::parse(&s).is_some() {
+    if s.is_empty() || !s.starts_with(|c: char| c.is_alphabetic() || c == '_') || gridcraft_core::CellRef::parse(&s).is_some() {
         s = format!("Table{n}");
     }
     let mut out = s.clone();
@@ -75,7 +75,7 @@ pub fn write_sheet(wb: &Workbook, si: usize, selected: bool, out: &mut Out) -> (
     let mut rels = Rels::default();
     let Some(sheet) = wb.sheet(si) else { return (String::new(), rels) };
     let nstyles = wb.styles.len() as u32;
-    let sid = |s: sheetcraft_model::StyleId| if s.0 < nstyles { s.0 } else { 0 };
+    let sid = |s: gridcraft_model::StyleId| if s.0 < nstyles { s.0 } else { 0 };
 
     // Table header cells must hold the column names.
     let mut overrides: BTreeMap<CellRef, String> = BTreeMap::new();
@@ -176,7 +176,7 @@ pub fn write_sheet(wb: &Workbook, si: usize, selected: bool, out: &mut Out) -> (
             let _ = write!(
                 s,
                 " topLeftCell=\"{}\" activePane=\"{pane}\" state=\"frozen\"/>",
-                CellRef::new(rows.min(sheetcraft_core::MAX_ROWS - 1), cols.min(sheetcraft_core::MAX_COLS - 1)).a1()
+                CellRef::new(rows.min(gridcraft_core::MAX_ROWS - 1), cols.min(gridcraft_core::MAX_COLS - 1)).a1()
             );
             let _ = write!(s, "<selection pane=\"{pane}\" activeCell=\"{active}\" sqref=\"{active}\"/>");
         }
@@ -190,11 +190,11 @@ pub fn write_sheet(wb: &Workbook, si: usize, selected: bool, out: &mut Out) -> (
     let max_row_outline = sheet.rows.values().map(|r| r.outline).max().unwrap_or(0);
     let max_col_outline = sheet.cols.values().map(|r| r.outline).max().unwrap_or(0);
     s.push_str("<sheetFormatPr");
-    if (sheet.default_col_width - sheetcraft_model::DEFAULT_COL_WIDTH).abs() > 0.01 {
+    if (sheet.default_col_width - gridcraft_model::DEFAULT_COL_WIDTH).abs() > 0.01 {
         let _ = write!(s, " defaultColWidth=\"{}\"", num(px_to_col_width(sheet.default_col_width)));
     }
     let _ = write!(s, " defaultRowHeight=\"{}\"", num(px_to_pt(sheet.default_row_height)));
-    if (sheet.default_row_height - sheetcraft_model::DEFAULT_ROW_HEIGHT).abs() > 0.01 {
+    if (sheet.default_row_height - gridcraft_model::DEFAULT_ROW_HEIGHT).abs() > 0.01 {
         s.push_str(" customHeight=\"1\"");
     }
     if max_row_outline > 0 {
@@ -231,7 +231,7 @@ pub fn write_sheet(wb: &Workbook, si: usize, selected: bool, out: &mut Out) -> (
             s.push_str("/>");
         };
         for (&c, info) in &sheet.cols {
-            if c >= sheetcraft_core::MAX_COLS {
+            if c >= gridcraft_core::MAX_COLS {
                 continue;
             }
             run = match run {
@@ -516,7 +516,7 @@ pub fn write_sheet(wb: &Workbook, si: usize, selected: bool, out: &mut Out) -> (
                 SparklineKind::WinLoss => " type=\"stacked\"",
             };
             let src =
-                if sp.source.contains('!') { sp.source.clone() } else { format!("{}!{}", sheetcraft_formula::quote_sheet(&sheet.name), sp.source) };
+                if sp.source.contains('!') { sp.source.clone() } else { format!("{}!{}", gridcraft_formula::quote_sheet(&sheet.name), sp.source) };
             let color = if sp.color == Color::Auto { "rgb=\"FF376092\"".to_string() } else { color_attrs(&sp.color) };
             let _ = write!(
                 s,
@@ -539,7 +539,7 @@ fn write_cell(
     ov: Option<&String>,
     extra: Option<&Value>,
     dynamic: Option<&RangeRef>,
-    sid: &dyn Fn(sheetcraft_model::StyleId) -> u32,
+    sid: &dyn Fn(gridcraft_model::StyleId) -> u32,
     out: &mut Out,
 ) {
     let style = cell.map(|x| sid(x.style)).unwrap_or(0);
@@ -853,7 +853,7 @@ fn autofilter_xml(af: &AutoFilter, out: &mut Out) -> String {
                 let _ = write!(s, "<dynamicFilter type=\"{}\"/>", if *above { "aboveAverage" } else { "belowAverage" });
             }
             FilterCriterion::FillColor(c) => {
-                let st = Style { fill: sheetcraft_model::Fill::solid(*c), ..Default::default() };
+                let st = Style { fill: gridcraft_model::Fill::solid(*c), ..Default::default() };
                 let _ = write!(s, "<colorFilter dxfId=\"{}\"/>", dxf_id(&mut out.dxfs, &st));
             }
             FilterCriterion::FontColor(c) => {

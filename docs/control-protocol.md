@@ -1,9 +1,9 @@
-# SheetCraft control protocol
+# GridCraft control protocol
 
 Start the desktop app with a control port:
 
 ```sh
-sheetcraft --control 7979            # or SHEETCRAFT_CONTROL_PORT=7979
+gridcraft --control 7979            # or GRIDCRAFT_CONTROL_PORT=7979
 ```
 
 Then send newline-delimited JSON to `127.0.0.1:7979`. Every request line gets one reply line:
@@ -19,7 +19,7 @@ Errors come back as `{"id": …, "ok": false, "error": "…"}`.
 
 | Method | Params | What it does |
 |---|---|---|
-| `engine.execute` | `{command, params}` | Runs any engine command (see `engine.commands` or `sheetcraft-cli commands`) |
+| `engine.execute` | `{command, params}` | Runs any engine command (see `engine.commands` or `gridcraft-cli commands`) |
 | `engine.commands` | | Every command: id, label, ribbon path, shortcut, params doc, enabled |
 | `engine.journal` | | Commands run so far (replayable) |
 | `document.inspect` | | Workbook summary: sheets, used ranges, tables, charts, names, selection, undo labels |
@@ -39,5 +39,5 @@ Errors come back as `{"id": …, "ok": false, "error": "…"}`.
 
 Any other method name that is a command id (e.g. `home.bold`) runs that command.
 
-For a headless equivalent (no window), use `sheetcraft-cli mcp` or `sheetcraft-cli run`;
+For a headless equivalent (no window), use `gridcraft-cli mcp` or `gridcraft-cli run`;
 see [`mcp.md`](mcp.md) and [`cli.md`](cli.md).

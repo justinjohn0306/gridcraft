@@ -8,9 +8,9 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
-use sheetcraft_core::date::datetime_from_serial;
-use sheetcraft_core::{CellError, CellRef, MAX_COLS, MAX_ROWS, RangeRef, Value};
-use sheetcraft_model::*;
+use gridcraft_core::date::datetime_from_serial;
+use gridcraft_core::{CellError, CellRef, MAX_COLS, MAX_ROWS, RangeRef, Value};
+use gridcraft_model::*;
 
 /// Largest source block read (cells).
 pub const MAX_SOURCE_CELLS: u64 = 10_000_000;
@@ -67,7 +67,7 @@ pub fn quote_sheet(name: &str) -> String {
 
 /// Absolute reference text for a range on a sheet: `Sheet1!$A$1:$E$20`.
 pub fn range_text(sheet_name: &str, r: RangeRef) -> String {
-    let abs = |c: CellRef| format!("${}${}", sheetcraft_core::col_to_letters(c.col), c.row as u64 + 1);
+    let abs = |c: CellRef| format!("${}${}", gridcraft_core::col_to_letters(c.col), c.row as u64 + 1);
     format!("{}!{}:{}", quote_sheet(sheet_name), abs(r.start), abs(r.end))
 }
 

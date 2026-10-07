@@ -1,9 +1,9 @@
 //! More ribbon commands: Chart Design and Format, object arrangement, workbook views, table
 //! tools, Get Data, scripts (Automate), cell checkboxes, theme colours and fonts.
 
+use gridcraft_core::{CellRef, RangeRef, Value};
+use gridcraft_model::*;
 use serde_json::{Value as Json, json};
-use sheetcraft_core::{CellRef, RangeRef, Value};
-use sheetcraft_model::*;
 
 use super::*;
 
@@ -224,7 +224,7 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             new_cell_style
         ),
-        cmd!(query "home.addIns", "Add-ins", ["Home", "Add-ins"], None, "{} → SheetCraft extends through MCP and scripts instead of add-ins", always, |_, _| Ok(json!({"addIns": [], "hint": "Use sheetcraft-cli mcp or Automate › scripts"}))),
+        cmd!(query "home.addIns", "Add-ins", ["Home", "Add-ins"], None, "{} → GridCraft extends through MCP and scripts instead of add-ins", always, |_, _| Ok(json!({"addIns": [], "hint": "Use gridcraft-cli mcp or Automate › scripts"}))),
         cmd!(query "formulas.recentlyUsed", "Recently Used", ["Formulas", "Function Library"], None, "{} → recently used functions in this workbook", has_doc, recently_used),
         cmd!(query "formulas.financial", "Financial", ["Formulas", "Function Library"], None, "{}", always, |s, _| s.execute("formulas.functions", json!({"category": "Financial"}))),
         cmd!(query "formulas.logical", "Logical", ["Formulas", "Function Library"], None, "{}", always, |s, _| s.execute("formulas.functions", json!({"category": "Logical"}))),
@@ -356,7 +356,7 @@ fn select_data(s: &mut Session, p: &Json) -> Result<Json> {
     let src = d.wb.sheet(src_si).ok_or(EngineError::NoDocument)?;
     let by_rows = bool_param(p, "byRows").unwrap_or(r.width() > r.height() + 1);
     let series = super::insert::series_from_range(src, r, by_rows);
-    let source = format!("{}!{}", sheetcraft_formula::quote_sheet(&src.name), r.a1());
+    let source = format!("{}!{}", gridcraft_formula::quote_sheet(&src.name), r.a1());
     with_chart(s, p, move |c| {
         c.series = series;
         c.source = Some(source);
@@ -703,8 +703,8 @@ fn from_csv(s: &mut Session, p: &Json) -> Result<Json> {
             let delim = str_param(p, "delimiter")
                 .and_then(|d| d.chars().next())
                 .unwrap_or(if text.lines().next().is_some_and(|l| l.contains('\t')) { '\t' } else { ',' });
-            let opts = sheetcraft_xlsx::CsvOptions { delimiter: delim as u8, ..Default::default() };
-            let wb = sheetcraft_xlsx::read_csv(&bytes, &opts).map_err(|e| EngineError::Other(e.to_string()))?;
+            let opts = gridcraft_xlsx::CsvOptions { delimiter: delim as u8, ..Default::default() };
+            let wb = gridcraft_xlsx::read_csv(&bytes, &opts).map_err(|e| EngineError::Other(e.to_string()))?;
             let sh = wb.sheet(0).ok_or(EngineError::NoDocument)?;
             let Some(u) = sh.used_range() else { return Err(EngineError::Other("The file is empty.".into())) };
             (u.start.row..=u.end.row)
@@ -933,7 +933,7 @@ fn recently_used(s: &mut Session, _: &Json) -> Result<Json> {
             continue;
         }
         let input = p.get("input").and_then(Json::as_str).unwrap_or("");
-        if let Ok(e) = sheetcraft_formula::parse(input.trim_start_matches('=')) {
+        if let Ok(e) = gridcraft_formula::parse(input.trim_start_matches('=')) {
             for f in e.functions() {
                 if !seen.iter().any(|x| x == f) {
                     seen.push(f.to_string());

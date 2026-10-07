@@ -39,7 +39,7 @@ pub fn show(app: &mut SheetApp, ui: &mut Ui) {
 fn comments(app: &mut SheetApp, ui: &mut Ui) {
     let Some(d) = app.session.active() else { return };
     let Some(sh) = d.wb.active() else { return };
-    let list: Vec<(String, sheetcraft_engine::model::Comment)> = sh.comments.iter().map(|(c, m)| (c.a1(), m.clone())).collect();
+    let list: Vec<(String, gridcraft_engine::model::Comment)> = sh.comments.iter().map(|(c, m)| (c.a1(), m.clone())).collect();
     if list.is_empty() {
         ui.label(egui::RichText::new("No comments on this sheet yet. Select a cell and choose New Comment.").italics());
     }
@@ -91,7 +91,7 @@ fn watch(app: &mut SheetApp, ui: &mut Ui) {
         && let Some(d) = app.session.active()
         && let Some(sh) = d.wb.active()
     {
-        let r = format!("{}!{}", sheetcraft_engine::formula::quote_sheet(&sh.name), d.selection.active.a1());
+        let r = format!("{}!{}", gridcraft_engine::formula::quote_sheet(&sh.name), d.selection.active.a1());
         let _ = app.session.run("formulas.watchWindow", json!({"add": r}));
     }
     let list = app.session.run("formulas.watchWindow", json!({})).unwrap_or(Json::Null);
@@ -211,7 +211,7 @@ fn format_chart(app: &mut SheetApp, ui: &mut Ui) {
         });
     });
     ui.collapsing("Series", |ui| {
-        let data = app.session.active().map(|d| sheetcraft_chart::resolve(&d.wb, d.wb.active_sheet, &chart));
+        let data = app.session.active().map(|d| gridcraft_chart::resolve(&d.wb, d.wb.active_sheet, &chart));
         for (i, s) in chart.series.iter().enumerate() {
             let name = data.as_ref().and_then(|d| d.series.get(i)).map(|x| x.name.clone()).unwrap_or_else(|| format!("Series {}", i + 1));
             let col =

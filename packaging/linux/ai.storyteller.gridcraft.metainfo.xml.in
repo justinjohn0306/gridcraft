@@ -2,31 +2,31 @@
 <!-- AppStream metadata (software centres, Flathub). Template: package.sh and the Flatpak
      manifest substitute @VERSION@ and @DATE@ from Cargo.toml and the build date. -->
 <component type="desktop-application">
-  <id>ai.storyteller.sheetcraft</id>
+  <id>ai.storyteller.gridcraft</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT OR Apache-2.0</project_license>
-  <name>SheetCraft</name>
+  <name>GridCraft</name>
   <summary>Calculate, analyse and chart data in workbooks</summary>
   <developer id="ai.storyteller">
     <name>Learning Machines LLC</name>
   </developer>
   <description>
     <p>
-      SheetCraft is an open-source, native spreadsheet. It opens and saves .xlsx workbooks and
+      GridCraft is an open-source, native spreadsheet. It opens and saves .xlsx workbooks and
       CSV/TSV files, evaluates hundreds of worksheet functions, and formats, sorts, filters and
       charts your data.
     </p>
     <p>
-      Every action is a command that the included sheetcraft-cli tool and AI agents (over MCP)
+      Every action is a command that the included gridcraft-cli tool and AI agents (over MCP)
       can run too, so workbooks can be built and checked without opening a window.
     </p>
   </description>
-  <launchable type="desktop-id">ai.storyteller.sheetcraft.desktop</launchable>
-  <icon type="stock">ai.storyteller.sheetcraft</icon>
+  <launchable type="desktop-id">ai.storyteller.gridcraft.desktop</launchable>
+  <icon type="stock">ai.storyteller.gridcraft</icon>
   <!-- Only url types known to appstream 0.15 (Ubuntu 22.04, where CI validates): no vcs-browser. -->
-  <url type="homepage">https://getartcraft.com/apps/sheetcraft</url>
-  <url type="bugtracker">https://github.com/storytold/sheetcraft/issues</url>
-  <url type="help">https://github.com/storytold/sheetcraft</url>
+  <url type="homepage">https://getartcraft.com/apps/gridcraft</url>
+  <url type="bugtracker">https://github.com/storytold/gridcraft/issues</url>
+  <url type="help">https://github.com/storytold/gridcraft</url>
   <url type="contact">https://discord.gg/artcraft</url>
   <categories>
     <category>Office</category>
@@ -39,7 +39,7 @@
     <keyword>xlsx</keyword>
     <keyword>csv</keyword>
   </keywords>
-  <!-- Proposed app colour (SheetCraft green #1f9d55 / ink #147a40); see assets/app-icon/README.md. -->
+  <!-- Proposed app colour (GridCraft green #1f9d55 / ink #147a40); see assets/app-icon/README.md. -->
   <branding>
     <color type="primary" scheme_preference="light">#a7e3bf</color>
     <color type="primary" scheme_preference="dark">#147a40</color>
@@ -52,8 +52,8 @@
     <control>pointing</control>
   </supports>
   <provides>
-    <binary>sheetcraft</binary>
-    <binary>sheetcraft-cli</binary>
+    <binary>gridcraft</binary>
+    <binary>gridcraft-cli</binary>
     <mediatype>application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</mediatype>
     <mediatype>application/vnd.ms-excel.sheet.macroEnabled.12</mediatype>
     <mediatype>text/csv</mediatype>

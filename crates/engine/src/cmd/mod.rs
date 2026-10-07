@@ -18,11 +18,11 @@ pub mod spelling;
 pub mod view;
 pub mod whatif;
 
+use gridcraft_calc::Key;
+use gridcraft_core::{CellRef, RangeRef};
+use gridcraft_model::Workbook;
 use serde::Serialize;
 use serde_json::Value as Json;
-use sheetcraft_calc::Key;
-use sheetcraft_core::{CellRef, RangeRef};
-use sheetcraft_model::Workbook;
 
 use crate::{DocState, EngineError, Result, Selection, Session};
 
@@ -217,7 +217,7 @@ pub(crate) fn edit<R>(s: &mut Session, f: impl FnOnce(&mut Ctx) -> Result<R>) ->
 }
 
 pub(crate) fn commit<R>(d: &mut DocState, f: impl FnOnce(&mut Ctx) -> Result<R>) -> Result<R> {
-    let prof = std::env::var_os("SHEETCRAFT_PROFILE").is_some();
+    let prof = std::env::var_os("GRIDCRAFT_PROFILE").is_some();
     let t0 = std::time::Instant::now();
     let mut sel = d.selection.clone();
     let mut ctx = Ctx { wb: (*d.wb).clone(), changed: Vec::new(), structural: false, sel: &mut sel, fit_rows: Vec::new() };
@@ -259,9 +259,9 @@ pub fn auto_row_height(wb: &mut Workbook, si: usize, row: u32) {
     }
     let default = sh.default_row_height;
     // Fast path: rows of default-size, unwrapped, single-line content keep the default height.
-    let plain = sh.cells.row(row, 0, sheetcraft_core::MAX_COLS - 1).all(|(_, cell)| {
+    let plain = sh.cells.row(row, 0, gridcraft_core::MAX_COLS - 1).all(|(_, cell)| {
         let st = wb.styles.get(cell.style);
-        st.font.size <= sheetcraft_model::DEFAULT_FONT_SIZE && !st.align.wrap && !cell.value.as_text().is_some_and(|t| t.contains('\n'))
+        st.font.size <= gridcraft_model::DEFAULT_FONT_SIZE && !st.align.wrap && !cell.value.as_text().is_some_and(|t| t.contains('\n'))
     });
     if plain {
         if sh.rows.get(&row).is_some_and(|i| i.size.is_some())
@@ -270,7 +270,7 @@ pub fn auto_row_height(wb: &mut Workbook, si: usize, row: u32) {
         {
             {
                 e.size = None;
-                if *e == sheetcraft_model::LineInfo::default() {
+                if *e == gridcraft_model::LineInfo::default() {
                     shm.rows.remove(&row);
                 }
             }
@@ -278,10 +278,10 @@ pub fn auto_row_height(wb: &mut Workbook, si: usize, row: u32) {
         return;
     }
     let mut need: f32 = default;
-    for (c, cell) in sh.cells.row(row, 0, sheetcraft_core::MAX_COLS - 1) {
+    for (c, cell) in sh.cells.row(row, 0, gridcraft_core::MAX_COLS - 1) {
         let st = wb.styles.get(cell.style);
         let size = st.font.size;
-        let line = (size * 1.8).round().max(default * size / sheetcraft_model::DEFAULT_FONT_SIZE);
+        let line = (size * 1.8).round().max(default * size / gridcraft_model::DEFAULT_FONT_SIZE);
         let mut lines = 1.0f32;
         if !cell.value.is_empty() || cell.formula.is_some() {
             let text = crate::display::cell_text(wb, sh, CellRef::new(row, c));
@@ -295,7 +295,7 @@ pub fn auto_row_height(wb: &mut Workbook, si: usize, row: u32) {
             } else {
                 explicit
             };
-        } else if st.font.size <= sheetcraft_model::DEFAULT_FONT_SIZE {
+        } else if st.font.size <= gridcraft_model::DEFAULT_FONT_SIZE {
             continue;
         }
         let h = if lines > 1.0 { (size * 96.0 / 72.0 * 1.22 * lines + 5.0).ceil() } else { line };
@@ -304,7 +304,7 @@ pub fn auto_row_height(wb: &mut Workbook, si: usize, row: u32) {
     let Some(shm) = wb.sheet_mut(si) else { return };
     let e = shm.rows.entry(row).or_default();
     e.size = if (need - default).abs() < 0.5 { None } else { Some(need) };
-    if *e == sheetcraft_model::LineInfo::default() {
+    if *e == gridcraft_model::LineInfo::default() {
         shm.rows.remove(&row);
     }
 }
@@ -313,7 +313,7 @@ impl Ctx<'_> {
     pub fn sheet_index(&self) -> usize {
         self.wb.active_sheet
     }
-    pub fn sheet_mut(&mut self, i: usize) -> Result<&mut sheetcraft_model::Sheet> {
+    pub fn sheet_mut(&mut self, i: usize) -> Result<&mut gridcraft_model::Sheet> {
         self.wb.sheet_mut(i).ok_or_else(|| EngineError::Other("no such sheet".into()))
     }
     pub fn touch(&mut self, sheet: usize, c: CellRef) {

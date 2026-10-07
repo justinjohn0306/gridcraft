@@ -1,16 +1,16 @@
 [package]
-name = "sheetcraft-model"
+name = "gridcraft-model"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "SheetCraft document model: workbooks, sheets, cells, styles, tables, charts"
+description = "GridCraft document model: workbooks, sheets, cells, styles, tables, charts"
 
 [lints]
 workspace = true
 
 [dependencies]
-sheetcraft-core = { workspace = true }
-sheetcraft-formula = { workspace = true }
+gridcraft-core = { workspace = true }
+gridcraft-formula = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 

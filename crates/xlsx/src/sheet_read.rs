@@ -3,10 +3,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use sheetcraft_core::date::{serial_from_ymd, time_fraction};
-use sheetcraft_core::{CellError, CellRef, DateSystem, MAX_COLS, MAX_ROWS, RangeRef, Value};
-use sheetcraft_formula::Expr;
-use sheetcraft_model::{
+use gridcraft_core::date::{serial_from_ymd, time_fraction};
+use gridcraft_core::{CellError, CellRef, DateSystem, MAX_COLS, MAX_ROWS, RangeRef, Value};
+use gridcraft_formula::Expr;
+use gridcraft_model::{
     AutoFilter, Cell, CfOperator, CfRule, CfValueKind, Comment, CondFormat, ErrorStyle, FilterCriterion, Formula, Hyperlink, LineInfo, Orientation,
     Sheet, SheetProtection, Sparkline, SparklineKind, Table, TableColumn, TotalsFn, Validation, ValidationKind,
 };
@@ -251,7 +251,7 @@ fn read_cols(cx: &Ctx<'_>, e: &El, sheet: &mut Sheet) {
         info.collapsed = c.flag("collapsed", false);
         if let Some(s) = c.attr_u32("style") {
             let id = cx.style(Some(s));
-            if id != sheetcraft_model::StyleId::DEFAULT {
+            if id != gridcraft_model::StyleId::DEFAULT {
                 info.style = Some(id);
             }
         }
@@ -374,7 +374,7 @@ fn read_formula(cx: &mut Ctx<'_>, st: &mut RowState, f: &El, pos: CellRef, dynam
         "shared" => {
             let si = f.attr_u32("si")?;
             if !text.is_empty() {
-                let expr = sheetcraft_formula::parse(text).ok();
+                let expr = gridcraft_formula::parse(text).ok();
                 st.shared.insert(si, Shared { anchor: pos, expr, text: text.to_string() });
                 Some(Formula::new(text))
             } else {
@@ -386,7 +386,7 @@ fn read_formula(cx: &mut Ctx<'_>, st: &mut RowState, f: &El, pos: CellRef, dynam
                     Some(e) => {
                         let dr = pos.row as i64 - sh.anchor.row as i64;
                         let dc = pos.col as i64 - sh.anchor.col as i64;
-                        Formula::from_expr(sheetcraft_formula::adjust::shift_relative(e.clone(), dr, dc))
+                        Formula::from_expr(gridcraft_formula::adjust::shift_relative(e.clone(), dr, dc))
                     }
                     None => Formula::new(&sh.text),
                 })

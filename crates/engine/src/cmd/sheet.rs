@@ -2,10 +2,10 @@
 
 use std::sync::Arc;
 
+use gridcraft_core::{CellRef, MAX_COLS, MAX_ROWS, RangeRef};
+use gridcraft_formula::adjust::{Axis, Edit};
+use gridcraft_model::{Sheet, Visibility};
 use serde_json::{Value as Json, json};
-use sheetcraft_core::{CellRef, MAX_COLS, MAX_ROWS, RangeRef};
-use sheetcraft_formula::adjust::{Axis, Edit};
-use sheetcraft_model::{Sheet, Visibility};
 
 use super::*;
 
@@ -76,15 +76,15 @@ fn shift_sheet_features(sh: &mut Sheet, axis: Axis, at: u32, count: u32, insert:
     };
     let map_range = |r: RangeRef| -> Option<RangeRef> {
         let e = if insert { Edit::Insert { axis, at, count } } else { Edit::Delete { axis, at, count } };
-        let expr = sheetcraft_formula::Expr::Ref(sheetcraft_formula::Reference {
-            sheet: sheetcraft_formula::SheetSel::Current,
-            kind: sheetcraft_formula::RefKind::Range(
-                sheetcraft_formula::Anchor { row: r.start.row, col: r.start.col, row_abs: false, col_abs: false },
-                sheetcraft_formula::Anchor { row: r.end.row, col: r.end.col, row_abs: false, col_abs: false },
+        let expr = gridcraft_formula::Expr::Ref(gridcraft_formula::Reference {
+            sheet: gridcraft_formula::SheetSel::Current,
+            kind: gridcraft_formula::RefKind::Range(
+                gridcraft_formula::Anchor { row: r.start.row, col: r.start.col, row_abs: false, col_abs: false },
+                gridcraft_formula::Anchor { row: r.end.row, col: r.end.col, row_abs: false, col_abs: false },
             ),
         });
-        match sheetcraft_formula::adjust::adjust(expr, "S", "S", &e) {
-            sheetcraft_formula::Expr::Ref(r) => Some(r.range()),
+        match gridcraft_formula::adjust::adjust(expr, "S", "S", &e) {
+            gridcraft_formula::Expr::Ref(r) => Some(r.range()),
             _ => None,
         }
     };
@@ -122,7 +122,7 @@ fn shift_sheet_features(sh: &mut Sheet, axis: Axis, at: u32, count: u32, insert:
                     let name = format!("Column{}", t.columns.len() + 1);
                     t.columns.insert(
                         (idx + k as usize).min(t.columns.len()),
-                        sheetcraft_model::TableColumn { name, totals: Default::default(), totals_label: None, formula: None },
+                        gridcraft_model::TableColumn { name, totals: Default::default(), totals_label: None, formula: None },
                     );
                 }
             }
@@ -172,14 +172,14 @@ fn shift_sheet_features(sh: &mut Sheet, axis: Axis, at: u32, count: u32, insert:
 }
 
 /// Rewrites every formula reference (and chart series) for a structural edit on `target`.
-fn rewrite(wb: &mut sheetcraft_model::Workbook, target: &str, e: &Edit) {
+fn rewrite(wb: &mut gridcraft_model::Workbook, target: &str, e: &Edit) {
     super::edit::rewrite_all_formulas(wb, target, e);
     for si in 0..wb.sheets.len() {
         let host = wb.sheets.get(si).map(|s| s.name.clone()).unwrap_or_default();
         let Some(sh) = wb.sheet_mut(si) else { continue };
         let fix = |text: &str| -> String {
-            match sheetcraft_formula::parse(text) {
-                Ok(expr) => sheetcraft_formula::print(&sheetcraft_formula::adjust::adjust(expr, &host, target, e)),
+            match gridcraft_formula::parse(text) {
+                Ok(expr) => gridcraft_formula::print(&gridcraft_formula::adjust::adjust(expr, &host, target, e)),
                 Err(_) => text.to_string(),
             }
         };
@@ -222,7 +222,7 @@ fn insert_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
                 if let Some(info) = prev {
                     for i in at..at + count {
                         let map = if axis == Axis::Rows { &mut sh.rows } else { &mut sh.cols };
-                        map.insert(i, sheetcraft_model::LineInfo { hidden: false, outline: 0, collapsed: false, ..info });
+                        map.insert(i, gridcraft_model::LineInfo { hidden: false, outline: 0, collapsed: false, ..info });
                     }
                 }
             }
@@ -373,14 +373,14 @@ fn delete_sheet(s: &mut Session, p: &Json) -> Result<Json> {
     edit_doc(d, |cx| {
         cx.wb.sheets.remove(i);
         for si in 0..cx.wb.sheets.len() {
-            let keys: Vec<(CellRef, Arc<sheetcraft_model::Formula>)> =
+            let keys: Vec<(CellRef, Arc<gridcraft_model::Formula>)> =
                 cx.wb.sheets.get(si).map(|s| s.cells.iter().filter_map(|(c, x)| x.formula.clone().map(|f| (c, f))).collect()).unwrap_or_default();
             let Some(sh) = cx.wb.sheet_mut(si) else { continue };
             for (c, f) in keys {
                 if let Some(e) = f.expr() {
-                    let ne = sheetcraft_formula::adjust::delete_sheet(e, &name);
+                    let ne = gridcraft_formula::adjust::delete_sheet(e, &name);
                     if let Some(cell) = sh.cells.get_mut(c) {
-                        cell.formula = Some(Arc::new(sheetcraft_model::Formula::from_expr(ne)));
+                        cell.formula = Some(Arc::new(gridcraft_model::Formula::from_expr(ne)));
                     }
                 }
             }
@@ -414,23 +414,23 @@ fn rename_sheet(s: &mut Session, p: &Json) -> Result<Json> {
         let old = cx.wb.sheet(i).map(|s| s.name.clone()).unwrap_or_default();
         cx.sheet_mut(i)?.name = name.clone();
         for si in 0..cx.wb.sheets.len() {
-            let keys: Vec<(CellRef, Arc<sheetcraft_model::Formula>)> =
+            let keys: Vec<(CellRef, Arc<gridcraft_model::Formula>)> =
                 cx.wb.sheets.get(si).map(|s| s.cells.iter().filter_map(|(c, x)| x.formula.clone().map(|f| (c, f))).collect()).unwrap_or_default();
             let Some(sh) = cx.wb.sheet_mut(si) else { continue };
             for (c, f) in keys {
                 if let Some(e) = f.expr() {
-                    let ne = sheetcraft_formula::adjust::rename_sheet(e, &old, &name);
-                    let text = sheetcraft_formula::print(&ne);
+                    let ne = gridcraft_formula::adjust::rename_sheet(e, &old, &name);
+                    let text = gridcraft_formula::print(&ne);
                     if text != f.text
                         && let Some(cell) = sh.cells.get_mut(c)
                     {
-                        cell.formula = Some(Arc::new(sheetcraft_model::Formula::from_expr(ne)));
+                        cell.formula = Some(Arc::new(gridcraft_model::Formula::from_expr(ne)));
                     }
                 }
             }
             let fix = |t: &str| {
-                sheetcraft_formula::parse(t)
-                    .map(|e| sheetcraft_formula::print(&sheetcraft_formula::adjust::rename_sheet(e, &old, &name)))
+                gridcraft_formula::parse(t)
+                    .map(|e| gridcraft_formula::print(&gridcraft_formula::adjust::rename_sheet(e, &old, &name)))
                     .unwrap_or_else(|_| t.to_string())
             };
             for ch in sh.charts.iter_mut() {
@@ -442,8 +442,8 @@ fn rename_sheet(s: &mut Session, p: &Json) -> Result<Json> {
             }
         }
         for n in cx.wb.names.iter_mut() {
-            if let Ok(e) = sheetcraft_formula::parse(&n.formula) {
-                n.formula = sheetcraft_formula::print(&sheetcraft_formula::adjust::rename_sheet(e, &old, &name));
+            if let Ok(e) = gridcraft_formula::parse(&n.formula) {
+                n.formula = gridcraft_formula::print(&gridcraft_formula::adjust::rename_sheet(e, &old, &name));
             }
         }
         cx.structural = true;
@@ -482,7 +482,7 @@ fn tab_color(s: &mut Session, p: &Json) -> Result<Json> {
     let i = target_sheet(s, p)?;
     let c = super::format::color_param(p.get("color"));
     edit(s, |cx| {
-        cx.sheet_mut(i)?.tab_color = c.filter(|c| *c != sheetcraft_model::Color::Auto);
+        cx.sheet_mut(i)?.tab_color = c.filter(|c| *c != gridcraft_model::Color::Auto);
         Ok(Json::Null)
     })
 }

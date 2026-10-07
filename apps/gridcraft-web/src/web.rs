@@ -1,11 +1,11 @@
 //! The browser shell: web `Services`, drag-and-drop, and the eframe web runner.
 
-use sheetcraft_engine::Session;
-use sheetcraft_ui_egui::{Inbox, Services, SheetApp};
+use gridcraft_engine::Session;
+use gridcraft_ui_egui::{Inbox, Services, SheetApp};
 use wasm_bindgen::JsCast as _;
 
-const CANVAS_ID: &str = "sheetcraft_canvas";
-const LOADING_ID: &str = "sheetcraft_loading";
+const CANVAS_ID: &str = "gridcraft_canvas";
+const LOADING_ID: &str = "gridcraft_loading";
 
 pub fn start() {
     eframe::WebLogger::init(log::LevelFilter::Info).ok();
@@ -46,7 +46,7 @@ pub fn start() {
         if let Some(el) = document.get_element_by_id(LOADING_ID) {
             match result {
                 Ok(()) => el.remove(),
-                Err(e) => el.set_inner_html(&format!("<p>SheetCraft failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
+                Err(e) => el.set_inner_html(&format!("<p>GridCraft failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
             }
         }
     });

@@ -1,8 +1,8 @@
 //! Table styles: how a cell inside a table looks (our own palettes, keyed by the familiar
 //! `TableStyleLight1…21 / Medium1…28 / Dark1…11` names so files round-trip).
 
-use sheetcraft_core::CellRef;
-use sheetcraft_model::*;
+use gridcraft_core::CellRef;
+use gridcraft_model::*;
 
 /// (family, number) from a style name, e.g. `TableStyleMedium2` → ("Medium", 2).
 pub fn parse_style_name(name: &str) -> (&'static str, u32) {

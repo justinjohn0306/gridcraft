@@ -1,10 +1,10 @@
-//! SheetCraft desktop app.
+//! GridCraft desktop app.
 //!
-//! Usage: `sheetcraft [--control <port>] [--sample <name>] [files…]`
+//! Usage: `gridcraft [--control <port>] [--sample <name>] [files…]`
 //!
-//! `--control <port>` (or `SHEETCRAFT_CONTROL_PORT`) starts a localhost JSON-lines control
+//! `--control <port>` (or `GRIDCRAFT_CONTROL_PORT`) starts a localhost JSON-lines control
 //! server: `{"id":1,"method":"ui.inspect","params":{}}` → `{"id":1,"ok":true,"result":…}`.
-//! See `sheetcraft_ui_egui::control` and `docs/control-protocol.md` for the methods.
+//! See `gridcraft_ui_egui::control` and `docs/control-protocol.md` for the methods.
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
@@ -12,9 +12,9 @@ mod control_server;
 #[cfg(target_os = "macos")]
 mod native_menu;
 
+use gridcraft_engine::Session;
+use gridcraft_ui_egui::{Services, SheetApp};
 use serde_json::json;
-use sheetcraft_engine::Session;
-use sheetcraft_ui_egui::{Services, SheetApp};
 
 struct App(SheetApp, #[cfg(target_os = "macos")] Option<native_menu::NativeMenu>);
 
@@ -22,7 +22,7 @@ impl eframe::App for App {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         #[cfg(target_os = "macos")]
         {
-            if self.1.is_none() && std::env::var_os("SHEETCRAFT_NO_NATIVE_MENU").is_none() {
+            if self.1.is_none() && std::env::var_os("GRIDCRAFT_NO_NATIVE_MENU").is_none() {
                 self.1 = Some(native_menu::NativeMenu::install(ctx));
             }
             if let Some(m) = &self.1 {
@@ -50,19 +50,19 @@ impl eframe::App for App {
 
 fn config_dir() -> Option<std::path::PathBuf> {
     if cfg!(target_os = "macos") {
-        std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join("Library/Application Support/SheetCraft"))
+        std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join("Library/Application Support/GridCraft"))
     } else if cfg!(windows) {
-        std::env::var_os("APPDATA").map(|a| std::path::PathBuf::from(a).join("SheetCraft"))
+        std::env::var_os("APPDATA").map(|a| std::path::PathBuf::from(a).join("GridCraft"))
     } else {
         std::env::var_os("XDG_CONFIG_HOME")
             .map(std::path::PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config")))
-            .map(|c| c.join("sheetcraft"))
+            .map(|c| c.join("gridcraft"))
     }
 }
 
 fn load_prefs(app: &mut SheetApp) {
-    if std::env::var_os("SHEETCRAFT_NO_PREFS").is_some() {
+    if std::env::var_os("GRIDCRAFT_NO_PREFS").is_some() {
         return;
     }
     let Some(dir) = config_dir() else { return };
@@ -79,7 +79,7 @@ fn load_prefs(app: &mut SheetApp) {
 }
 
 fn save_prefs(app: &SheetApp) {
-    if std::env::var_os("SHEETCRAFT_NO_PREFS").is_some() {
+    if std::env::var_os("GRIDCRAFT_NO_PREFS").is_some() {
         return;
     }
     let Some(dir) = config_dir() else { return };
@@ -127,7 +127,7 @@ fn services() -> Services {
 }
 
 fn icon() -> Option<egui::IconData> {
-    let bytes = include_bytes!("../../../assets/app-icon/hicolor/256x256/apps/ai.storyteller.sheetcraft.png");
+    let bytes = include_bytes!("../../../assets/app-icon/hicolor/256x256/apps/ai.storyteller.gridcraft.png");
     let img = image::load_from_memory(bytes).ok()?.to_rgba8();
     Some(egui::IconData { width: img.width(), height: img.height(), rgba: img.into_raw() })
 }
@@ -135,10 +135,10 @@ fn icon() -> Option<egui::IconData> {
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--version" || a == "-V") {
-        println!("SheetCraft {}", env!("CARGO_PKG_VERSION"));
+        println!("GridCraft {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
-    let mut control_port: Option<u16> = std::env::var("SHEETCRAFT_CONTROL_PORT").ok().and_then(|p| p.parse().ok());
+    let mut control_port: Option<u16> = std::env::var("GRIDCRAFT_CONTROL_PORT").ok().and_then(|p| p.parse().ok());
     let mut sample: Option<String> = None;
     let mut files: Vec<String> = Vec::new();
     let mut i = 0;
@@ -175,10 +175,10 @@ fn main() -> eframe::Result<()> {
     let control_port = control_port;
     load_prefs(&mut app);
     let mut viewport = egui::ViewportBuilder::default()
-        .with_title("SheetCraft")
+        .with_title("GridCraft")
         .with_inner_size([1440.0, 900.0])
         .with_min_inner_size([640.0, 420.0])
-        .with_app_id("ai.storyteller.sheetcraft")
+        .with_app_id("ai.storyteller.gridcraft")
         .with_drag_and_drop(true);
     if cfg!(target_os = "macos") {
         viewport = viewport.with_fullsize_content_view(true).with_titlebar_shown(false).with_title_shown(false);
@@ -188,7 +188,7 @@ fn main() -> eframe::Result<()> {
     }
     let options = eframe::NativeOptions { viewport, ..Default::default() };
     eframe::run_native(
-        "SheetCraft",
+        "GridCraft",
         options,
         Box::new(move |cc| {
             SheetApp::setup_context(&cc.egui_ctx, app.ui.dark);

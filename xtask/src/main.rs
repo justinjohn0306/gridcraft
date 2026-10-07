@@ -24,9 +24,9 @@ commands:
                   (stops at the first failure; the parity check runs only if docs/parity.md exists)
   assets          check that every icon/image/font/sample file is attributed in ATTRIBUTION.md
   layers          enforce the crate dependency layering (AGENTS.md \"Layering\")
-  wasm            cargo check --target wasm32-unknown-unknown for the L0-L5 crates (+ sheetcraft-web)
+  wasm            cargo check --target wasm32-unknown-unknown for the L0-L5 crates (+ gridcraft-web)
   parity [--check] [--out PATH]
-                  write docs/parity.md from sheetcraft_engine::catalog (implemented vs missing ids)
+                  write docs/parity.md from gridcraft_engine::catalog (implemented vs missing ids)
   version [set X.Y.Z[-pre]]
                   print or set the workspace version ([workspace.package] in Cargo.toml)
   stats [--exact] count tests and lines per crate (--exact: ask the test harness via `-- --list`)
@@ -122,13 +122,13 @@ fn cmd_layers() -> Result<(), String> {
 }
 
 /// Workspace packages that must build for wasm32: every L0–L5 crate, plus the web app once it
-/// exists (`apps/sheetcraft-web`).
+/// exists (`apps/gridcraft-web`).
 fn wasm_set() -> Result<Vec<String>, String> {
     let crates = layers::from_metadata(&metadata()?)?;
     Ok(crates
         .into_iter()
         .filter(|c| match layers::classify(&c.name) {
-            Some(layers::Class::Layer(l)) => l <= 5 || c.name == "sheetcraft-web",
+            Some(layers::Class::Layer(l)) => l <= 5 || c.name == "gridcraft-web",
             _ => false,
         })
         .map(|c| c.name)

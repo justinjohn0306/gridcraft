@@ -1,14 +1,14 @@
 [package]
-name = "sheetcraft-mcp"
+name = "gridcraft-mcp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "SheetCraft MCP server: JSON-RPC 2.0 over stdio, driving a running app or a headless session"
+description = "GridCraft MCP server: JSON-RPC 2.0 over stdio, driving a running app or a headless session"
 
 [lints]
 workspace = true
 
 [dependencies]
-sheetcraft-engine = { workspace = true }
+gridcraft-engine = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }

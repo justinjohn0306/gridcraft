@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use sheetcraft_core::{Array, CellError, Value};
+use gridcraft_core::{Array, CellError, Value};
 
 use crate::Arg;
 
@@ -283,7 +283,7 @@ pub(crate) fn to_sig_digits(x: f64, sig: usize) -> f64 {
 
 #[cfg(test)]
 pub(crate) mod testutil {
-    use sheetcraft_core::{Array, CellError, DateSystem, Value};
+    use gridcraft_core::{Array, CellError, DateSystem, Value};
 
     use crate::{Arg, Ctx};
 

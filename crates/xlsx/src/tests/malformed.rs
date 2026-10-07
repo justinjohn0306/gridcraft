@@ -10,7 +10,7 @@ fn garbage_and_truncation() {
     assert!(read_xlsx(b"").is_err());
     assert!(read_xlsx(b"hello world").is_err());
     assert!(read_xlsx(b"PK\x03\x04garbage").is_err());
-    let good = write_xlsx(&sheetcraft_model::Workbook::new()).unwrap();
+    let good = write_xlsx(&gridcraft_model::Workbook::new()).unwrap();
     for n in [10, 100, good.len() / 2, good.len() - 10] {
         let _ = read_xlsx(&good[..n]);
     }
@@ -57,7 +57,7 @@ fn huge_coordinates_and_dimensions() {
       <sheetViews><sheetView zoomScale="99999"><pane xSplit="1e9" ySplit="-5" state="frozen"/></sheetView></sheetViews>"#;
     let (wb, rep) = read_xlsx(&minimal(body, &[], "", "")).unwrap();
     let s = wb.sheet(0).unwrap();
-    assert_eq!(s.value(sheetcraft_core::CellRef::parse("XFD3").unwrap()), sheetcraft_core::Value::Number(7.0));
+    assert_eq!(s.value(gridcraft_core::CellRef::parse("XFD3").unwrap()), gridcraft_core::Value::Number(7.0));
     assert!(s.cells.len() <= 4);
     assert!(s.hyperlinks.len() <= 10_000);
     assert_eq!(s.zoom, 400);
@@ -78,7 +78,7 @@ fn deeply_nested_and_broken_xml() {
     assert!(rep.warnings.iter().any(|w| w.contains("could not be read") || w.contains("damaged")));
     // Truncated sheet XML keeps earlier rows.
     let (wb, _) = read_xlsx(&minimal(r#"<sheetData><row r="1"><c r="A1"><v>5</v></c></row><row r="2"><c r="A2"><v"#, &[], "", "")).unwrap();
-    assert_eq!(wb.sheet(0).unwrap().value(sheetcraft_core::CellRef::new(0, 0)), sheetcraft_core::Value::Number(5.0));
+    assert_eq!(wb.sheet(0).unwrap().value(gridcraft_core::CellRef::new(0, 0)), gridcraft_core::Value::Number(5.0));
     // Broken optional parts are warnings.
     let rels = r#"<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/><Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>"#;
     let (_, rep) = read_xlsx(&minimal(

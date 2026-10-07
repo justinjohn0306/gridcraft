@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
+use gridcraft_core::{RangeRef, Value};
+use gridcraft_formula::Expr;
 use serde::{Deserialize, Serialize};
-use sheetcraft_core::{RangeRef, Value};
-use sheetcraft_formula::Expr;
 
 use crate::style::StyleId;
 
@@ -24,21 +24,21 @@ impl Formula {
     /// `#NAME?`.
     pub fn new(text: &str) -> Formula {
         let body = text.strip_prefix('=').unwrap_or(text);
-        match sheetcraft_formula::parse(body) {
-            Ok(e) => Formula { text: sheetcraft_formula::print(&e), expr: Some(Arc::new(e)), array: None },
+        match gridcraft_formula::parse(body) {
+            Ok(e) => Formula { text: gridcraft_formula::print(&e), expr: Some(Arc::new(e)), array: None },
             Err(_) => Formula { text: body.to_string(), expr: None, array: None },
         }
     }
     pub fn from_expr(e: Expr) -> Formula {
-        Formula { text: sheetcraft_formula::print(&e), expr: Some(Arc::new(e)), array: None }
+        Formula { text: gridcraft_formula::print(&e), expr: Some(Arc::new(e)), array: None }
     }
     /// The parsed expression, re-parsing after deserialization.
     pub fn expr(&self) -> Option<Expr> {
-        self.expr.as_deref().cloned().or_else(|| sheetcraft_formula::parse(&self.text).ok())
+        self.expr.as_deref().cloned().or_else(|| gridcraft_formula::parse(&self.text).ok())
     }
     /// The parsed expression without copying it (re-parses after deserialization).
     pub fn expr_arc(&self) -> Option<Arc<Expr>> {
-        self.expr.clone().or_else(|| sheetcraft_formula::parse(&self.text).ok().map(Arc::new))
+        self.expr.clone().or_else(|| gridcraft_formula::parse(&self.text).ok().map(Arc::new))
     }
 }
 

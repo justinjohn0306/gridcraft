@@ -1,23 +1,23 @@
-//! Headless SheetCraft.
+//! Headless GridCraft.
 //!
 //! ```text
-//! sheetcraft-cli info <file> [--json]
-//! sheetcraft-cli convert <in> <out> [--sheet NAME]
-//! sheetcraft-cli eval <formula> [--in FILE] [--sheet S] [--cell A1] [--json]
-//! sheetcraft-cli cat <file> [--range A1:D20] [--sheet S] [--formulas] [--csv]
-//! sheetcraft-cli run [--in FILE | --sample NAME] [--cmd 'id={json}']... [--script FILE.jsonl] [--out FILE] [--print RANGE] [--quiet]
-//! sheetcraft-cli commands [--json] [--search X]
-//! sheetcraft-cli functions [--json] [--search X] [--category C]
-//! sheetcraft-cli mcp [--connect PORT] [--in FILE | --sample NAME]
-//! sheetcraft-cli send <port> <method> [json]
-//! sheetcraft-cli version | --version
+//! gridcraft-cli info <file> [--json]
+//! gridcraft-cli convert <in> <out> [--sheet NAME]
+//! gridcraft-cli eval <formula> [--in FILE] [--sheet S] [--cell A1] [--json]
+//! gridcraft-cli cat <file> [--range A1:D20] [--sheet S] [--formulas] [--csv]
+//! gridcraft-cli run [--in FILE | --sample NAME] [--cmd 'id={json}']... [--script FILE.jsonl] [--out FILE] [--print RANGE] [--quiet]
+//! gridcraft-cli commands [--json] [--search X]
+//! gridcraft-cli functions [--json] [--search X] [--category C]
+//! gridcraft-cli mcp [--connect PORT] [--in FILE | --sample NAME]
+//! gridcraft-cli send <port> <method> [json]
+//! gridcraft-cli version | --version
 //! ```
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
 use std::process::ExitCode;
 
-/// `println!` that ends the program quietly when stdout is closed (`sheetcraft-cli commands |
+/// `println!` that ends the program quietly when stdout is closed (`gridcraft-cli commands |
 /// head`) instead of panicking on a broken pipe.
 macro_rules! outln {
     ($($arg:tt)*) => {{
@@ -28,21 +28,21 @@ macro_rules! outln {
     }};
 }
 
+use gridcraft_engine::Session;
 use serde_json::{Value, json};
-use sheetcraft_engine::Session;
 
 const USAGE: &str = "usage:
-  sheetcraft-cli info <file> [--json]                      sheets, used ranges, tables, charts, names
-  sheetcraft-cli convert <in> <out> [--sheet NAME]         xlsx/csv/tsv/json/html by extension
-  sheetcraft-cli eval <formula> [--in FILE] [--sheet S] [--cell A1] [--json]
-  sheetcraft-cli cat <file> [--range A1:D20] [--sheet S] [--formulas] [--csv]
-  sheetcraft-cli run [--in FILE | --sample NAME] [--cmd 'id={json}']... [--script FILE.jsonl]
+  gridcraft-cli info <file> [--json]                      sheets, used ranges, tables, charts, names
+  gridcraft-cli convert <in> <out> [--sheet NAME]         xlsx/csv/tsv/json/html by extension
+  gridcraft-cli eval <formula> [--in FILE] [--sheet S] [--cell A1] [--json]
+  gridcraft-cli cat <file> [--range A1:D20] [--sheet S] [--formulas] [--csv]
+  gridcraft-cli run [--in FILE | --sample NAME] [--cmd 'id={json}']... [--script FILE.jsonl]
                      [--out FILE] [--print RANGE] [--quiet]
-  sheetcraft-cli commands [--json] [--search X]
-  sheetcraft-cli functions [--json] [--search X] [--category C]
-  sheetcraft-cli mcp [--connect PORT] [--in FILE | --sample NAME]
-  sheetcraft-cli send <port> <method> [json]
-  sheetcraft-cli version";
+  gridcraft-cli commands [--json] [--search X]
+  gridcraft-cli functions [--json] [--search X] [--category C]
+  gridcraft-cli mcp [--connect PORT] [--in FILE | --sample NAME]
+  gridcraft-cli send <port> <method> [json]
+  gridcraft-cli version";
 
 /// stdout went away. A reader that stopped early (a closed pipe) ends the program quietly; any
 /// other write error is reported.
@@ -50,7 +50,7 @@ fn stdout_failed(e: std::io::Error) -> ! {
     if e.kind() == std::io::ErrorKind::BrokenPipe {
         std::process::exit(0);
     }
-    eprintln!("sheetcraft-cli: can't write to stdout: {e}");
+    eprintln!("gridcraft-cli: can't write to stdout: {e}");
     std::process::exit(1);
 }
 
@@ -59,7 +59,7 @@ fn main() -> ExitCode {
     let rest = args.get(1..).unwrap_or_default();
     let r = match args.first().map(String::as_str) {
         Some("--version" | "-V" | "version") => {
-            outln!("sheetcraft-cli {}", env!("CARGO_PKG_VERSION"));
+            outln!("gridcraft-cli {}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
         Some("--help" | "-h" | "help") => {
@@ -81,7 +81,7 @@ fn main() -> ExitCode {
     match r {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("sheetcraft-cli: {e}");
+            eprintln!("gridcraft-cli: {e}");
             ExitCode::FAILURE
         }
     }
@@ -258,14 +258,14 @@ fn convert(args: &[String]) -> Result<(), String> {
     let input = a.pos(0, "<in>")?;
     let out = a.pos(1, "<out>")?;
     a.no_extra(2)?;
-    if sheetcraft_engine::io::FileKind::from_path(out).is_none() {
+    if gridcraft_engine::io::FileKind::from_path(out).is_none() {
         return Err(format!("{out}: unknown output format (use .xlsx, .csv, .tsv, .json or .html)"));
     }
     let mut s = open(input)?;
     activate_sheet(&mut s, a.opt("sheet"))?;
     let d = s.doc().map_err(|e| e.to_string())?;
-    let bytes = sheetcraft_engine::io::save_bytes(&d.wb, out).map_err(|e| e.to_string())?;
-    sheetcraft_engine::io::write_file(out, &bytes).map_err(|e| e.to_string())?;
+    let bytes = gridcraft_engine::io::save_bytes(&d.wb, out).map_err(|e| e.to_string())?;
+    gridcraft_engine::io::write_file(out, &bytes).map_err(|e| e.to_string())?;
     eprintln!("wrote {out} ({} bytes)", bytes.len());
     Ok(())
 }
@@ -480,9 +480,9 @@ fn functions(args: &[String]) -> Result<(), String> {
 }
 
 /// `mcp` (headless, in-process engine) or `mcp --connect PORT|HOST:PORT` (drive a running app
-/// started with `sheetcraft --control PORT`). JSON-RPC on stdin/stdout; logs on stderr.
+/// started with `gridcraft --control PORT`). JSON-RPC on stdin/stdout; logs on stderr.
 fn mcp(args: &[String]) -> Result<(), String> {
-    use sheetcraft_mcp::{Backend, Headless, Remote, Server, control_addr};
+    use gridcraft_mcp::{Backend, Headless, Remote, Server, control_addr};
     let a = Args::parse(args, &["connect", "in", "sample"], &[])?;
     a.no_extra(0)?;
     let backend: Box<dyn Backend> = match a.opt("connect") {
@@ -490,7 +490,7 @@ fn mcp(args: &[String]) -> Result<(), String> {
             let addr = control_addr(c);
             Box::new(
                 Remote::connect(&addr)
-                    .map_err(|e| format!("cannot connect to the SheetCraft app at {addr}: {e} (start it with `sheetcraft --control PORT`)"))?,
+                    .map_err(|e| format!("cannot connect to the GridCraft app at {addr}: {e} (start it with `gridcraft --control PORT`)"))?,
             )
         }
         None => {
@@ -506,7 +506,7 @@ fn mcp(args: &[String]) -> Result<(), String> {
             Box::new(Headless::with_session(session))
         }
     };
-    eprintln!("sheetcraft-cli: MCP server on stdio ({})", backend.describe());
+    eprintln!("gridcraft-cli: MCP server on stdio ({})", backend.describe());
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     Server::new(backend).serve(stdin.lock(), stdout.lock()).map_err(|e| e.to_string())
@@ -514,7 +514,7 @@ fn mcp(args: &[String]) -> Result<(), String> {
 
 /// `send PORT METHOD [JSON]`: one control-channel request to a running app.
 fn send(args: &[String]) -> Result<(), String> {
-    use sheetcraft_mcp::{Backend, Remote, control_addr};
+    use gridcraft_mcp::{Backend, Remote, control_addr};
     let port = args.first().ok_or_else(|| format!("missing <port>\n{USAGE}"))?;
     let method = args.get(1).ok_or_else(|| format!("missing <method>\n{USAGE}"))?;
     let params: Value = match args.get(2) {
@@ -526,7 +526,7 @@ fn send(args: &[String]) -> Result<(), String> {
     }
     let addr = control_addr(port);
     let mut r = Remote::connect(&addr)
-        .map_err(|e| format!("cannot connect to the SheetCraft app at {addr}: {e} (start it with `sheetcraft --control {port}`)"))?;
+        .map_err(|e| format!("cannot connect to the GridCraft app at {addr}: {e} (start it with `gridcraft --control {port}`)"))?;
     let v = r.call(method, params)?;
     outln!("{}", pretty(&v));
     Ok(())

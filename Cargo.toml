@@ -1,29 +1,29 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "apps/*", "xtask"]
-default-members = ["crates/*", "apps/sheetcraft", "apps/sheetcraft-cli", "xtask"]
+default-members = ["crates/*", "apps/gridcraft", "apps/gridcraft-cli", "xtask"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.90"
-repository = "https://github.com/storytold/sheetcraft"
+repository = "https://github.com/storytold/gridcraft"
 
 [workspace.dependencies]
 # internal
-sheetcraft-core = { path = "crates/core" }
-sheetcraft-numfmt = { path = "crates/numfmt" }
-sheetcraft-formula = { path = "crates/formula" }
-sheetcraft-functions = { path = "crates/functions" }
-sheetcraft-model = { path = "crates/model" }
-sheetcraft-calc = { path = "crates/calc" }
-sheetcraft-xlsx = { path = "crates/xlsx" }
-sheetcraft-chart = { path = "crates/chart" }
-sheetcraft-engine = { path = "crates/engine" }
-sheetcraft-ui-egui = { path = "crates/ui-egui" }
-sheetcraft-mcp = { path = "crates/mcp" }
-sheetcraft-pdf = { path = "crates/pdf" }
+gridcraft-core = { path = "crates/core" }
+gridcraft-numfmt = { path = "crates/numfmt" }
+gridcraft-formula = { path = "crates/formula" }
+gridcraft-functions = { path = "crates/functions" }
+gridcraft-model = { path = "crates/model" }
+gridcraft-calc = { path = "crates/calc" }
+gridcraft-xlsx = { path = "crates/xlsx" }
+gridcraft-chart = { path = "crates/chart" }
+gridcraft-engine = { path = "crates/engine" }
+gridcraft-ui-egui = { path = "crates/ui-egui" }
+gridcraft-mcp = { path = "crates/mcp" }
+gridcraft-pdf = { path = "crates/pdf" }
 
 # foundation
 thiserror = "2"

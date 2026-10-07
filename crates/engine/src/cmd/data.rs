@@ -3,9 +3,9 @@
 use std::cmp::Ordering;
 use std::sync::Arc;
 
+use gridcraft_core::{CellRef, RangeRef, Value, sort_compare};
+use gridcraft_model::*;
 use serde_json::{Value as Json, json};
-use sheetcraft_core::{CellRef, RangeRef, Value, sort_compare};
-use sheetcraft_model::*;
 
 use super::*;
 use crate::selection::current_region;
@@ -93,7 +93,7 @@ pub fn specs() -> Vec<CommandSpec> {
 
 fn col_param(v: Option<&Json>, base: u32) -> Option<u32> {
     match v? {
-        Json::String(s) => sheetcraft_core::letters_to_col(s.trim_start_matches('$')),
+        Json::String(s) => gridcraft_core::letters_to_col(s.trim_start_matches('$')),
         Json::Number(n) => n.as_u64().map(|o| base + o as u32),
         _ => None,
     }
@@ -274,7 +274,7 @@ fn do_sort(s: &mut Session, r: RangeRef, header: bool, keys: Vec<SortKey>, by_co
                     && let Some(f) = &c.formula
                     && let Some(e) = f.expr()
                 {
-                    let shifted = sheetcraft_formula::adjust::shift_relative(e, dst.row as i64 - src.row as i64, dst.col as i64 - src.col as i64);
+                    let shifted = gridcraft_formula::adjust::shift_relative(e, dst.row as i64 - src.row as i64, dst.col as i64 - src.col as i64);
                     c.formula = Some(Arc::new(Formula::from_expr(shifted)));
                 }
                 moved.push((dst, cell));
@@ -401,10 +401,10 @@ fn filter_by(s: &mut Session, p: &Json) -> Result<Json> {
 
 /// Does a value pass a custom comparison (`>`, `=*abc*`, `<>x`…)?
 fn custom_ok(v: &Value, text: &str, op: &str, crit: &str) -> bool {
-    let num = sheetcraft_core::parse::parse_number_text(crit);
+    let num = gridcraft_core::parse::parse_number_text(crit);
     let cmp = match (v.as_f64(), num) {
         (Some(a), Some(b)) => a.partial_cmp(&b),
-        _ => Some(sheetcraft_core::compare_text(text, crit)),
+        _ => Some(gridcraft_core::compare_text(text, crit)),
     };
     let wild = || super::edit::wildcard(&text.to_lowercase(), &crit.to_lowercase());
     match op {
@@ -781,14 +781,12 @@ pub fn list_items(wb: &Workbook, sheet: usize, dv: &Validation) -> Vec<String> {
     let f = dv.f1.trim();
     if f.starts_with('"')
         || (!f.contains('!')
-            && sheetcraft_formula::parse(f)
-                .map(|e| !matches!(e, sheetcraft_formula::Expr::Ref(_) | sheetcraft_formula::Expr::Name(_)))
-                .unwrap_or(true))
+            && gridcraft_formula::parse(f).map(|e| !matches!(e, gridcraft_formula::Expr::Ref(_) | gridcraft_formula::Expr::Name(_))).unwrap_or(true))
     {
         return f.trim_matches('"').split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
     }
     let at = dv.ranges.first().map(|r| r.start).unwrap_or_default();
-    match sheetcraft_calc::evaluate(wb, sheet, at, f) {
+    match gridcraft_calc::evaluate(wb, sheet, at, f) {
         Value::Array(a) => a.data.iter().filter(|v| !v.is_empty()).map(Value::display).collect(),
         v if !v.is_empty() && !v.is_error() => vec![v.display()],
         _ => vec![],
@@ -805,11 +803,11 @@ pub fn check_validation(wb: &Workbook, sheet: usize, at: CellRef, input: &str) -
     if input.is_empty() && dv.allow_blank {
         return None;
     }
-    let v = sheetcraft_core::parse::parse_input(input, wb.date_system).value;
-    let num = |f: &str| sheetcraft_calc::evaluate(wb, sheet, at, f).to_number().ok();
+    let v = gridcraft_core::parse::parse_input(input, wb.date_system).value;
+    let num = |f: &str| gridcraft_calc::evaluate(wb, sheet, at, f).to_number().ok();
     let ok = match dv.kind {
         ValidationKind::List => list_items(wb, sheet, dv).iter().any(|x| x.eq_ignore_ascii_case(input)),
-        ValidationKind::Custom => sheetcraft_calc::evaluate(wb, sheet, at, &dv.f1).to_bool().unwrap_or(false),
+        ValidationKind::Custom => gridcraft_calc::evaluate(wb, sheet, at, &dv.f1).to_bool().unwrap_or(false),
         ValidationKind::TextLength => {
             let n = input.chars().count() as f64;
             compare_op(dv.op, n, num(&dv.f1), dv.f2.as_deref().and_then(num))

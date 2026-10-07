@@ -1,7 +1,7 @@
 //! Read-only commands for agents: inspect the workbook, read ranges, cell details.
 
+use gridcraft_core::{CellRef, RangeRef, Value};
 use serde_json::{Value as Json, json};
-use sheetcraft_core::{CellRef, RangeRef, Value};
 
 use super::*;
 
