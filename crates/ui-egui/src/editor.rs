@@ -234,48 +234,6 @@ pub fn formula_refs(text: &str) -> Vec<(usize, usize, RangeRef, Option<String>, 
     out
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn point_mode() {
-        let mut e = EditState::new(0, CellRef::new(0, 0), "=SUM(".into(), true, false);
-        assert!(e.can_point());
-        e.insert_ref("A1");
-        assert_eq!(e.text, "=SUM(A1");
-        e.insert_ref("A2");
-        assert_eq!(e.text, "=SUM(A2");
-        e.text.push(':');
-        e.caret += 1;
-        e.point = None;
-        assert!(e.can_point());
-        let e2 = EditState::new(0, CellRef::new(0, 0), "hello".into(), true, false);
-        assert!(!e2.can_point());
-    }
-
-    #[test]
-    fn autocomplete_and_hints() {
-        let names: Vec<String> = ["SUM", "SUMIF", "SUMPRODUCT", "AVERAGE"].iter().map(|s| s.to_string()).collect();
-        let mut e = EditState::new(0, CellRef::new(0, 0), "=su".into(), true, false);
-        e.update_autocomplete(&names);
-        assert_eq!(e.autocomplete.len(), 3);
-        assert!(e.accept_autocomplete());
-        assert_eq!(e.text, "=SUM(");
-        let e = EditState::new(0, CellRef::new(0, 0), "=IF(A1>0,SUM(B1,".into(), true, false);
-        assert_eq!(e.current_function(), Some(("SUM".into(), 1)));
-    }
-
-    #[test]
-    fn ref_spans() {
-        let r = formula_refs("=A1+B2:C3*a1+Sheet2!D4");
-        assert_eq!(r.len(), 4);
-        assert_eq!(r[0].4, r[2].4); // A1 and a1 share a colour
-        assert_eq!(r[1].2.a1(), "B2:C3");
-        assert_eq!(r[3].3.as_deref(), Some("Sheet2"));
-    }
-}
-
 /// Excel-style AutoComplete: the one distinct text entry in the same column (contiguous data
 /// above and below) that starts with `typed` (case-insensitive). `None` when ambiguous.
 pub fn column_completion(sheet: &sheetcraft_engine::model::Sheet, at: CellRef, typed: &str) -> Option<String> {
@@ -317,4 +275,46 @@ pub fn column_completion(sheet: &sheetcraft_engine::model::Sheet, at: CellRef, t
         n += 1;
     }
     if ambiguous { None } else { found }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn point_mode() {
+        let mut e = EditState::new(0, CellRef::new(0, 0), "=SUM(".into(), true, false);
+        assert!(e.can_point());
+        e.insert_ref("A1");
+        assert_eq!(e.text, "=SUM(A1");
+        e.insert_ref("A2");
+        assert_eq!(e.text, "=SUM(A2");
+        e.text.push(':');
+        e.caret += 1;
+        e.point = None;
+        assert!(e.can_point());
+        let e2 = EditState::new(0, CellRef::new(0, 0), "hello".into(), true, false);
+        assert!(!e2.can_point());
+    }
+
+    #[test]
+    fn autocomplete_and_hints() {
+        let names: Vec<String> = ["SUM", "SUMIF", "SUMPRODUCT", "AVERAGE"].iter().map(|s| s.to_string()).collect();
+        let mut e = EditState::new(0, CellRef::new(0, 0), "=su".into(), true, false);
+        e.update_autocomplete(&names);
+        assert_eq!(e.autocomplete.len(), 3);
+        assert!(e.accept_autocomplete());
+        assert_eq!(e.text, "=SUM(");
+        let e = EditState::new(0, CellRef::new(0, 0), "=IF(A1>0,SUM(B1,".into(), true, false);
+        assert_eq!(e.current_function(), Some(("SUM".into(), 1)));
+    }
+
+    #[test]
+    fn ref_spans() {
+        let r = formula_refs("=A1+B2:C3*a1+Sheet2!D4");
+        assert_eq!(r.len(), 4);
+        assert_eq!(r[0].4, r[2].4); // A1 and a1 share a colour
+        assert_eq!(r[1].2.a1(), "B2:C3");
+        assert_eq!(r[3].3.as_deref(), Some("Sheet2"));
+    }
 }
