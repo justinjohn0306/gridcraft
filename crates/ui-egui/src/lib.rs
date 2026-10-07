@@ -68,7 +68,14 @@ pub struct Services {
     pub open_url: Option<Box<dyn Fn(&str)>>,
     /// Web: deliver a file to the user (name, bytes).
     pub download: Option<Box<dyn Fn(&str, &[u8])>>,
+    /// Web: start an asynchronous file pick; the bytes arrive later in `inbox`.
+    pub open_async: Option<Box<dyn Fn()>>,
+    /// Files delivered asynchronously (name, bytes), opened on the next frame.
+    pub inbox: Option<Inbox>,
 }
+
+/// Shared queue of files read asynchronously (browser file picker, drag and drop).
+pub type Inbox = std::sync::Arc<std::sync::Mutex<Vec<(String, Vec<u8>)>>>;
 
 #[derive(Clone, Debug, Default)]
 pub struct Perf {
@@ -210,7 +217,9 @@ impl SheetApp {
     pub fn open_dialog(&mut self, name: &str, params: Json) {
         match name {
             "open" => {
-                if let Some(pick) = &self.services.pick_open
+                if let Some(start) = &self.services.open_async {
+                    start();
+                } else if let Some(pick) = &self.services.pick_open
                     && let Some(path) = pick()
                 {
                     self.open_path(&path);
@@ -347,6 +356,15 @@ impl SheetApp {
             theme::apply(ctx, self.ui.dark);
         }
         control::poll(self, ctx);
+        // Files read asynchronously (web file picker, dropped files).
+        let arrived: Vec<(String, Vec<u8>)> = self.services.inbox.as_ref().map(|i| std::mem::take(&mut *i.lock().unwrap_or_else(std::sync::PoisonError::into_inner))).unwrap_or_default();
+        for (name, bytes) in arrived {
+            let b64 = sheetcraft_engine::io::base64_encode(&bytes);
+            if let Err(e) = self.session.run("file.open", json!({"name": name, "base64": b64})) {
+                self.message = Some(("SheetCraft".into(), clean_error(&e)));
+            }
+            self.after_engine();
+        }
         if self.session.active().is_none() {
             self.session.new_workbook();
         }

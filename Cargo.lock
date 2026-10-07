@@ -2929,6 +2929,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "sheetcraft-web"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui",
+ "js-sys",
+ "log",
+ "rfd",
+ "serde_json",
+ "sheetcraft-engine",
+ "sheetcraft-ui-egui",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "sheetcraft-xlsx"
 version = "0.1.0"
 dependencies = [
