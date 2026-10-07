@@ -280,7 +280,11 @@ impl SheetApp {
             Some(t) => (t, true),
             None => (current.clone(), false),
         };
-        self.editor = Some(editor::EditState::new(d.wb.active_sheet, at, text, replace, from_formula_bar));
+        let mut ed = editor::EditState::new(d.wb.active_sheet, at, text, replace, from_formula_bar);
+        if replace && !ed.is_formula() {
+            ed.completion = editor::column_completion(sh, at, &ed.text);
+        }
+        self.editor = Some(ed);
         self.session.mode = if replace { sheetcraft_engine::Mode::Enter } else { sheetcraft_engine::Mode::Edit };
     }
 
@@ -288,7 +292,10 @@ impl SheetApp {
     pub fn commit_edit(&mut self, dr: i64, dc: i64, array: bool, fill_selection: bool) -> bool {
         let Some(ed) = self.editor.take() else { return true };
         self.session.mode = sheetcraft_engine::Mode::Ready;
-        let text = ed.text.clone();
+        let text = match &ed.completion {
+            Some(full) if full.to_lowercase().starts_with(&ed.text.to_lowercase()) => full.clone(),
+            _ => ed.text.clone(),
+        };
         // Data validation.
         if let Some(d) = self.session.active()
             && let Some((dv, msg)) = sheetcraft_engine::cmd::data::check_validation(&d.wb, ed.sheet, ed.cell, &text)

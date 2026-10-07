@@ -285,6 +285,13 @@ pub fn editor_widget(app: &mut SheetApp, ui: &mut egui::Ui, id: egui::Id, font: 
         ed.caret = r.primary.index.into();
     }
     if resp.changed() {
+        ed.completion = None;
+        if !ed.is_formula()
+            && ed.caret == ed.text.chars().count()
+            && let Some(sh) = app.session.active().and_then(|d| d.wb.sheet(ed.sheet))
+        {
+            ed.completion = crate::editor::column_completion(sh, ed.cell, &ed.text);
+        }
         ed.point = None;
         let names: Vec<String> = function_names();
         ed.update_autocomplete(&names);
@@ -295,6 +302,21 @@ pub fn editor_widget(app: &mut SheetApp, ui: &mut egui::Ui, id: egui::Id, font: 
         } else {
             sheetcraft_engine::Mode::Edit
         };
+    }
+    // Column AutoComplete: the rest of the suggested entry, shown selected after the caret.
+    if let Some(full) = &ed.completion
+        && full.len() > ed.text.len()
+        && let Some(rest) = full.get(ed.text.len()..)
+    {
+        let pos = resp.rect.left_top() + egui::vec2(output.galley.rect.width(), 0.0);
+        let g = ui.painter().layout_no_wrap(
+            rest.to_string(),
+            output.galley.job.sections.first().map(|s| s.format.font_id.clone()).unwrap_or_default(),
+            Color32::WHITE,
+        );
+        let r = egui::Rect::from_min_size(pos, g.size());
+        ui.painter().rect_filled(r, 0.0, Color32::from_rgb(0x2E, 0x6F, 0xD8));
+        ui.painter().galley(pos, g, Color32::WHITE);
     }
     // Autocomplete list and argument hint under the editor.
     if mine && (!ed.autocomplete.is_empty() || ed.current_function().is_some()) {

@@ -111,3 +111,17 @@ fn dialogs_open_and_close() {
         h.state_mut().message = None;
     }
 }
+
+#[test]
+fn column_autocomplete_completes_on_enter() {
+    let mut s = blank();
+    s.execute("range.setValues", json!({"range": "A1", "values": [["North"], ["East"], ["Eastern"]]})).unwrap();
+    s.execute("selection.set", json!({"cell": "A4"})).unwrap();
+    let mut h = harness(s);
+    text(&mut h, "No");
+    key(&mut h, Key::Enter, Modifiers::NONE);
+    assert_eq!(value(&h, "A4"), Value::from("North"));
+    text(&mut h, "Ea"); // ambiguous: East / Eastern
+    key(&mut h, Key::Enter, Modifiers::NONE);
+    assert_eq!(value(&h, "A5"), Value::from("Ea"));
+}

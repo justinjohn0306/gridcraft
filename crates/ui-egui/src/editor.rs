@@ -35,6 +35,8 @@ pub struct EditState {
     pub request_focus: bool,
     /// The text changed programmatically: push `caret` into the widget on the next frame.
     pub sync_caret: bool,
+    /// Column AutoComplete: the full entry the typed text completes to.
+    pub completion: Option<String>,
     /// Move the caret to the end on the next frame.
     pub caret_to_end: bool,
 }
@@ -56,6 +58,7 @@ impl EditState {
             request_focus: true,
             sync_caret: true,
             caret_to_end: true,
+            completion: None,
         }
     }
 
@@ -271,4 +274,47 @@ mod tests {
         assert_eq!(r[1].2.a1(), "B2:C3");
         assert_eq!(r[3].3.as_deref(), Some("Sheet2"));
     }
+}
+
+/// Excel-style AutoComplete: the one distinct text entry in the same column (contiguous data
+/// above and below) that starts with `typed` (case-insensitive). `None` when ambiguous.
+pub fn column_completion(sheet: &sheetcraft_engine::model::Sheet, at: CellRef, typed: &str) -> Option<String> {
+    if typed.is_empty() || typed.starts_with('=') || typed.chars().all(|c| c.is_ascii_digit() || c == '.' || c == '-') {
+        return None;
+    }
+    let lower = typed.to_lowercase();
+    let mut found: Option<String> = None;
+    let mut ambiguous = false;
+    let mut scan = |row: u32| -> bool {
+        match sheet.value(CellRef::new(row, at.col)) {
+            sheetcraft_engine::core::Value::Empty => false,
+            sheetcraft_engine::core::Value::Text(t) => {
+                if t.to_lowercase().starts_with(&lower) && t.len() > typed.len() {
+                    match &found {
+                        Some(f) if !f.eq_ignore_ascii_case(&t) => ambiguous = true,
+                        None => found = Some(t.to_string()),
+                        _ => {}
+                    }
+                }
+                true
+            }
+            _ => true,
+        }
+    };
+    let mut r = at.row;
+    let mut n = 0;
+    while r > 0 && n < 5000 {
+        r -= 1;
+        n += 1;
+        if !scan(r) {
+            break;
+        }
+    }
+    let mut r = at.row + 1;
+    n = 0;
+    while n < 5000 && scan(r) {
+        r += 1;
+        n += 1;
+    }
+    if ambiguous { None } else { found }
 }
