@@ -15,7 +15,10 @@ use crate::SheetApp;
 use crate::editor::{EditState, REF_COLORS};
 use crate::theme::{self, Tokens};
 
-pub const COL_HEADER_H: f32 = 20.0;
+pub const COL_HEADER_H: f32 = 21.0;
+/// Sheet units are 96-dpi pixels (as in XLSX); on screen one unit is drawn at this many points,
+/// which matches desktop spreadsheet density (a default 20 px row is 16 pt tall).
+pub const DISPLAY_SCALE: f32 = 0.8;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum Drag {
@@ -73,6 +76,8 @@ pub struct GridState {
     pub trace: Option<serde_json::Value>,
     pub renaming_tab: Option<usize>,
     pub rename_text: String,
+    pub list_picker: Option<CellRef>,
+    pub header_menu: Option<(Pos2, bool)>,
 }
 
 impl GridState {
@@ -101,11 +106,12 @@ pub struct Geo {
 
 impl Geo {
     pub fn new(sh: &Sheet, rect: Rect, scroll: egui::Vec2) -> Geo {
-        let z = (sh.zoom as f32 / 100.0).clamp(0.1, 4.0);
-        let header_h = if sh.show_headings { (COL_HEADER_H * z.max(0.75)).round() } else { 0.0 };
+        let zoom = (sh.zoom as f32 / 100.0).clamp(0.1, 4.0);
+        let z = zoom * DISPLAY_SCALE;
+        let header_h = if sh.show_headings { (COL_HEADER_H * zoom.max(0.75)).round() } else { 0.0 };
         let last_row = sh.row_at((scroll.y + rect.height() / z) as f64 + 200.0) + 1;
         let digits = (last_row as f32).log10().floor() as i32 + 1;
-        let header_w = if sh.show_headings { ((digits.max(2) as f32 * 7.5 + 12.0) * z.max(0.75)).round() } else { 0.0 };
+        let header_w = if sh.show_headings { ((digits.max(2) as f32 * 7.0 + 14.0) * zoom.max(0.75)).round() } else { 0.0 };
         let (fr, fc) = sh.freeze.unwrap_or((0, 0));
         let frozen_w = (sh.col_left(fc) as f32) * z;
         let frozen_h = (sh.row_top(fr) as f32) * z;
@@ -308,7 +314,7 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
             let z = (sh.zoom as f32 * zoom_delta).clamp(10.0, 400.0).round();
             let _ = app.session.run("view.zoom", json!({"percent": z}));
         } else if scroll_delta != egui::Vec2::ZERO {
-            let z = sh.zoom as f32 / 100.0;
+            let z = sh.zoom as f32 / 100.0 * DISPLAY_SCALE;
             let mut d = scroll_delta;
             if modifiers.shift && d.x == 0.0 {
                 d = vec2(d.y, 0.0);
@@ -387,6 +393,7 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
     }
     // Objects above cells.
     crate::chartview::paint_objects(app, &painter.with_clip_rect(geo.cells), &geo, &wb, si, sh);
+    paint_overlays(app, ui, &painter.with_clip_rect(geo.cells), &geo, &wb, si, sh, &sel);
     // Headers.
     if sh.show_headings {
         paint_headers(&painter, &geo, sh, &sel, &t, &quads);
@@ -397,6 +404,8 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
         in_cell_editor(app, ui, &geo, sh, &wb);
     }
     filter_menu(app, ui, &geo);
+    list_picker(app, ui, &geo);
+    header_menu(app, ui);
     context_menu(app, ui);
     if app.session.clipboard.is_some() {
         app.grid.marching_phase = (app.grid.marching_phase + 0.5) % 8.0;
@@ -866,7 +875,7 @@ fn paint_selection(p: &Painter, geo: &Geo, sh: &Sheet, sel: &sheetcraft_engine::
 }
 
 fn paint_headers(p: &Painter, geo: &Geo, sh: &Sheet, sel: &sheetcraft_engine::Selection, t: &Tokens, quads: &[((u32, u32), (u32, u32), Rect)]) {
-    let font = theme::ui_font((11.0 * geo.z.max(0.75)).min(15.0));
+    let font = theme::ui_font((11.5 * (geo.z / DISPLAY_SCALE).max(0.75)).min(16.0));
     let r = geo.rect;
     let top = Rect::from_min_max(pos2(geo.cells.left(), r.top()), pos2(r.right(), geo.cells.top()));
     let left = Rect::from_min_max(pos2(r.left(), geo.cells.top()), pos2(geo.cells.left(), r.bottom()));
@@ -1027,6 +1036,13 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
             return;
         }
         let c = geo.cell_at(sh, p);
+        // Data validation list arrow next to the active cell.
+        if let Some(r) = validation_arrow(sh, geo, sel.active)
+            && r.contains(p)
+        {
+            app.grid.list_picker = Some(sel.active);
+            return;
+        }
         // Filter dropdown buttons.
         if is_filter_button(sh, geo, p) {
             app.grid.filter_menu = Some((c.col, p));
@@ -1083,11 +1099,15 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
             let _ = app.session.run("selection.set", json!({"range": ranges.join(","), "active": c.a1()}));
         } else {
             let _ = app.session.run("selection.set", json!({"cell": c.a1()}));
-            // Ctrl/Cmd-click a hyperlink opens it.
-            if let Some(h) = sh.hyperlinks.get(&c)
-                && mods.alt
+            // A click on a hyperlink's text follows it (like Excel); elsewhere in the cell selects.
+            if let Some(h) = sh.hyperlinks.get(&c).cloned()
+                && resp.clicked()
+                && !mods.any()
             {
-                follow_link(app, &h.target);
+                let r = geo.cell_rect(sh, c);
+                if p.x < r.left() + r.width() * 0.8 {
+                    follow_link(app, &h.target);
+                }
             }
         }
         app.grid.drag = Drag::Select;
@@ -1268,7 +1288,17 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         if in_cells && !sel.contains(geo.cell_at(sh, p)) {
             let _ = app.session.run("selection.set", json!({"cell": geo.cell_at(sh, p).a1()}));
         }
-        app.grid.context_menu = Some(p);
+        if in_col_header || in_row_header {
+            let (rows, idx) = if in_row_header { (true, geo.row_at(sh, p.y)) } else { (false, geo.col_at(sh, p.x)) };
+            let inside = sel.ranges.iter().any(|r| if rows { r.is_full_rows() && idx >= r.start.row && idx <= r.end.row } else { r.is_full_cols() && idx >= r.start.col && idx <= r.end.col });
+            if !inside {
+                let range = if rows { RangeRef::rows(idx, idx) } else { RangeRef::cols(idx, idx) };
+                let _ = app.session.run("selection.set", json!({"range": range.a1()}));
+            }
+            app.grid.header_menu = Some((p, rows));
+        } else {
+            app.grid.context_menu = Some(p);
+        }
     }
 
     if resp.clicked() || resp.drag_started() {
@@ -1703,4 +1733,174 @@ pub fn point_move(app: &mut SheetApp, ed: &mut EditState, dr: i64, dc: i64, exte
     ed.insert_ref(&text);
     ed.point_cell = Some(to);
     app.grid.ensure_visible = true;
+}
+
+/// The dropdown arrow beside a cell with an in-cell list validation.
+pub fn validation_arrow(sh: &Sheet, geo: &Geo, c: CellRef) -> Option<Rect> {
+    let dv = sh.validations.iter().find(|d| d.ranges.iter().any(|r| r.contains(c)))?;
+    if dv.kind != sheetcraft_engine::model::ValidationKind::List || !dv.in_cell_dropdown {
+        return None;
+    }
+    let r = geo.cell_rect(sh, c);
+    let s = r.height().clamp(14.0, 22.0);
+    Some(Rect::from_min_size(pos2(r.right() + 1.0, r.bottom() - s), vec2(s, s)))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn paint_overlays(app: &mut SheetApp, ui: &egui::Ui, p: &Painter, geo: &Geo, wb: &Workbook, si: usize, sh: &Sheet, sel: &sheetcraft_engine::Selection) {
+    // Validation dropdown arrow for the active cell.
+    if app.editor.is_none()
+        && let Some(r) = validation_arrow(sh, geo, sel.active)
+    {
+        p.rect_filled(r, 2.0, Color32::from_gray(245));
+        p.rect_stroke(r, 2.0, Stroke::new(1.0, Color32::from_gray(160)), StrokeKind::Inside);
+        crate::icons::paint(p, r.shrink(3.0), crate::icons::Icon::Chevron, Color32::from_gray(60));
+    }
+    // Input message of the active cell's validation.
+    if app.editor.is_none()
+        && let Some(dv) = sh.validations.iter().find(|d| d.ranges.iter().any(|r| r.contains(sel.active)))
+        && dv.show_input
+        && !(dv.input_title.is_empty() && dv.input_message.is_empty())
+    {
+        let r = geo.cell_rect(sh, sel.active);
+        let at = pos2(r.left() + 8.0, r.bottom() + 6.0);
+        egui::Area::new(egui::Id::new("dv_input")).fixed_pos(at).order(egui::Order::Tooltip).interactable(false).show(ui.ctx(), |ui| {
+            egui::Frame::popup(ui.style()).fill(Color32::from_rgb(0xFF, 0xFF, 0xE1)).show(ui, |ui| {
+                ui.set_max_width(220.0);
+                if !dv.input_title.is_empty() {
+                    ui.label(egui::RichText::new(&dv.input_title).strong().color(Color32::BLACK));
+                }
+                ui.label(egui::RichText::new(&dv.input_message).color(Color32::BLACK));
+            });
+        });
+    }
+    // Notes: shown on hover (or always when marked visible).
+    let hover = app.grid.hover_cell;
+    for (c, cm) in &sh.comments {
+        let show = cm.visible || hover == Some(*c);
+        if !show || app.grid.drag != Drag::None {
+            continue;
+        }
+        let r = geo.cell_rect(sh, *c);
+        if !p.clip_rect().intersects(r) {
+            continue;
+        }
+        let at = pos2(r.right() + 10.0, r.top());
+        p.line_segment([r.right_top(), at + vec2(0.0, 6.0)], Stroke::new(1.0, Color32::from_gray(90)));
+        egui::Area::new(egui::Id::new(("note", c.row, c.col))).fixed_pos(at).order(egui::Order::Tooltip).interactable(false).show(ui.ctx(), |ui| {
+            egui::Frame::popup(ui.style()).fill(if cm.threaded { Color32::WHITE } else { Color32::from_rgb(0xFF, 0xFF, 0xE1) }).show(ui, |ui| {
+                ui.set_max_width(240.0);
+                ui.label(egui::RichText::new(format!("{}:", cm.author)).strong().color(Color32::BLACK));
+                ui.label(egui::RichText::new(&cm.text).color(Color32::BLACK));
+                for (a, t) in &cm.replies {
+                    ui.separator();
+                    ui.label(egui::RichText::new(format!("{a}: {t}")).color(Color32::BLACK));
+                }
+            });
+        });
+    }
+    // Hyperlink tooltip.
+    if let Some(h) = hover.and_then(|c| sh.hyperlinks.get(&c))
+        && app.editor.is_none()
+    {
+        let tip = h.tooltip.clone().unwrap_or_else(|| format!("{}\nClick once to follow. Click and hold to select this cell.", h.target));
+        egui::Tooltip::always_open(ui.ctx().clone(), ui.layer_id(), egui::Id::new("link_tip"), egui::PopupAnchor::Pointer).show(|ui| {
+            ui.label(tip);
+        });
+    }
+    // Trace precedents / dependents arrows.
+    if let Some(trace) = app.grid.trace.clone()
+        && let Some(items) = trace.as_array()
+    {
+        let blue = Color32::from_rgb(0x1F, 0x5F, 0xC9);
+        let active = geo.cell_rect(sh, sel.active).center();
+        for it in items {
+            if it["sheet"].as_str().is_some_and(|s| !s.eq_ignore_ascii_case(&sh.name)) {
+                continue;
+            }
+            let target = it["range"].as_str().or(it["cell"].as_str()).and_then(RangeRef::parse);
+            let Some(t) = target else { continue };
+            let tr = geo.range_rect(sh, t);
+            if !t.is_single() {
+                p.rect_stroke(tr, 0.0, Stroke::new(1.5, blue), StrokeKind::Inside);
+            }
+            let (from, to) = if it.get("range").is_some() { (tr.center(), active) } else { (active, tr.center()) };
+            p.line_segment([from, to], Stroke::new(1.5, blue));
+            p.circle_filled(from, 3.0, blue);
+            let d = (to - from).normalized();
+            let n = vec2(-d.y, d.x);
+            p.add(egui::Shape::convex_polygon(vec![to, to - d * 9.0 + n * 4.0, to - d * 9.0 - n * 4.0], blue, Stroke::NONE));
+        }
+    }
+    let _ = (wb, si);
+}
+
+fn list_picker(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
+    let Some(c) = app.grid.list_picker else { return };
+    let Some(d) = app.session.active() else { return };
+    let wb = d.wb.clone();
+    let si = wb.active_sheet;
+    let Some(sh) = wb.sheet(si) else { return };
+    let Some(dv) = sh.validations.iter().find(|x| x.ranges.iter().any(|r| r.contains(c))).cloned() else {
+        app.grid.list_picker = None;
+        return;
+    };
+    let items = sheetcraft_engine::cmd::data::list_items(&wb, si, &dv);
+    let r = geo.cell_rect(sh, c);
+    let mut close = false;
+    egui::Area::new(egui::Id::new("dv_list")).fixed_pos(r.left_bottom()).order(egui::Order::Foreground).show(ui.ctx(), |ui| {
+        egui::Frame::popup(ui.style()).inner_margin(2.0).show(ui, |ui| {
+            ui.set_min_width(r.width().max(100.0));
+            egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                for it in &items {
+                    if ui.add(egui::Button::new(it.as_str()).frame(false).min_size(vec2(r.width().max(100.0), 18.0))).clicked() {
+                        app.run_or_alert("cell.set", json!({"cell": c.a1(), "input": it}));
+                        close = true;
+                    }
+                }
+            });
+        });
+    });
+    if close || ui.input(|i| i.key_pressed(egui::Key::Escape)) || (ui.input(|i| i.pointer.any_pressed()) && !ui.ctx().is_pointer_over_egui()) {
+        app.grid.list_picker = None;
+    }
+}
+
+fn header_menu(app: &mut SheetApp, ui: &mut egui::Ui) {
+    let Some((at, rows)) = app.grid.header_menu else { return };
+    let mut close = false;
+    egui::Area::new(egui::Id::new("header_menu")).fixed_pos(at).order(egui::Order::Foreground).show(ui.ctx(), |ui| {
+        egui::Frame::popup(ui.style()).show(ui, |ui| {
+            ui.set_min_width(190.0);
+            let items: Vec<(&str, &str)> = if rows {
+                vec![("Cut", "edit.cut"), ("Copy", "edit.copy"), ("Paste", "edit.paste"), ("-", ""), ("Insert", "home.insertRows"), ("Delete", "home.deleteRows"), ("Clear Contents", "edit.clearContents"), ("-", ""), ("Row Height…", "ui:rowHeight"), ("AutoFit Row Height", "home.autofitRowHeight"), ("Hide", "home.hideRows"), ("Unhide", "home.unhideRows"), ("Group", "data.group")]
+            } else {
+                vec![("Cut", "edit.cut"), ("Copy", "edit.copy"), ("Paste", "edit.paste"), ("-", ""), ("Insert", "home.insertColumns"), ("Delete", "home.deleteColumns"), ("Clear Contents", "edit.clearContents"), ("-", ""), ("Column Width…", "ui:columnWidth"), ("AutoFit Column Width", "home.autofitColumnWidth"), ("Hide", "home.hideColumns"), ("Unhide", "home.unhideColumns"), ("Sort A to Z", "data.sortAscending"), ("Group", "data.group")]
+            };
+            for (label, id) in items {
+                if label == "-" {
+                    ui.separator();
+                    continue;
+                }
+                if ui.add(egui::Button::new(label).frame(false).min_size(vec2(180.0, 20.0))).clicked() {
+                    close = true;
+                    match id {
+                        "ui:rowHeight" => app.open_dialog("rowHeight", json!({})),
+                        "ui:columnWidth" => app.open_dialog("columnWidth", json!({})),
+                        "edit.copy" | "edit.cut" => {
+                            if let Ok(r) = app.run(id, json!({}))
+                                && let Some(t) = r.get("text").and_then(|t| t.as_str())
+                            {
+                                ui.ctx().copy_text(t.to_string());
+                            }
+                        }
+                        other => app.run_or_alert(other, json!({})),
+                    }
+                }
+            }
+        });
+    });
+    if close || ui.input(|i| i.key_pressed(egui::Key::Escape)) || (ui.input(|i| i.pointer.any_pressed()) && !ui.ctx().is_pointer_over_egui()) {
+        app.grid.header_menu = None;
+    }
 }

@@ -33,3 +33,7 @@ Generated-in-code art is original and has no file to list: the UI icon set (`cra
 | `assets/app-icon/hicolor/scalable/apps/ai.storyteller.sheetcraft.svg` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, copy of sheetcraft.svg |
 | `assets/app-icon/README.md` | SheetCraft contributors | original | MIT OR Apache-2.0 | Icon documentation |
 | `assets/app-icon/LICENSE.txt` | (licence text) | original | — | Licence of the app icon files |
+| `docs/images/hero-sales.png` | SheetCraft contributors | screenshot of SheetCraft rendered offscreen (`crates/ui-egui/examples/snapshot.rs`) showing an original sample workbook | MIT OR Apache-2.0 | README screenshot; no third-party content |
+| `docs/images/budget.png` | SheetCraft contributors | screenshot of SheetCraft rendered offscreen (`crates/ui-egui/examples/snapshot.rs`) showing an original sample workbook | MIT OR Apache-2.0 | README screenshot; no third-party content |
+| `docs/images/grades-formulas.png` | SheetCraft contributors | screenshot of SheetCraft rendered offscreen (`crates/ui-egui/examples/snapshot.rs`) showing an original sample workbook | MIT OR Apache-2.0 | README screenshot; no third-party content |
+| `docs/images/dark-insert.png` | SheetCraft contributors | screenshot of SheetCraft rendered offscreen (`crates/ui-egui/examples/snapshot.rs`) showing an original sample workbook | MIT OR Apache-2.0 | README screenshot; no third-party content |
