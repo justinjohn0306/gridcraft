@@ -1,5 +1,7 @@
 # Builds and tests the workspace on FreeBSD, inside a FreeBSD VM on a Linux runner
 # (GitHub has no FreeBSD runners). GPU tests skip themselves when the VM has no adapter.
+# Builds run only from the `release` branch: release.yml calls this workflow, and a manual run
+# from any other branch is skipped.
 #
 # With `package: true` (release.yml calls it that way, or a manual run) it instead builds the
 # release binaries and uploads `gridcraft-<version>-freebsd-x86_64.tar.gz` as the
@@ -8,15 +10,6 @@
 name: FreeBSD
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    paths:
-      - Cargo.toml
-      - Cargo.lock
-      - "**/Cargo.toml"
-      - packaging/freebsd/**
-      - .github/workflows/freebsd.yml
   workflow_dispatch:
     inputs:
       package:
@@ -48,6 +41,7 @@ permissions:
 jobs:
   freebsd:
     name: FreeBSD 14 (${{ inputs.package && 'package' || 'build + test' }})
+    if: github.ref == 'refs/heads/release'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     env:

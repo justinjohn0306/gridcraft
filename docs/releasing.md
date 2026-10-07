@@ -148,7 +148,7 @@ Locally (on Linux): install [nfpm](https://nfpm.goreleaser.com/install/), then
 ### FreeBSD
 
 GitHub has no FreeBSD runners. `.github/workflows/freebsd.yml` boots a FreeBSD 14.3 VM
-(`vmactions/freebsd-vm`). On `main` pushes and PRs it builds and tests the workspace; called
+(`vmactions/freebsd-vm`). Run by hand from `release`, it builds and tests the workspace; called
 from `release.yml` with `package: true` it runs `packaging/freebsd/package.sh`, which builds the
 release binaries and writes `gridcraft-<v>-freebsd-x86_64.tar.gz` (`bin/` + `share/`, extract
 under `/usr/local`). The target dir lives outside the synced checkout so only `dist/release`
@@ -184,8 +184,9 @@ shows a `::warning::`. Never store these as org- or repo-level Actions secrets (
 
 `GITHUB_TOKEN` creates the release; only the final job gets `contents: write`.
 
-The exact commands (from craftrules `release/signing-setup.md`, steps 1–3). **Run by an org
-admin; not done by the setup agent.**
+The exact commands (from craftrules `release/signing-setup.md`, steps 1–3), run by an org
+admin. Done for storytold/gridcraft on 2026-10-07; the `release-managers` team also has write
+access to the repo, which its ruleset bypass needs.
 
 ```sh
 REPO=storytold/gridcraft
@@ -244,7 +245,11 @@ row in `ATTRIBUTION.md` (`cargo xtask assets`).
 - `.github/workflows/packaging-lint.yml` (seconds, on changes to `packaging/`, the workflows or
   the icons): actionlint, shellcheck, a PowerShell parse, xmllint, a WiX icon-id check,
   `desktop-file-validate`, `appstreamcli validate`, and a Flatpak manifest check.
-- `.github/workflows/windows-arm64.yml`: packages ARM64 on x64, then installs, runs and
-  uninstalls the MSI on a Windows 11 ARM64 runner.
-- `.github/workflows/freebsd.yml`: FreeBSD build + tests on `main`.
+- `.github/workflows/windows-arm64.yml` (on `release` pushes): packages ARM64 on x64, then
+  installs, runs and uninstalls the MSI on a Windows 11 ARM64 runner.
+- `.github/workflows/freebsd.yml`: FreeBSD build + tests (manual run from `release`).
+
+**Only the `release` branch builds.** No build workflow runs on `main` or pull requests; every
+build job checks `github.ref == 'refs/heads/release'`, so a manual run from another branch is
+skipped. Only `packaging-lint.yml` (no build, no secrets) runs on `main` and PRs.
 - Locally: `cargo xtask ci` (fmt, clippy, tests, assets, layers, wasm, parity check).

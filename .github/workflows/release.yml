@@ -35,6 +35,8 @@ env:
 jobs:
   version:
     name: version
+    # Only the release branch builds; a manual run from any other branch skips every job.
+    if: github.ref == 'refs/heads/release'
     runs-on: ubuntu-latest
     environment: release
     outputs:
