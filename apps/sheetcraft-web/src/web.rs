@@ -97,7 +97,9 @@ fn services(inbox: Inbox, ctx: egui::Context) -> Services {
             let inbox = open_inbox.clone();
             let ctx = ctx.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                let Some(file) = rfd::AsyncFileDialog::new().add_filter("Spreadsheets", &["xlsx", "xlsm", "csv", "tsv", "txt", "json"]).pick_file().await else {
+                let Some(file) =
+                    rfd::AsyncFileDialog::new().add_filter("Spreadsheets", &["xlsx", "xlsm", "csv", "tsv", "txt", "json"]).pick_file().await
+                else {
                     return;
                 };
                 let bytes = file.read().await;

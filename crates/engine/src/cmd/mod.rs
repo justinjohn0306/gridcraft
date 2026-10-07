@@ -3,14 +3,19 @@
 
 pub mod data;
 pub mod edit;
+pub mod extra;
 pub mod file;
 pub mod format;
 pub mod formulas;
 pub mod insert;
 pub mod inspect;
+pub mod pivot;
+pub mod print;
 pub mod review;
 pub mod sheet;
+pub mod spelling;
 pub mod view;
+pub mod whatif;
 
 use serde::Serialize;
 use serde_json::Value as Json;
@@ -109,6 +114,11 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(review::specs());
         v.extend(view::specs());
         v.extend(inspect::specs());
+        v.extend(extra::specs());
+        v.extend(spelling::specs());
+        v.extend(pivot::specs());
+        v.extend(whatif::specs());
+        v.extend(print::specs());
         v
     })
 }
@@ -205,6 +215,8 @@ pub(crate) fn edit<R>(s: &mut Session, f: impl FnOnce(&mut Ctx) -> Result<R>) ->
 }
 
 pub(crate) fn commit<R>(d: &mut DocState, f: impl FnOnce(&mut Ctx) -> Result<R>) -> Result<R> {
+    let prof = std::env::var_os("SHEETCRAFT_PROFILE").is_some();
+    let t0 = std::time::Instant::now();
     let mut sel = d.selection.clone();
     let mut ctx = Ctx { wb: (*d.wb).clone(), changed: Vec::new(), structural: false, sel: &mut sel, fit_rows: Vec::new() };
     let r = f(&mut ctx)?;
@@ -212,15 +224,24 @@ pub(crate) fn commit<R>(d: &mut DocState, f: impl FnOnce(&mut Ctx) -> Result<R>)
     if changed.len() <= 200_000 {
         fit_rows.extend(changed.iter().map(|(s, c)| (*s, c.row)));
     }
+    if prof {
+        eprintln!("commit: edit {:?}, {} changed", t0.elapsed(), changed.len());
+    }
     if structural {
         d.calc.recalc_all(&mut wb);
     } else if !changed.is_empty() {
         d.calc.cells_changed(&mut wb, &changed);
     }
+    if prof {
+        eprintln!("commit: + recalc {:?}", t0.elapsed());
+    }
     fit_rows.sort_unstable();
     fit_rows.dedup();
     for (si, row) in fit_rows {
         auto_row_height(&mut wb, si, row);
+    }
+    if prof {
+        eprintln!("commit: + rows {:?}", t0.elapsed());
     }
     d.wb = std::sync::Arc::new(wb);
     d.selection = sel;
@@ -235,6 +256,25 @@ pub fn auto_row_height(wb: &mut Workbook, si: usize, row: u32) {
         return;
     }
     let default = sh.default_row_height;
+    // Fast path: rows of default-size, unwrapped, single-line content keep the default height.
+    let plain = sh.cells.row(row, 0, sheetcraft_core::MAX_COLS - 1).all(|(_, cell)| {
+        let st = wb.styles.get(cell.style);
+        st.font.size <= sheetcraft_model::DEFAULT_FONT_SIZE && !st.align.wrap && !cell.value.as_text().is_some_and(|t| t.contains('\n'))
+    });
+    if plain {
+        if sh.rows.get(&row).is_some_and(|i| i.size.is_some())
+            && let Some(shm) = wb.sheet_mut(si)
+            && let Some(e) = shm.rows.get_mut(&row)
+        {
+            {
+                e.size = None;
+                if *e == sheetcraft_model::LineInfo::default() {
+                    shm.rows.remove(&row);
+                }
+            }
+        }
+        return;
+    }
     let mut need: f32 = default;
     for (c, cell) in sh.cells.row(row, 0, sheetcraft_core::MAX_COLS - 1) {
         let st = wb.styles.get(cell.style);

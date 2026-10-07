@@ -607,3 +607,41 @@ pub fn paint(p: &Painter, rect: Rect, icon: Icon, c: Color32) {
         }
     }
 }
+
+/// Icons offered by Insert › Icons, by name.
+pub const LIBRARY: &[(&str, Icon)] = &[
+    ("check", Icon::Check),
+    ("close", Icon::Close),
+    ("plus", Icon::Plus),
+    ("minus", Icon::Minus),
+    ("chart", Icon::Chart),
+    ("line chart", Icon::ChartLine),
+    ("pie chart", Icon::ChartPie),
+    ("scatter", Icon::ChartScatter),
+    ("table", Icon::Table),
+    ("sum", Icon::Sum),
+    ("filter", Icon::Filter),
+    ("lock", Icon::Lock),
+    ("comment", Icon::Comment),
+    ("note", Icon::Note),
+    ("picture", Icon::Picture),
+    ("book", Icon::Book),
+    ("folder", Icon::Folder),
+    ("search", Icon::Search),
+    ("calculator", Icon::Calc),
+    ("link", Icon::Link),
+    ("pen", Icon::Pen),
+    ("share", Icon::Share),
+    ("settings", Icon::Settings),
+    ("home", Icon::Home),
+    ("save", Icon::Save),
+    ("theme", Icon::Theme),
+    ("shapes", Icon::Shapes),
+    ("text", Icon::TextBox),
+    ("trace", Icon::Trace),
+    ("validation", Icon::Validation),
+];
+
+pub fn from_name(name: &str) -> Option<Icon> {
+    LIBRARY.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, i)| *i)
+}

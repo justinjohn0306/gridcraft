@@ -7,7 +7,35 @@
 //! evaluation as a safety net for dynamic references. Cycles produce `#CIRC!` unless iterative
 //! calculation is on.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::VecDeque;
+use std::hash::{BuildHasherDefault, Hasher};
+
+/// A fast, non-cryptographic hasher for cell keys (FxHash-style multiply-rotate).
+#[derive(Default, Clone, Copy)]
+pub struct FxHasher(u64);
+
+impl Hasher for FxHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        for b in bytes {
+            self.write_u64(*b as u64);
+        }
+    }
+    fn write_u64(&mut self, i: u64) {
+        self.0 = (self.0.rotate_left(5) ^ i).wrapping_mul(0x51_7c_c1_b7_27_22_0a_95);
+    }
+    fn write_u32(&mut self, i: u32) {
+        self.write_u64(i as u64);
+    }
+    fn write_usize(&mut self, i: usize) {
+        self.write_u64(i as u64);
+    }
+}
+
+type HashMap<K, V> = std::collections::HashMap<K, V, BuildHasherDefault<FxHasher>>;
+type HashSet<K> = std::collections::HashSet<K, BuildHasherDefault<FxHasher>>;
 
 use sheetcraft_core::{Array, CellError, CellRef, RangeRef, Value};
 use sheetcraft_formula::Expr;
@@ -143,7 +171,7 @@ impl Default for Calc {
 
 struct PassHost<'a> {
     wb: &'a Workbook,
-    exprs: &'a HashMap<Key, Expr>,
+    exprs: &'a HashMap<Key, std::sync::Arc<Expr>>,
     results: HashMap<Key, Value>,
     pending: HashSet<Key>,
     in_progress: HashSet<Key>,
@@ -171,7 +199,7 @@ impl PassHost<'_> {
         }
         self.in_progress.insert(k);
         self.depth += 1;
-        let expr = expr.clone();
+        let expr = std::sync::Arc::clone(expr);
         let v = {
             let mut ev = Evaluator::new(self, k.0, k.1);
             ev.value(&expr)
@@ -212,6 +240,66 @@ impl Host for PassHost<'_> {
             }
         }
         self.wb.sheet(sheet).map(|s| s.value(c)).unwrap_or_default()
+    }
+    fn range_values(&mut self, sheet: usize, range: RangeRef) -> Vec<Value> {
+        let (h, w) = (range.height() as usize, range.width() as usize);
+        let mut out = vec![Value::Empty; h * w];
+        let Some(sh) = self.wb.sheet(sheet) else { return out };
+        // Sparse walk: only stored cells; formula cells that are (or were) dirty go through
+        // `compute`, constants are copied straight from the store.
+        let mut formulas: Vec<(usize, CellRef)> = Vec::new();
+        for (c, cell) in sh.cells.iter_range(range) {
+            let i = (c.row - range.start.row) as usize * w + (c.col - range.start.col) as usize;
+            if cell.formula.is_some() {
+                formulas.push((i, c));
+            } else if let Some(slot) = out.get_mut(i) {
+                *slot = cell.value.clone();
+            }
+        }
+        for (c, v) in sh.spill.range(range.start..=range.end) {
+            if range.contains(*c) {
+                let i = (c.row - range.start.row) as usize * w + (c.col - range.start.col) as usize;
+                if let Some(slot) = out.get_mut(i)
+                    && slot.is_empty()
+                {
+                    *slot = v.clone();
+                }
+            }
+        }
+        for (i, c) in formulas {
+            let v = self.cell_value(sheet, c);
+            if let Some(slot) = out.get_mut(i) {
+                *slot = v;
+            }
+        }
+        if !self.spills.is_empty() {
+            let new: Vec<(usize, Value)> = self
+                .spills
+                .iter()
+                .filter(|(a, _)| a.0 == sheet)
+                .flat_map(|(a, arr)| {
+                    let mut v = Vec::new();
+                    for r in 0..arr.rows {
+                        for cc in 0..arr.cols {
+                            let c = CellRef::new(a.1.row.saturating_add(r as u32), a.1.col.saturating_add(cc as u32));
+                            if c != a.1 && range.contains(c) {
+                                v.push((
+                                    (c.row - range.start.row) as usize * w + (c.col - range.start.col) as usize,
+                                    arr.get(r, cc).cloned().unwrap_or_default(),
+                                ));
+                            }
+                        }
+                    }
+                    v
+                })
+                .collect();
+            for (i, v) in new {
+                if let Some(slot) = out.get_mut(i) {
+                    *slot = v;
+                }
+            }
+        }
+        out
     }
     fn now_serial(&self) -> f64 {
         self.now
@@ -310,12 +398,18 @@ impl Calc {
                 seeds.extend(r.iter().take(65536).map(|c| (k.0, c)));
             }
         }
+        let t0 = prof_now();
         let dirty = self.dirty_closure(wb, &seeds);
+        let t1 = prof_now();
+        let n = dirty.len();
         self.run(wb, dirty, false);
+        if std::env::var_os("SHEETCRAFT_PROFILE").is_some() {
+            eprintln!("recalc: {} seeds, closure {} cells {:.1} ms, run {:.1} ms", seeds.len(), n, t1 - t0, prof_now() - t1);
+        }
     }
 
     fn dirty_closure(&self, _wb: &Workbook, seeds: &[Key]) -> Vec<Key> {
-        let mut seen: HashSet<Key> = HashSet::new();
+        let mut seen: HashSet<Key> = HashSet::default();
         let mut queue: VecDeque<Key> = VecDeque::new();
         for k in seeds {
             if self.graph.nodes.contains_key(k) && seen.insert(*k) {
@@ -355,22 +449,23 @@ impl Calc {
             }
             // Row-major order is a good topological guess; on-demand evaluation fixes the rest.
             dirty.sort_by_key(|(s, c)| (*s, c.row, c.col));
-            let mut exprs: HashMap<Key, Expr> = HashMap::with_capacity(dirty.len());
+            let mut exprs: HashMap<Key, std::sync::Arc<Expr>> = HashMap::with_capacity_and_hasher(dirty.len(), Default::default());
             for k in &dirty {
-                if let Some(e) = wb.sheet(k.0).and_then(|s| s.cell(k.1)).and_then(|c| c.formula.as_ref()).and_then(|f| f.expr()) {
+                if let Some(e) = wb.sheet(k.0).and_then(|s| s.cell(k.1)).and_then(|c| c.formula.as_ref()).and_then(|f| f.expr_arc()) {
                     exprs.insert(*k, e);
                 }
             }
             let now = self.now();
             let mut rng = self.rng;
+            let tp = prof_now();
             let (results, spills, cycles) = {
                 let mut host = PassHost {
                     wb,
                     exprs: &exprs,
-                    results: HashMap::with_capacity(dirty.len()),
+                    results: HashMap::with_capacity_and_hasher(dirty.len(), Default::default()),
                     pending: exprs.keys().copied().collect(),
-                    in_progress: HashSet::new(),
-                    spills: HashMap::new(),
+                    in_progress: HashSet::default(),
+                    spills: HashMap::default(),
                     rng: &mut rng,
                     now,
                     cycle: false,
@@ -383,6 +478,10 @@ impl Calc {
                 (host.results, host.spills, host.cycles)
             };
             self.rng = rng;
+            if std::env::var_os("SHEETCRAFT_PROFILE").is_some() {
+                eprintln!("  eval {} formulas {:.1} ms", results.len(), prof_now() - tp);
+            }
+            let tw = prof_now();
             self.last_recalc_cells = results.len();
             self.circular = cycles;
             // Write back.
@@ -439,6 +538,9 @@ impl Calc {
             if full {
                 // Everything was already evaluated once; spill dependents need another pass.
             }
+            if std::env::var_os("SHEETCRAFT_PROFILE").is_some() {
+                eprintln!("  write-back {:.1} ms", prof_now() - tw);
+            }
             spill_changes.sort_by_key(|(s, c)| (*s, c.row, c.col));
             spill_changes.dedup();
             spill_changes.retain(|k| !spills.contains_key(k));
@@ -471,15 +573,15 @@ pub fn evaluate(wb: &Workbook, sheet: usize, at: CellRef, formula: &str) -> Valu
 }
 
 pub fn evaluate_expr(wb: &Workbook, sheet: usize, at: CellRef, expr: &Expr) -> Value {
-    let exprs = HashMap::new();
+    let exprs = HashMap::default();
     let mut rng = 0x1234_5678_9ABC_DEF0u64;
     let mut host = PassHost {
         wb,
         exprs: &exprs,
-        results: HashMap::new(),
-        pending: HashSet::new(),
-        in_progress: HashSet::new(),
-        spills: HashMap::new(),
+        results: HashMap::default(),
+        pending: HashSet::default(),
+        in_progress: HashSet::default(),
+        spills: HashMap::default(),
         rng: &mut rng,
         now: now_serial(),
         cycle: false,
@@ -488,4 +590,15 @@ pub fn evaluate_expr(wb: &Workbook, sheet: usize, at: CellRef, expr: &Expr) -> V
     };
     let mut ev = Evaluator::new(&mut host, sheet, at);
     ev.value(expr)
+}
+
+fn prof_now() -> f64 {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64() * 1000.0).unwrap_or(0.0)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        0.0
+    }
 }

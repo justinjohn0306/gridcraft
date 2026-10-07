@@ -1020,6 +1020,26 @@ fn insert(app: &mut SheetApp, ui: &mut Ui) {
             }
         }
     });
+    let icn = big_button(ui, Icon::Theme, "Icons", "Insert an icon", true);
+    egui::Popup::menu(&icn).show(|ui| {
+        ui.set_width(260.0);
+        egui::Grid::new("icon_lib").show(ui, |ui| {
+            for (i, (name, icon)) in icons::LIBRARY.iter().enumerate() {
+                let (r, resp) = ui.allocate_exact_size(vec2(36.0, 36.0), Sense::click());
+                if resp.hovered() {
+                    ui.painter().rect_filled(r, 4.0, Tokens::get(ui.ctx()).hover);
+                }
+                icons::paint(ui.painter(), r.shrink(6.0), *icon, Tokens::get(ui.ctx()).text);
+                if resp.on_hover_text(*name).clicked() {
+                    act(app, "insert.icons", json!({"name": name}));
+                    ui.close();
+                }
+                if (i + 1) % 6 == 0 {
+                    ui.end_row();
+                }
+            }
+        });
+    });
     sep(ui);
     if big_button(ui, Icon::Chart, "Recommended\nCharts", "Recommended Charts", false).clicked() {
         act(app, "insert.recommendedCharts", json!({}));
@@ -1433,7 +1453,7 @@ fn data(app: &mut SheetApp, ui: &mut Ui) {
 
 fn review(app: &mut SheetApp, ui: &mut Ui) {
     if big_button(ui, Icon::Spell, "Spelling", "Spelling (F7)", false).clicked() {
-        act(app, "review.spelling", json!({}));
+        app.open_dialog("spelling", json!({}));
     }
     if big_button(ui, Icon::Calc, "Workbook\nStatistics", "Workbook Statistics", false).clicked() {
         app.open_dialog("statistics", json!({}));
@@ -1469,9 +1489,13 @@ fn review(app: &mut SheetApp, ui: &mut Ui) {
 fn view(app: &mut SheetApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let _ = t;
-    for (icon, label) in [(Icon::Normal, "Normal"), (Icon::PageBreak, "Page Break\nPreview"), (Icon::PageLayout, "Page\nLayout")] {
-        if big_button(ui, icon, label, label, false).clicked() && label != "Normal" {
-            app.toast = Some(("Page views arrive with printing (milestone M9).".into(), crate::now_ms()));
+    for (icon, label, cmd) in [
+        (Icon::Normal, "Normal", "view.normal"),
+        (Icon::PageBreak, "Page Break\nPreview", "view.pageBreakPreview"),
+        (Icon::PageLayout, "Page\nLayout", "view.pageLayout"),
+    ] {
+        if big_button(ui, icon, label, label, false).clicked() {
+            act(app, cmd, json!({}));
         }
     }
     sep(ui);

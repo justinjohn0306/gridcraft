@@ -20,3 +20,6 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 log = { workspace = true }
 sheetcraft-xlsx = { workspace = true }
+sheetcraft-chart = { workspace = true }
+sheetcraft-pdf = { workspace = true }
+image = { workspace = true }

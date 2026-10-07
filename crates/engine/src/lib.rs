@@ -12,6 +12,7 @@ pub mod cmd;
 pub mod display;
 pub mod fill;
 pub mod io;
+pub mod pivot;
 pub mod sample;
 pub mod selection;
 pub mod tables;
@@ -147,6 +148,8 @@ pub struct Prefs {
     pub default_font_size: f32,
     pub sheets_in_new_workbook: usize,
     pub r1c1: bool,
+    /// Words added with Add to Dictionary.
+    pub user_dictionary: Vec<String>,
 }
 
 impl Default for Prefs {
@@ -159,6 +162,7 @@ impl Default for Prefs {
             default_font_size: sheetcraft_model::DEFAULT_FONT_SIZE,
             sheets_in_new_workbook: 1,
             r1c1: false,
+            user_dictionary: vec![],
         }
     }
 }
@@ -186,6 +190,12 @@ pub struct Session {
     pub format_painter: Option<(Arc<Workbook>, usize, RangeRef, bool)>,
     /// Find state (last search).
     pub last_find: Option<Json>,
+    /// Workbook view: normal, pageLayout or pageBreakPreview.
+    pub view_mode: String,
+    /// Journal position where action recording started.
+    pub recording: Option<usize>,
+    /// Windows hidden with View › Hide.
+    pub hidden_windows: Vec<usize>,
 }
 
 impl Session {

@@ -54,6 +54,10 @@ pub trait Host {
     fn random(&mut self) -> f64;
     /// Called when a volatile or dynamic-reference function is used.
     fn note_volatile(&mut self) {}
+    /// Values of a block, row-major. Hosts can override with a sparse fast path.
+    fn range_values(&mut self, sheet: usize, range: RangeRef) -> Vec<Value> {
+        range.iter().map(|c| self.cell_value(sheet, c)).collect()
+    }
 }
 
 pub struct Evaluator<'h> {
@@ -130,10 +134,7 @@ impl<'h> Evaluator<'h> {
         if (h as u64) * (w as u64) > MAX_CELLS {
             return Value::Error(CellError::Num);
         }
-        let mut data = Vec::with_capacity(h * w);
-        for c in range.iter() {
-            data.push(self.host.cell_value(a.sheet, c));
-        }
+        let data = self.host.range_values(a.sheet, range);
         Array::new(h, w, data).map(Value::from).unwrap_or(Value::Error(CellError::Value))
     }
 

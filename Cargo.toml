@@ -23,6 +23,7 @@ sheetcraft-chart = { path = "crates/chart" }
 sheetcraft-engine = { path = "crates/engine" }
 sheetcraft-ui-egui = { path = "crates/ui-egui" }
 sheetcraft-mcp = { path = "crates/mcp" }
+sheetcraft-pdf = { path = "crates/pdf" }
 
 # foundation
 thiserror = "2"

@@ -4,27 +4,27 @@
 
 Each entry is an Excel ribbon or menu command (feature names only). It counts as implemented when SheetCraft registers a command with the same id.
 
-**Overall: 169 / 281 commands implemented (60.1%).**
+**Overall: 254 / 290 commands implemented (87.6%).**
 
 | Tab | Implemented | Total | Parity |
 |---|---|---|---|
-| File | 8 | 11 | 73% |
-| Home | 91 | 94 | 97% |
-| Insert | 11 | 25 | 44% |
+| File | 10 | 11 | 91% |
+| Home | 94 | 94 | 100% |
+| Insert | 15 | 25 | 60% |
 | Draw | 0 | 4 | 0% |
-| Page Layout | 12 | 23 | 52% |
-| Formulas | 13 | 23 | 57% |
-| Data | 10 | 28 | 36% |
-| Review | 7 | 18 | 39% |
-| View | 6 | 20 | 30% |
-| Automate | 0 | 3 | 0% |
-| Table Design | 9 | 13 | 69% |
-| Chart Design | 2 | 8 | 25% |
-| Format | 0 | 3 | 0% |
-| PivotTable Analyze | 0 | 4 | 0% |
-| PivotTable Design | 0 | 4 | 0% |
+| Page Layout | 23 | 23 | 100% |
+| Formulas | 23 | 23 | 100% |
+| Data | 20 | 28 | 71% |
+| Review | 9 | 18 | 50% |
+| View | 18 | 20 | 90% |
+| Automate | 3 | 3 | 100% |
+| Table Design | 12 | 13 | 92% |
+| Chart Design | 8 | 8 | 100% |
+| Format | 3 | 3 | 100% |
+| PivotTable Analyze | 12 | 13 | 92% |
+| PivotTable Design | 4 | 4 | 100% |
 
-## File (8 / 11, 73%)
+## File (10 / 11, 91%)
 
 Implemented:
 
@@ -33,17 +33,17 @@ Implemented:
 - `file.save` Save (File)
 - `file.saveAs` Save As (File)
 - `file.close` Close (File)
+- `file.print` Print (File)
+- `file.exportPdf` Export to PDF (Export)
 - `file.exportCsv` CSV (Export)
 - `file.exportHtml` Web Page (Export)
 - `file.properties` Properties (Info)
 
 Missing:
 
-- `file.print` Print (File)
-- `file.exportPdf` Export to PDF (Export)
 - `file.options` Options (Options)
 
-## Home (91 / 94, 97%)
+## Home (94 / 94, 100%)
 
 Implemented:
 
@@ -64,6 +64,7 @@ Implemented:
 - `home.superscript` Superscript (Font)
 - `home.subscript` Subscript (Font)
 - `home.borders` Borders (Font)
+- `home.drawBorder` Draw Border (Font)
 - `home.fillColor` Fill Color (Font)
 - `home.fontColor` Font Color (Font)
 - `home.alignTop` Top Align (Alignment)
@@ -91,6 +92,7 @@ Implemented:
 - `home.manageRules` Manage Rules (Styles)
 - `home.formatAsTable` Format as Table (Styles)
 - `home.cellStyle` Cell Styles (Styles)
+- `home.newCellStyle` New Cell Style (Styles)
 - `home.insertCells` Insert Cells (Cells)
 - `home.insertRows` Insert Sheet Rows (Cells)
 - `home.insertColumns` Insert Sheet Columns (Cells)
@@ -138,20 +140,18 @@ Implemented:
 - `edit.replace` Replace (Editing)
 - `edit.goTo` Go To (Editing)
 - `edit.goToSpecial` Go To Special (Editing)
-
-Missing:
-
-- `home.drawBorder` Draw Border (Font)
-- `home.newCellStyle` New Cell Style (Styles)
 - `home.addIns` Add-ins (Add-ins)
 
-## Insert (11 / 25, 44%)
+## Insert (15 / 25, 60%)
 
 Implemented:
 
+- `insert.pivotTable` PivotTable (Tables)
+- `insert.recommendedPivotTables` Recommended PivotTables (Tables)
 - `insert.table` Table (Tables)
 - `insert.picture` Pictures (Illustrations)
 - `insert.shape` Shapes (Illustrations)
+- `insert.icons` Icons (Illustrations)
 - `insert.recommendedCharts` Recommended Charts (Charts)
 - `insert.chart` Charts (Charts)
 - `insert.sparkline` Sparklines (Sparklines)
@@ -160,12 +160,10 @@ Implemented:
 - `insert.textBox` Text Box (Text)
 - `pageLayout.headerFooter` Header & Footer (Text)
 - `insert.symbol` Symbol (Symbols)
+- `insert.checkbox` Checkbox (Cell Controls)
 
 Missing:
 
-- `insert.pivotTable` PivotTable (Tables)
-- `insert.recommendedPivotTables` Recommended PivotTables (Tables)
-- `insert.icons` Icons (Illustrations)
 - `insert.smartArt` SmartArt (Illustrations)
 - `insert.screenshot` Screenshot (Illustrations)
 - `insert.pivotChart` PivotChart (Charts)
@@ -176,7 +174,6 @@ Missing:
 - `insert.signatureLine` Signature Line (Text)
 - `insert.object` Object (Text)
 - `insert.equation` Equation (Symbols)
-- `insert.checkbox` Checkbox (Cell Controls)
 
 ## Draw (0 / 4, 0%)
 
@@ -187,30 +184,27 @@ Missing:
 - `draw.lasso` Lasso Select (Tools)
 - `draw.inkToShape` Ink to Shape (Convert)
 
-## Page Layout (12 / 23, 52%)
+## Page Layout (23 / 23, 100%)
 
 Implemented:
 
 - `pageLayout.theme` Themes (Themes)
+- `pageLayout.themeColors` Colors (Themes)
+- `pageLayout.themeFonts` Fonts (Themes)
+- `pageLayout.themeEffects` Effects (Themes)
 - `pageLayout.margins` Margins (Page Setup)
 - `pageLayout.orientation` Orientation (Page Setup)
 - `pageLayout.size` Size (Page Setup)
 - `pageLayout.printArea` Print Area (Page Setup)
 - `pageLayout.breaks` Breaks (Page Setup)
+- `pageLayout.background` Background (Page Setup)
 - `pageLayout.printTitles` Print Titles (Page Setup)
+- `pageLayout.pageSetup` Page Setup (Page Setup)
 - `pageLayout.scaleToFit` Scale to Fit (Scale to Fit)
 - `view.gridlines` View Gridlines (Sheet Options)
 - `pageLayout.printGridlines` Print Gridlines (Sheet Options)
 - `view.headings` View Headings (Sheet Options)
 - `pageLayout.printHeadings` Print Headings (Sheet Options)
-
-Missing:
-
-- `pageLayout.themeColors` Colors (Themes)
-- `pageLayout.themeFonts` Fonts (Themes)
-- `pageLayout.themeEffects` Effects (Themes)
-- `pageLayout.background` Background (Page Setup)
-- `pageLayout.pageSetup` Page Setup (Page Setup)
 - `arrange.bringForward` Bring Forward (Arrange)
 - `arrange.sendBackward` Send Backward (Arrange)
 - `arrange.selectionPane` Selection Pane (Arrange)
@@ -218,26 +212,11 @@ Missing:
 - `arrange.group` Group (Arrange)
 - `arrange.rotate` Rotate (Arrange)
 
-## Formulas (13 / 23, 57%)
+## Formulas (23 / 23, 100%)
 
 Implemented:
 
 - `formulas.insertFunction` Insert Function (Function Library)
-- `formulas.nameManager` Name Manager (Defined Names)
-- `formulas.defineName` Define Name (Defined Names)
-- `formulas.createFromSelection` Create from Selection (Defined Names)
-- `formulas.tracePrecedents` Trace Precedents (Formula Auditing)
-- `formulas.traceDependents` Trace Dependents (Formula Auditing)
-- `formulas.removeArrows` Remove Arrows (Formula Auditing)
-- `formulas.showFormulas` Show Formulas (Formula Auditing)
-- `formulas.errorChecking` Error Checking (Formula Auditing)
-- `formulas.evaluateFormula` Evaluate Formula (Formula Auditing)
-- `formulas.calculationOptions` Calculation Options (Calculation)
-- `formulas.calculateNow` Calculate Now (Calculation)
-- `formulas.calculateSheet` Calculate Sheet (Calculation)
-
-Missing:
-
 - `formulas.recentlyUsed` Recently Used (Function Library)
 - `formulas.financial` Financial (Function Library)
 - `formulas.logical` Logical (Function Library)
@@ -246,18 +225,40 @@ Missing:
 - `formulas.lookupReference` Lookup & Reference (Function Library)
 - `formulas.mathTrig` Math & Trig (Function Library)
 - `formulas.moreFunctions` More Functions (Function Library)
+- `formulas.nameManager` Name Manager (Defined Names)
+- `formulas.defineName` Define Name (Defined Names)
 - `formulas.useInFormula` Use in Formula (Defined Names)
+- `formulas.createFromSelection` Create from Selection (Defined Names)
+- `formulas.tracePrecedents` Trace Precedents (Formula Auditing)
+- `formulas.traceDependents` Trace Dependents (Formula Auditing)
+- `formulas.removeArrows` Remove Arrows (Formula Auditing)
+- `formulas.showFormulas` Show Formulas (Formula Auditing)
+- `formulas.errorChecking` Error Checking (Formula Auditing)
+- `formulas.evaluateFormula` Evaluate Formula (Formula Auditing)
 - `formulas.watchWindow` Watch Window (Formula Auditing)
+- `formulas.calculationOptions` Calculation Options (Calculation)
+- `formulas.calculateNow` Calculate Now (Calculation)
+- `formulas.calculateSheet` Calculate Sheet (Calculation)
 
-## Data (10 / 28, 36%)
+## Data (20 / 28, 71%)
 
 Implemented:
 
+- `data.getData` Get Data (Get & Transform Data)
+- `data.fromTextCsv` From Text/CSV (Get & Transform Data)
+- `data.fromTableRange` From Table/Range (Get & Transform Data)
+- `data.refreshAll` Refresh All (Queries & Connections)
+- `data.queriesConnections` Queries & Connections (Queries & Connections)
+- `data.advancedFilter` Advanced (Sort & Filter)
 - `data.textToColumns` Text to Columns (Data Tools)
 - `data.flashFill` Flash Fill (Data Tools)
 - `data.removeDuplicates` Remove Duplicates (Data Tools)
 - `data.validation` Data Validation (Data Tools)
 - `data.circleInvalid` Circle Invalid Data (Data Tools)
+- `data.consolidate` Consolidate (Data Tools)
+- `data.scenarioManager` Scenario Manager (Forecast)
+- `data.goalSeek` Goal Seek (Forecast)
+- `data.dataTable` Data Table (Forecast)
 - `data.group` Group (Outline)
 - `data.ungroup` Ungroup (Outline)
 - `data.subtotal` Subtotal (Outline)
@@ -266,29 +267,21 @@ Implemented:
 
 Missing:
 
-- `data.getData` Get Data (Get & Transform Data)
-- `data.fromTextCsv` From Text/CSV (Get & Transform Data)
 - `data.fromWeb` From Web (Get & Transform Data)
-- `data.fromTableRange` From Table/Range (Get & Transform Data)
-- `data.refreshAll` Refresh All (Queries & Connections)
-- `data.queriesConnections` Queries & Connections (Queries & Connections)
 - `data.stocks` Stocks (Data Types)
 - `data.geography` Geography (Data Types)
-- `data.advancedFilter` Advanced (Sort & Filter)
-- `data.consolidate` Consolidate (Data Tools)
 - `data.relationships` Relationships (Data Tools)
-- `data.scenarioManager` Scenario Manager (Forecast)
-- `data.goalSeek` Goal Seek (Forecast)
-- `data.dataTable` Data Table (Forecast)
 - `data.forecastSheet` Forecast Sheet (Forecast)
 - `data.analyzeData` Analyze Data (Analysis)
 - `data.solver` Solver (Analysis)
 - `data.analysisToolPak` Data Analysis (Analysis)
 
-## Review (7 / 18, 39%)
+## Review (9 / 18, 50%)
 
 Implemented:
 
+- `review.spelling` Spelling (Proofing)
+- `review.thesaurus` Thesaurus (Proofing)
 - `review.workbookStatistics` Workbook Statistics (Proofing)
 - `review.checkAccessibility` Check Accessibility (Accessibility)
 - `review.deleteComment` Delete Comment (Comments)
@@ -299,8 +292,6 @@ Implemented:
 
 Missing:
 
-- `review.spelling` Spelling (Proofing)
-- `review.thesaurus` Thesaurus (Proofing)
 - `review.smartLookup` Smart Lookup (Insights)
 - `review.translate` Translate (Language)
 - `review.previousComment` Previous Comment (Comments)
@@ -311,47 +302,50 @@ Missing:
 - `review.allowEditRanges` Allow Edit Ranges (Protect)
 - `review.showChanges` Show Changes (Changes)
 
-## View (6 / 20, 30%)
+## View (18 / 20, 90%)
 
 Implemented:
-
-- `view.zoom` Zoom (Zoom)
-- `view.zoomToSelection` Zoom to Selection (Zoom)
-- `view.freezePanes` Freeze Panes (Window)
-- `view.freezeTopRow` Freeze Top Row (Window)
-- `view.freezeFirstColumn` Freeze First Column (Window)
-- `view.unfreezePanes` Unfreeze Panes (Window)
-
-Missing:
 
 - `view.normal` Normal (Workbook Views)
 - `view.pageBreakPreview` Page Break Preview (Workbook Views)
 - `view.pageLayout` Page Layout (Workbook Views)
 - `view.customViews` Custom Views (Workbook Views)
 - `view.ruler` Ruler (Show)
-- `view.formulaBar` Formula Bar (Show)
-- `view.zoom100` 100% (Zoom)
+- `view.zoom` Zoom (Zoom)
+- `view.zoomToSelection` Zoom to Selection (Zoom)
 - `view.newWindow` New Window (Window)
 - `view.arrangeAll` Arrange All (Window)
+- `view.freezePanes` Freeze Panes (Window)
+- `view.freezeTopRow` Freeze Top Row (Window)
+- `view.freezeFirstColumn` Freeze First Column (Window)
+- `view.unfreezePanes` Unfreeze Panes (Window)
 - `view.split` Split (Window)
 - `view.hideWindow` Hide (Window)
 - `view.unhideWindow` Unhide (Window)
 - `view.switchWindows` Switch Windows (Window)
 - `view.macros` Macros (Macros)
 
-## Automate (0 / 3, 0%)
-
 Missing:
+
+- `view.formulaBar` Formula Bar (Show)
+- `view.zoom100` 100% (Zoom)
+
+## Automate (3 / 3, 100%)
+
+Implemented:
 
 - `automate.newScript` New Script (Scripting Tools)
 - `automate.allScripts` All Scripts (Scripting Tools)
 - `automate.recordActions` Record Actions (Scripting Tools)
 
-## Table Design (9 / 13, 69%)
+## Table Design (12 / 13, 92%)
 
 Implemented:
 
 - `table.rename` Table Name (Properties)
+- `table.resize` Resize Table (Properties)
+- `table.summarizePivot` Summarize with PivotTable (Tools)
+- `table.removeDuplicates` Remove Duplicates (Tools)
 - `table.convertToRange` Convert to Range (Tools)
 - `table.headerRow` Header Row (Table Style Options)
 - `table.totalRow` Total Row (Table Style Options)
@@ -363,47 +357,53 @@ Implemented:
 
 Missing:
 
-- `table.resize` Resize Table (Properties)
-- `table.summarizePivot` Summarize with PivotTable (Tools)
-- `table.removeDuplicates` Remove Duplicates (Tools)
 - `table.insertSlicer` Insert Slicer (Tools)
 
-## Chart Design (2 / 8, 25%)
+## Chart Design (8 / 8, 100%)
 
 Implemented:
-
-- `chart.set` Chart Styles (Chart Styles)
-- `chart.switchRowColumn` Switch Row/Column (Data)
-
-Missing:
 
 - `chart.addElement` Add Chart Element (Chart Layouts)
 - `chart.quickLayout` Quick Layout (Chart Layouts)
 - `chart.changeColors` Change Colors (Chart Styles)
+- `chart.set` Chart Styles (Chart Styles)
+- `chart.switchRowColumn` Switch Row/Column (Data)
 - `chart.selectData` Select Data (Data)
 - `chart.changeType` Change Chart Type (Type)
 - `chart.move` Move Chart (Location)
 
-## Format (0 / 3, 0%)
+## Format (3 / 3, 100%)
 
-Missing:
+Implemented:
 
 - `chart.formatSelection` Format Selection (Current Selection)
 - `chart.shapeFill` Shape Fill (Shape Styles)
 - `chart.shapeOutline` Shape Outline (Shape Styles)
 
-## PivotTable Analyze (0 / 4, 0%)
+## PivotTable Analyze (12 / 13, 92%)
 
-Missing:
+Implemented:
 
 - `pivot.fieldList` Field List (Show)
 - `pivot.refresh` Refresh (Data)
 - `pivot.changeSource` Change Data Source (Data)
-- `pivot.calculatedField` Fields, Items & Sets (Calculations)
-
-## PivotTable Design (0 / 4, 0%)
+- `pivot.addField` Add Field (Fields)
+- `pivot.removeField` Remove Field (Fields)
+- `pivot.moveField` Move Field (Fields)
+- `pivot.valueSettings` Value Field Settings (Active Field)
+- `pivot.filter` Filter (Filter)
+- `pivot.sort` Sort (Sort)
+- `pivot.group` Group Field (Group)
+- `pivot.collapse` Collapse Field (Active Field)
+- `pivot.delete` Clear All (Actions)
 
 Missing:
+
+- `pivot.calculatedField` Fields, Items & Sets (Calculations)
+
+## PivotTable Design (4 / 4, 100%)
+
+Implemented:
 
 - `pivot.grandTotals` Grand Totals (Layout)
 - `pivot.subtotals` Subtotals (Layout)

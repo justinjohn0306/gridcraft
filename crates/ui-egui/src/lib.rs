@@ -13,6 +13,7 @@ pub mod editor;
 pub mod formula_bar;
 pub mod grid;
 pub mod icons;
+pub mod pivot_pane;
 pub mod ribbon;
 pub mod tabs;
 pub mod theme;
@@ -357,7 +358,12 @@ impl SheetApp {
         }
         control::poll(self, ctx);
         // Files read asynchronously (web file picker, dropped files).
-        let arrived: Vec<(String, Vec<u8>)> = self.services.inbox.as_ref().map(|i| std::mem::take(&mut *i.lock().unwrap_or_else(std::sync::PoisonError::into_inner))).unwrap_or_default();
+        let arrived: Vec<(String, Vec<u8>)> = self
+            .services
+            .inbox
+            .as_ref()
+            .map(|i| std::mem::take(&mut *i.lock().unwrap_or_else(std::sync::PoisonError::into_inner)))
+            .unwrap_or_default();
         for (name, bytes) in arrived {
             let b64 = sheetcraft_engine::io::base64_encode(&bytes);
             if let Err(e) = self.session.run("file.open", json!({"name": name, "base64": b64})) {
@@ -394,6 +400,7 @@ impl SheetApp {
             tabs::status_bar(self, ui);
         }
         tabs::sheet_tabs(self, ui);
+        pivot_pane::show(self, ui);
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.grid_bg)).show(ui, |ui| {
             let g0 = now_ms();
             grid::show(self, ui);

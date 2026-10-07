@@ -54,6 +54,9 @@ pub struct Sheet {
     pub images: Vec<Image>,
     pub shapes: Vec<Shape>,
     pub sparklines: Vec<Sparkline>,
+    /// PivotTables whose output lives on this sheet.
+    #[serde(default)]
+    pub pivots: Vec<PivotTable>,
     pub protection: Option<SheetProtection>,
     pub print: PrintSettings,
     /// Last selection and scroll position, saved with the file.
@@ -96,6 +99,7 @@ impl Sheet {
             images: vec![],
             shapes: vec![],
             sparklines: vec![],
+            pivots: vec![],
             protection: None,
             print: PrintSettings::default(),
             view_active: CellRef::default(),

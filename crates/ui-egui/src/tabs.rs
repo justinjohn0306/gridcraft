@@ -233,15 +233,22 @@ pub fn status_bar(app: &mut SheetApp, ui: &mut Ui) {
                         app.run_or_alert("view.zoom", json!({"percent": z}));
                     }
                     ui.add_space(10.0);
-                    for (icon, tip) in [(Icon::PageBreak, "Page Break Preview"), (Icon::PageLayout, "Page Layout"), (Icon::Normal, "Normal")] {
+                    for (icon, tip, mode, cmd) in [
+                        (Icon::PageBreak, "Page Break Preview", "pageBreakPreview", "view.pageBreakPreview"),
+                        (Icon::PageLayout, "Page Layout", "pageLayout", "view.pageLayout"),
+                        (Icon::Normal, "Normal", "normal", "view.normal"),
+                    ] {
                         let (r, resp) = ui.allocate_exact_size(vec2(26.0, 20.0), Sense::click());
-                        if tip == "Normal" {
+                        let cur = if app.session.view_mode.is_empty() { "normal" } else { app.session.view_mode.as_str() };
+                        if cur == mode {
                             ui.painter().rect_filled(r, 3.0, t.pressed);
                         } else if resp.hovered() {
                             ui.painter().rect_filled(r, 3.0, t.hover);
                         }
                         icons::paint(ui.painter(), Rect::from_center_size(r.center(), vec2(14.0, 14.0)), icon, t.text_dim);
-                        resp.on_hover_text(tip);
+                        if resp.on_hover_text(tip).clicked() {
+                            app.run_or_alert(cmd, json!({}));
+                        }
                     }
                     ui.add_space(16.0);
                     // Average / Count / Sum.

@@ -77,6 +77,8 @@ pub struct GridState {
     pub renaming_tab: Option<usize>,
     pub rename_text: String,
     pub list_picker: Option<CellRef>,
+    /// Page ranges for Page Break Preview, cached per (doc uid, revision, sheet).
+    pub pages: Option<((u64, u64, usize), Vec<(RangeRef, u32)>)>,
     pub header_menu: Option<(Pos2, bool)>,
 }
 
@@ -283,6 +285,9 @@ fn display_text(
         return (String::new(), None, false, None);
     }
     let code = st.num_fmt.as_str();
+    if code == "checkbox" {
+        return (String::new(), None, false, None);
+    }
     if code == "General"
         && let Value::Number(n) = v
     {
@@ -394,6 +399,9 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
     // Objects above cells.
     crate::chartview::paint_objects(app, &painter.with_clip_rect(geo.cells), &geo, &wb, si, sh);
     paint_overlays(app, ui, &painter.with_clip_rect(geo.cells), &geo, &wb, si, sh, &sel);
+    if app.session.view_mode == "pageBreakPreview" || app.session.view_mode == "pageLayout" {
+        paint_pages(app, &painter.with_clip_rect(geo.cells), &geo, sh);
+    }
     // Headers.
     if sh.show_headings {
         paint_headers(&painter, &geo, sh, &sel, &t, &quads);
@@ -519,6 +527,22 @@ fn paint_quadrant(
             let r = Rect::from_min_size(pos2(rect.left() + 2.0, rect.center().y - 6.0 * z), vec2(12.0 * z, 12.0 * z));
             paint_cf_icon(p, r, set, *idx);
             text_left += 15.0 * z;
+        }
+        if lk.style.num_fmt.as_str() == "checkbox" {
+            let s = (11.0 * z * 1.2).clamp(8.0, 24.0);
+            let b = Rect::from_center_size(rect.center(), vec2(s, s));
+            let on = v == Value::Bool(true);
+            p.rect_filled(b, 2.0, if on { Color32::from_rgb(0x10, 0x7C, 0x41) } else { Color32::WHITE });
+            p.rect_stroke(
+                b,
+                2.0,
+                Stroke::new(1.0, if on { Color32::from_rgb(0x10, 0x7C, 0x41) } else { Color32::from_gray(110) }),
+                StrokeKind::Inside,
+            );
+            if on {
+                crate::icons::paint(p, b.shrink(1.5), crate::icons::Icon::Check, Color32::WHITE);
+            }
+            continue;
         }
         if cfl.as_ref().is_some_and(|l| l.hide_value) || v.is_empty() {
             continue;
@@ -1099,6 +1123,9 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
             let _ = app.session.run("selection.set", json!({"range": ranges.join(","), "active": c.a1()}));
         } else {
             let _ = app.session.run("selection.set", json!({"cell": c.a1()}));
+            if resp.clicked() && wb.styles.get(sh.style_id(c)).num_fmt.as_str() == "checkbox" {
+                let _ = app.run("cell.toggleCheckbox", json!({"cell": c.a1()}));
+            }
             // A click on a hyperlink's text follows it (like Excel); elsewhere in the cell selects.
             if let Some(h) = sh.hyperlinks.get(&c).cloned()
                 && resp.clicked()
@@ -1290,7 +1317,13 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         }
         if in_col_header || in_row_header {
             let (rows, idx) = if in_row_header { (true, geo.row_at(sh, p.y)) } else { (false, geo.col_at(sh, p.x)) };
-            let inside = sel.ranges.iter().any(|r| if rows { r.is_full_rows() && idx >= r.start.row && idx <= r.end.row } else { r.is_full_cols() && idx >= r.start.col && idx <= r.end.col });
+            let inside = sel.ranges.iter().any(|r| {
+                if rows {
+                    r.is_full_rows() && idx >= r.start.row && idx <= r.end.row
+                } else {
+                    r.is_full_cols() && idx >= r.start.col && idx <= r.end.col
+                }
+            });
             if !inside {
                 let range = if rows { RangeRef::rows(idx, idx) } else { RangeRef::cols(idx, idx) };
                 let _ = app.session.run("selection.set", json!({"range": range.a1()}));
@@ -1417,13 +1450,22 @@ fn select_ranges(app: &mut SheetApp, r: RangeRef, add: bool, active: CellRef) {
 
 /// Grid keyboard handling when no text field has focus.
 fn keyboard(app: &mut SheetApp, ctx: &egui::Context, resp: &egui::Response, geo: &Geo, sh: &Sheet) {
-    let other_focus = ctx.memory(|m| m.focused()).is_some_and(|f| f != resp.id);
+    // Focus left on an editor that no longer exists goes back to the grid.
+    let stale = [egui::Id::new("sheetcraft.cell_editor"), egui::Id::new("sheetcraft.formula_bar")];
+    if app.editor.is_none() && ctx.memory(|m| m.focused()).is_some_and(|f| stale.contains(&f)) {
+        resp.request_focus();
+    }
+    let other_focus = ctx.memory(|m| m.focused()).is_some_and(|f| f != resp.id && !(app.editor.is_none() && stale.contains(&f)));
     if app.editor.is_some() || app.dialog.is_some() || other_focus || app.message.is_some() {
         return;
     }
     if ctx.memory(|m| m.focused()).is_none() {
         resp.request_focus();
     }
+    // The grid owns arrows, Tab and Escape (egui would otherwise move focus between widgets).
+    ctx.memory_mut(|m| {
+        m.set_focus_lock_filter(resp.id, egui::EventFilter { tab: true, horizontal_arrows: true, vertical_arrows: true, escape: true })
+    });
     let events = ctx.input(|i| i.events.clone());
     let page = ((geo.cells.height() / geo.z) / sh.default_row_height).floor().max(1.0) as i64;
     for ev in events {
@@ -1506,6 +1548,7 @@ fn keyboard(app: &mut SheetApp, ctx: &egui::Context, resp: &egui::Response, geo:
                         app.session.clipboard = None;
                         app.session.format_painter = None;
                     }
+                    Key::Space if !cmd && !shift && is_checkbox(sh, app) => app.run_or_alert("cell.toggleCheckbox", json!({})),
                     Key::Space if cmd && !shift => app.run_or_alert("selection.column", json!({})),
                     Key::Space if shift && !cmd => app.run_or_alert("selection.row", json!({})),
                     Key::F9 => app.run_or_alert("formulas.calculateNow", json!({})),
@@ -1747,7 +1790,16 @@ pub fn validation_arrow(sh: &Sheet, geo: &Geo, c: CellRef) -> Option<Rect> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn paint_overlays(app: &mut SheetApp, ui: &egui::Ui, p: &Painter, geo: &Geo, wb: &Workbook, si: usize, sh: &Sheet, sel: &sheetcraft_engine::Selection) {
+fn paint_overlays(
+    app: &mut SheetApp,
+    ui: &egui::Ui,
+    p: &Painter,
+    geo: &Geo,
+    wb: &Workbook,
+    si: usize,
+    sh: &Sheet,
+    sel: &sheetcraft_engine::Selection,
+) {
     // Validation dropdown arrow for the active cell.
     if app.editor.is_none()
         && let Some(r) = validation_arrow(sh, geo, sel.active)
@@ -1873,9 +1925,38 @@ fn header_menu(app: &mut SheetApp, ui: &mut egui::Ui) {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             ui.set_min_width(190.0);
             let items: Vec<(&str, &str)> = if rows {
-                vec![("Cut", "edit.cut"), ("Copy", "edit.copy"), ("Paste", "edit.paste"), ("-", ""), ("Insert", "home.insertRows"), ("Delete", "home.deleteRows"), ("Clear Contents", "edit.clearContents"), ("-", ""), ("Row Height…", "ui:rowHeight"), ("AutoFit Row Height", "home.autofitRowHeight"), ("Hide", "home.hideRows"), ("Unhide", "home.unhideRows"), ("Group", "data.group")]
+                vec![
+                    ("Cut", "edit.cut"),
+                    ("Copy", "edit.copy"),
+                    ("Paste", "edit.paste"),
+                    ("-", ""),
+                    ("Insert", "home.insertRows"),
+                    ("Delete", "home.deleteRows"),
+                    ("Clear Contents", "edit.clearContents"),
+                    ("-", ""),
+                    ("Row Height…", "ui:rowHeight"),
+                    ("AutoFit Row Height", "home.autofitRowHeight"),
+                    ("Hide", "home.hideRows"),
+                    ("Unhide", "home.unhideRows"),
+                    ("Group", "data.group"),
+                ]
             } else {
-                vec![("Cut", "edit.cut"), ("Copy", "edit.copy"), ("Paste", "edit.paste"), ("-", ""), ("Insert", "home.insertColumns"), ("Delete", "home.deleteColumns"), ("Clear Contents", "edit.clearContents"), ("-", ""), ("Column Width…", "ui:columnWidth"), ("AutoFit Column Width", "home.autofitColumnWidth"), ("Hide", "home.hideColumns"), ("Unhide", "home.unhideColumns"), ("Sort A to Z", "data.sortAscending"), ("Group", "data.group")]
+                vec![
+                    ("Cut", "edit.cut"),
+                    ("Copy", "edit.copy"),
+                    ("Paste", "edit.paste"),
+                    ("-", ""),
+                    ("Insert", "home.insertColumns"),
+                    ("Delete", "home.deleteColumns"),
+                    ("Clear Contents", "edit.clearContents"),
+                    ("-", ""),
+                    ("Column Width…", "ui:columnWidth"),
+                    ("AutoFit Column Width", "home.autofitColumnWidth"),
+                    ("Hide", "home.hideColumns"),
+                    ("Unhide", "home.unhideColumns"),
+                    ("Sort A to Z", "data.sortAscending"),
+                    ("Group", "data.group"),
+                ]
             };
             for (label, id) in items {
                 if label == "-" {
@@ -1903,4 +1984,73 @@ fn header_menu(app: &mut SheetApp, ui: &mut egui::Ui) {
     if close || ui.input(|i| i.key_pressed(egui::Key::Escape)) || (ui.input(|i| i.pointer.any_pressed()) && !ui.ctx().is_pointer_over_egui()) {
         app.grid.header_menu = None;
     }
+}
+
+fn is_checkbox(sh: &Sheet, app: &SheetApp) -> bool {
+    let Some(d) = app.session.active() else { return false };
+    d.wb.styles.get(sh.style_id(d.selection.active)).num_fmt.as_str() == "checkbox"
+}
+
+fn paint_pages(app: &mut SheetApp, p: &Painter, geo: &Geo, sh: &Sheet) {
+    let Some(d) = app.session.active() else { return };
+    let key = (d.uid, d.revision, d.wb.active_sheet);
+    if app.grid.pages.as_ref().is_none_or(|(k, _)| *k != key) {
+        let pages: Vec<(RangeRef, u32)> = app
+            .session
+            .run("file.printPreview", json!({}))
+            .ok()
+            .and_then(|v| {
+                v["pageList"].as_array().map(|a| {
+                    a.iter()
+                        .filter(|pg| pg["sheet"].as_str() == Some(sh.name.as_str()))
+                        .filter_map(|pg| Some((RangeRef::parse(pg["range"].as_str()?)?, pg["page"].as_u64()? as u32)))
+                        .collect()
+                })
+            })
+            .unwrap_or_default();
+        app.grid.pages = Some((key, pages));
+    }
+    let Some((_, pages)) = &app.grid.pages else { return };
+    if pages.is_empty() {
+        return;
+    }
+    // Grey everything, then clear the printed pages.
+    let mut printed = pages[0].0;
+    for (r, _) in pages {
+        printed = printed.union(r);
+    }
+    let pr = geo.range_rect(sh, printed);
+    let grey = Color32::from_black_alpha(70);
+    let c = p.clip_rect();
+    for r in [
+        Rect::from_min_max(c.min, pos2(c.right(), pr.top())),
+        Rect::from_min_max(pos2(c.left(), pr.bottom()), c.max),
+        Rect::from_min_max(pos2(c.left(), pr.top()), pos2(pr.left(), pr.bottom())),
+        Rect::from_min_max(pos2(pr.right(), pr.top()), pos2(c.right(), pr.bottom())),
+    ] {
+        if r.is_positive() {
+            p.rect_filled(r, 0.0, grey);
+        }
+    }
+    let blue = Color32::from_rgb(0x2E, 0x6F, 0xD8);
+    for (r, n) in pages {
+        let rr = geo.range_rect(sh, *r);
+        if !rr.intersects(c) {
+            continue;
+        }
+        p.extend(egui::Shape::dashed_line(
+            &[rr.left_top(), rr.right_top(), rr.right_bottom(), rr.left_bottom(), rr.left_top()],
+            Stroke::new(2.0, blue),
+            6.0,
+            3.0,
+        ));
+        p.text(
+            rr.center(),
+            Align2::CENTER_CENTER,
+            format!("Page {n}"),
+            theme::ui_bold((rr.height().min(rr.width()) / 6.0).clamp(14.0, 72.0)),
+            Color32::from_black_alpha(45),
+        );
+    }
+    p.rect_stroke(pr, 0.0, Stroke::new(3.0, blue), StrokeKind::Outside);
 }

@@ -9,15 +9,26 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 mod control_server;
+#[cfg(target_os = "macos")]
+mod native_menu;
 
 use serde_json::json;
 use sheetcraft_engine::Session;
 use sheetcraft_ui_egui::{Services, SheetApp};
 
-struct App(SheetApp);
+struct App(SheetApp, #[cfg(target_os = "macos")] Option<native_menu::NativeMenu>);
 
 impl eframe::App for App {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        #[cfg(target_os = "macos")]
+        {
+            if self.1.is_none() && std::env::var_os("SHEETCRAFT_NO_NATIVE_MENU").is_none() {
+                self.1 = Some(native_menu::NativeMenu::install(ctx));
+            }
+            if let Some(m) = &self.1 {
+                m.poll(&mut self.0, ctx);
+            }
+        }
         self.0.logic(ctx);
     }
     fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
@@ -111,7 +122,7 @@ fn services() -> Services {
             };
             let _ = std::process::Command::new(cmd).arg(url).spawn();
         })),
-        download: None,
+        ..Default::default()
     }
 }
 
@@ -187,7 +198,11 @@ fn main() -> eframe::Result<()> {
                     Err(e) => eprintln!("control channel on port {port}: {e}"),
                 }
             }
-            Ok(Box::new(App(app)))
+            Ok(Box::new(App(
+                app,
+                #[cfg(target_os = "macos")]
+                None,
+            )))
         }),
     )
 }

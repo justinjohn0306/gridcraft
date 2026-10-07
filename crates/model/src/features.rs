@@ -393,6 +393,8 @@ pub enum ShapeKind {
     Line,
     Arrow,
     TextBox,
+    /// An icon from SheetCraft's own icon set; `Shape::text` holds the icon name.
+    Icon,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -547,4 +549,154 @@ pub struct LineInfo {
     /// The size was set by the user (rows): automatic heights follow the content.
     #[serde(default)]
     pub custom: bool,
+}
+
+// ---------------------------------------------------------------- pivot tables
+
+/// How a PivotTable lays out its row fields.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PivotLayout {
+    /// All row fields in one column, inner items indented ("Row Labels" header).
+    #[default]
+    Compact,
+    /// One column per row field; each item on its own row.
+    Outline,
+    /// One column per row field; inner items start on their parent's row, totals below.
+    Tabular,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PivotSort {
+    #[default]
+    Asc,
+    Desc,
+    /// Source order (first appearance).
+    None,
+}
+
+/// Grouping of a date field (values are date serials).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PivotDateGroup {
+    #[default]
+    None,
+    Years,
+    Quarters,
+    Months,
+    Days,
+}
+
+/// A field placed in the Rows or Columns area.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PivotField {
+    /// Source column header name.
+    pub source_col: String,
+    pub sort: PivotSort,
+    pub date_group: PivotDateGroup,
+    /// Item labels whose detail is hidden (collapsed).
+    pub collapsed_items: Vec<String>,
+}
+
+/// Summarize-values-by function.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PivotFunc {
+    #[default]
+    Sum,
+    Count,
+    Average,
+    Max,
+    Min,
+    Product,
+    CountNumbers,
+    StdDev,
+    StdDevP,
+    Var,
+    VarP,
+}
+
+/// Show-values-as transform.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PivotShowAs {
+    #[default]
+    Normal,
+    PercentOfGrandTotal,
+    PercentOfColumnTotal,
+    PercentOfRowTotal,
+    /// Running total in the first row field.
+    RunningTotal,
+    /// Rank largest to smallest among sibling row items.
+    Rank,
+}
+
+/// A field in the Values area.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PivotValue {
+    pub source_col: String,
+    pub func: PivotFunc,
+    /// Caption, e.g. "Sum of Sales".
+    pub name: String,
+    pub show_as: PivotShowAs,
+    pub number_format: Option<String>,
+}
+
+/// A report filter (or, for a field also in Rows/Columns, its hidden-items filter).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PivotFilter {
+    pub source_col: String,
+    /// Item labels shown; `None` = all.
+    pub selected: Option<Vec<String>>,
+}
+
+/// A PivotTable: its definition plus where its output was last written. The output itself is
+/// static cell values and styles on the sheet, rewritten on every refresh.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PivotTable {
+    pub id: u32,
+    pub name: String,
+    /// Source: range formula text (`Sheet1!$A$1:$E$200`), a table name or a defined name.
+    pub source: String,
+    /// Top-left of the output body on the pivot's sheet.
+    pub anchor: CellRef,
+    pub rows: Vec<PivotField>,
+    pub columns: Vec<PivotField>,
+    pub values: Vec<PivotValue>,
+    pub filters: Vec<PivotFilter>,
+    pub layout: PivotLayout,
+    /// Grand total for each row (the "Grand Total" column), like Excel's "On for Rows".
+    pub grand_totals_rows: bool,
+    /// Grand total for each column (the "Grand Total" row), like Excel's "On for Columns".
+    pub grand_totals_cols: bool,
+    pub subtotals: bool,
+    /// Subtotals at the top of each group (Compact/Outline); otherwise below it.
+    pub subtotals_top: bool,
+    pub style: String,
+    pub show_headers: bool,
+    /// Area written by the last refresh.
+    pub last_range: Option<RangeRef>,
+}
+
+impl Default for PivotTable {
+    fn default() -> Self {
+        PivotTable {
+            id: 0,
+            name: "PivotTable1".into(),
+            source: String::new(),
+            anchor: CellRef::default(),
+            rows: vec![],
+            columns: vec![],
+            values: vec![],
+            filters: vec![],
+            layout: PivotLayout::Compact,
+            grand_totals_rows: true,
+            grand_totals_cols: true,
+            subtotals: true,
+            subtotals_top: true,
+            style: "PivotStyleLight16".into(),
+            show_headers: true,
+            last_range: None,
+        }
+    }
 }

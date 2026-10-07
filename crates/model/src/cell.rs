@@ -13,7 +13,7 @@ use crate::style::StyleId;
 pub struct Formula {
     pub text: String,
     #[serde(skip)]
-    pub expr: Option<Expr>,
+    pub expr: Option<Arc<Expr>>,
     /// Legacy array formula (Ctrl+Shift+Enter) covering this range; the formula lives in the
     /// top-left cell.
     pub array: Option<RangeRef>,
@@ -25,16 +25,20 @@ impl Formula {
     pub fn new(text: &str) -> Formula {
         let body = text.strip_prefix('=').unwrap_or(text);
         match sheetcraft_formula::parse(body) {
-            Ok(e) => Formula { text: sheetcraft_formula::print(&e), expr: Some(e), array: None },
+            Ok(e) => Formula { text: sheetcraft_formula::print(&e), expr: Some(Arc::new(e)), array: None },
             Err(_) => Formula { text: body.to_string(), expr: None, array: None },
         }
     }
     pub fn from_expr(e: Expr) -> Formula {
-        Formula { text: sheetcraft_formula::print(&e), expr: Some(e), array: None }
+        Formula { text: sheetcraft_formula::print(&e), expr: Some(Arc::new(e)), array: None }
     }
     /// The parsed expression, re-parsing after deserialization.
     pub fn expr(&self) -> Option<Expr> {
-        self.expr.clone().or_else(|| sheetcraft_formula::parse(&self.text).ok())
+        self.expr.as_deref().cloned().or_else(|| sheetcraft_formula::parse(&self.text).ok())
+    }
+    /// The parsed expression without copying it (re-parses after deserialization).
+    pub fn expr_arc(&self) -> Option<Arc<Expr>> {
+        self.expr.clone().or_else(|| sheetcraft_formula::parse(&self.text).ok().map(Arc::new))
     }
 }
 

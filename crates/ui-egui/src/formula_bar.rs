@@ -143,7 +143,8 @@ pub fn editor_widget(app: &mut SheetApp, ui: &mut egui::Ui, id: egui::Id, font: 
     let Some(mut ed) = app.editor.take() else { return };
     let mine = ed.from_formula_bar == (id == egui::Id::new("sheetcraft.formula_bar"));
     // Keys the editor handles itself (before the TextEdit sees them), only where it has focus.
-    let has_focus = ui.ctx().memory(|m| m.has_focus(id)) || (mine && ed.request_focus);
+    let focused = ui.ctx().memory(|m| m.focused());
+    let has_focus = focused == Some(id) || (mine && (ed.request_focus || focused.is_none()));
     let mut action: Option<(i64, i64, bool, bool)> = None;
     let mut cancel = false;
     if has_focus && mine {
@@ -254,7 +255,15 @@ pub fn editor_widget(app: &mut SheetApp, ui: &mut egui::Ui, id: egui::Id, font: 
         ui.fonts_mut(|f| f.layout_job(job))
     };
     let edit = if multiline || ed.text.contains('\n') { TextEdit::multiline(&mut ed.text) } else { TextEdit::singleline(&mut ed.text) };
-    let mut output = edit.id(id).frame(egui::Frame::NONE).font(font).desired_width(width).layouter(&mut layouter).lock_focus(true).show(ui);
+    let mut output = edit
+        .id(id)
+        .frame(egui::Frame::NONE)
+        .font(font)
+        .desired_width(width)
+        .layouter(&mut layouter)
+        .lock_focus(true)
+        .event_filter(egui::EventFilter { tab: true, horizontal_arrows: true, vertical_arrows: true, escape: true })
+        .show(ui);
     let resp = output.response.clone();
     let synced = mine && (ed.request_focus || ed.sync_caret);
     if synced {

@@ -217,6 +217,12 @@ pub fn paint_objects(app: &SheetApp, p: &Painter, geo: &Geo, wb: &Workbook, si: 
             ShapeKind::Triangle => {
                 p.add(PathShape::convex_polygon(vec![pos2(r.center().x, r.top()), r.right_bottom(), r.left_bottom()], fill, Stroke::new(1.0, line)));
             }
+            ShapeKind::Icon => {
+                if let Some(icon) = crate::icons::from_name(&sp.text) {
+                    crate::icons::paint(p, r, icon, if fill == Color32::TRANSPARENT { Color32::BLACK } else { fill });
+                }
+                continue;
+            }
             ShapeKind::Line | ShapeKind::Arrow => {
                 p.line_segment([r.left_top(), r.right_bottom()], Stroke::new(2.0, line));
                 if sp.kind == ShapeKind::Arrow {

@@ -308,6 +308,15 @@ pub const CATALOG: &[(&str, &str, &str, &str)] = &[
     ("pivot.subtotals", "PivotTable Design", "Layout", "Subtotals"),
     ("pivot.reportLayout", "PivotTable Design", "Layout", "Report Layout"),
     ("pivot.style", "PivotTable Design", "PivotTable Styles", "PivotTable Styles"),
+    ("pivot.addField", "PivotTable Analyze", "Fields", "Add Field"),
+    ("pivot.removeField", "PivotTable Analyze", "Fields", "Remove Field"),
+    ("pivot.moveField", "PivotTable Analyze", "Fields", "Move Field"),
+    ("pivot.valueSettings", "PivotTable Analyze", "Active Field", "Value Field Settings"),
+    ("pivot.filter", "PivotTable Analyze", "Filter", "Filter"),
+    ("pivot.sort", "PivotTable Analyze", "Sort", "Sort"),
+    ("pivot.group", "PivotTable Analyze", "Group", "Group Field"),
+    ("pivot.collapse", "PivotTable Analyze", "Active Field", "Collapse Field"),
+    ("pivot.delete", "PivotTable Analyze", "Actions", "Clear All"),
 ];
 
 /// Distinct catalog ids.

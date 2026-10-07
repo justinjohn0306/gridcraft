@@ -109,6 +109,15 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             insert_shape
         ),
+        cmd!(
+            "insert.icons",
+            "Icons",
+            ["Insert", "Illustrations"],
+            None,
+            "{name: chart|table|sum|filter|lock|comment|picture|book|folder|search|calc|check|… , at?, size?: 48, color?: hex}",
+            has_doc,
+            insert_icon
+        ),
         cmd!("insert.textBox", "Text Box", ["Insert", "Text"], None, "{at?, width?, height?, text?}", has_doc, |s, p| insert_shape(
             s,
             &with(p, "kind", json!("textBox"))
@@ -1112,5 +1121,27 @@ fn manage_cf(s: &mut Session, p: &Json) -> Result<Json> {
             cf.priority = k as u32 + 1;
         }
         Ok(Json::Null)
+    })
+}
+
+fn insert_icon(s: &mut Session, p: &Json) -> Result<Json> {
+    let name = str_param(p, "name").unwrap_or("check").to_string();
+    let size = f64_param(p, "size").unwrap_or(48.0).clamp(8.0, 1000.0) as f32;
+    let d = s.doc()?;
+    let id = d.wb.next_object_id();
+    let at = cell_param(p, "at").unwrap_or(d.selection.active);
+    let color = super::format::color_param(p.get("color")).unwrap_or(Color::Theme(1, 0));
+    let shape = Shape {
+        id,
+        kind: ShapeKind::Icon,
+        anchor: Anchor { cell: at, dx: 4.0, dy: 4.0, width: size, height: size },
+        fill: color,
+        line: Color::Auto,
+        text: name,
+    };
+    let sheet = d.wb.active_sheet;
+    edit(s, |cx| {
+        cx.sheet_mut(sheet)?.shapes.push(shape);
+        Ok(json!({"shape": id}))
     })
 }
