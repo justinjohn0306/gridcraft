@@ -173,3 +173,20 @@ fn parity_counts() {
     assert!(total > 250);
     assert!(done > 150, "parity {done}/{total}");
 }
+
+#[test]
+fn ink_strokes_and_ink_to_shape() {
+    let mut s = s();
+    // A rough closed box.
+    let pts: Vec<[f64; 2]> = vec![[100.0, 100.0], [200.0, 102.0], [201.0, 180.0], [99.0, 181.0], [101.0, 104.0]];
+    s.execute("draw.stroke", json!({"points": pts})).unwrap();
+    let sh = s.doc().unwrap().wb.active().unwrap().clone();
+    assert_eq!(sh.shapes.len(), 1);
+    assert_eq!(sh.shapes[0].kind, sheetcraft_model::ShapeKind::Ink);
+    let r = s.execute("draw.inkToShape", json!({})).unwrap();
+    assert_eq!(r["kind"], "Rectangle");
+    // An open stroke becomes a line.
+    s.execute("draw.stroke", json!({"points": [[0.0, 0.0], [50.0, 10.0], [120.0, 30.0]]})).unwrap();
+    assert_eq!(s.execute("draw.inkToShape", json!({})).unwrap()["kind"], "Line");
+    assert!(s.execute("draw.stroke", json!({"points": [[1.0, 1.0]]})).is_err());
+}

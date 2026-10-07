@@ -77,6 +77,8 @@ pub struct GridState {
     pub renaming_tab: Option<usize>,
     pub rename_text: String,
     pub list_picker: Option<CellRef>,
+    /// Ink stroke being drawn (sheet points).
+    pub ink: Vec<[f32; 2]>,
     /// Page ranges for Page Break Preview, cached per (doc uid, revision, sheet).
     pub pages: Option<((u64, u64, usize), Vec<(RangeRef, u32)>)>,
     pub header_menu: Option<(Pos2, bool)>,
@@ -1007,6 +1009,43 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         app.grid.hover_cell = in_cells.then(|| geo.cell_at(sh, p));
     }
 
+    // Draw tab tools: the pen records a stroke, the eraser deletes ink under the pointer.
+    if !app.session.draw_tool.is_empty() && in_cells {
+        ctx.set_cursor_icon(CursorIcon::Crosshair);
+        if app.session.draw_tool == "pen" {
+            if let Some(p) = pos
+                && resp.dragged()
+            {
+                let sx = sh.col_left(geo.fc) as f32 + geo.scroll.x + (p.x - geo.cells.left() - geo.frozen_w) / geo.z;
+                let sy = sh.row_top(geo.fr) as f32 + geo.scroll.y + (p.y - geo.cells.top() - geo.frozen_h) / geo.z;
+                app.grid.ink.push([sx, sy]);
+            }
+            if !app.grid.ink.is_empty() {
+                // Live preview.
+                let pts: Vec<Pos2> = app
+                    .grid
+                    .ink
+                    .iter()
+                    .map(|q| pos2(geo.cells.left() + geo.frozen_w + (q[0] - sh.col_left(geo.fc) as f32 - geo.scroll.x) * geo.z, geo.cells.top() + geo.frozen_h + (q[1] - sh.row_top(geo.fr) as f32 - geo.scroll.y) * geo.z))
+                    .collect();
+                ui.painter().add(egui::epaint::PathShape::line(pts, egui::epaint::PathStroke::new(2.0 * geo.z, Color32::from_rgb(0x1F, 0x5F, 0xC9))));
+            }
+            if resp.drag_stopped() && app.grid.ink.len() >= 2 {
+                let pts: Vec<[f32; 2]> = std::mem::take(&mut app.grid.ink);
+                let _ = app.run("draw.stroke", json!({"points": pts}));
+            }
+            return;
+        }
+        if app.session.draw_tool == "eraser" && (resp.clicked() || resp.dragged()) {
+            if let Some(p) = pos
+                && let Some(("shape", id, _)) = crate::chartview::hit(app, geo, sh, p)
+                && sh.shapes.iter().any(|s| s.id == id && s.kind == sheetcraft_engine::model::ShapeKind::Ink)
+            {
+                let _ = app.run("object.delete", json!({"kind": "shape", "id": id}));
+            }
+            return;
+        }
+    }
     // Objects (charts, pictures, shapes) take clicks first.
     if resp.drag_started() || resp.clicked() {
         if let Some(p) = pos

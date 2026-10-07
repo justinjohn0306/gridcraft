@@ -273,7 +273,7 @@ pub fn write_drawing(sheet: &Sheet, theme: &Theme, objs: &[Obj<'_>]) -> String {
                     ShapeKind::Triangle => ("triangle", false),
                     ShapeKind::Line | ShapeKind::Arrow => ("line", false),
                     ShapeKind::TextBox => ("rect", true),
-                    ShapeKind::Icon => ("rect", false),
+                    ShapeKind::Icon | ShapeKind::Ink => ("rect", false),
                 };
                 let _ = write!(
                     s,

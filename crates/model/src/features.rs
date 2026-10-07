@@ -395,6 +395,9 @@ pub enum ShapeKind {
     TextBox,
     /// An icon from SheetCraft's own icon set; `Shape::text` holds the icon name.
     Icon,
+    /// A freehand ink stroke; `Shape::text` holds the points as `x,y;x,y;…` relative to the
+    /// anchor (sheet points), `Shape::line` the ink colour and `fill` unused.
+    Ink,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

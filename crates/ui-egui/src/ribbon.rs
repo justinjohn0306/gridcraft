@@ -1157,12 +1157,32 @@ fn insert(app: &mut SheetApp, ui: &mut Ui) {
 }
 
 fn draw(app: &mut SheetApp, ui: &mut Ui) {
-    let _ = app;
-    for (icon, label) in [(Icon::Pen, "Pen"), (Icon::Eraser, "Eraser"), (Icon::Shapes, "Ink to\nShape")] {
-        let r = big_button(ui, icon, label, label, false);
-        if r.clicked() {
-            app.toast = Some(("Drawing with ink arrives in a later milestone — use Insert › Shapes meanwhile.".into(), crate::now_ms()));
+    let tool = app.session.draw_tool.clone();
+    if big_button(ui, Icon::Shapes, "Select\nObjects", "Select and move ink and shapes", false).clicked() {
+        act(app, "draw.lasso", json!({}));
+    }
+    sep(ui);
+    for (label, color) in [("Pen\nBlue", "#1F5FC9"), ("Pen\nBlack", "#000000"), ("Pen\nRed", "#D13B2F"), ("Highlighter", "#F2E33A")] {
+        let on = tool == "pen" && app.session.draw_color.eq_ignore_ascii_case(color);
+        let r = big_button(ui, Icon::Pen, label, "Draw with ink", false);
+        if on {
+            ui.painter().rect_stroke(r.rect, 5.0, Stroke::new(2.0, Tokens::get(ui.ctx()).accent), StrokeKind::Inside);
         }
+        if r.clicked() {
+            let width = if label == "Highlighter" { 12.0 } else { 2.0 };
+            act(app, "draw.pen", json!({"on": !on, "color": color, "width": width}));
+        }
+    }
+    let er = big_button(ui, Icon::Eraser, "Eraser", "Erase ink strokes", false);
+    if tool == "eraser" {
+        ui.painter().rect_stroke(er.rect, 5.0, Stroke::new(2.0, Tokens::get(ui.ctx()).accent), StrokeKind::Inside);
+    }
+    if er.clicked() {
+        act(app, "draw.eraser", json!({}));
+    }
+    sep(ui);
+    if big_button(ui, Icon::Shapes, "Ink to\nShape", "Convert the last ink stroke to a shape", false).clicked() {
+        act(app, "draw.inkToShape", json!({}));
     }
 }
 

@@ -196,6 +196,10 @@ pub struct Session {
     pub recording: Option<usize>,
     /// Windows hidden with View › Hide.
     pub hidden_windows: Vec<usize>,
+    /// Draw tab tool: "" (select), "pen" or "eraser"; pen colour and width.
+    pub draw_tool: String,
+    pub draw_color: String,
+    pub draw_width: f32,
 }
 
 impl Session {
