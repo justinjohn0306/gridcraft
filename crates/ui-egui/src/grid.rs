@@ -9,7 +9,7 @@ use egui::{Align2, Color32, CursorIcon, FontId, Painter, Pos2, Rect, Sense, Stro
 use serde_json::json;
 use sheetcraft_engine::cf::{CfCache, CfLook};
 use sheetcraft_engine::core::{CellRef, MAX_COLS, MAX_ROWS, RangeRef, Value, col_to_letters};
-use sheetcraft_engine::model::{BorderStyle, Color, HAlign, PatternType, Sheet, Style, Underline, VAlign, Workbook};
+use sheetcraft_engine::model::{BorderStyle, Color, HAlign, LineIndex, PatternType, Sheet, Style, Underline, VAlign, Workbook};
 
 use crate::SheetApp;
 use crate::editor::{EditState, REF_COLORS};
@@ -96,7 +96,7 @@ impl GridState {
 }
 
 /// Geometry of the grid for one frame (handles zoom and frozen panes).
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Geo {
     pub rect: Rect,
     pub cells: Rect,
@@ -108,6 +108,9 @@ pub struct Geo {
     pub frozen_w: f32,
     pub frozen_h: f32,
     pub scroll: egui::Vec2,
+    /// Prefix sums over custom row heights / column widths, built once per frame.
+    ri: std::sync::Arc<LineIndex>,
+    ci: std::sync::Arc<LineIndex>,
 }
 
 impl Geo {
@@ -115,27 +118,29 @@ impl Geo {
         let zoom = (sh.zoom as f32 / 100.0).clamp(0.1, 4.0);
         let z = zoom * DISPLAY_SCALE;
         let header_h = if sh.show_headings { (COL_HEADER_H * zoom.max(0.75)).round() } else { 0.0 };
-        let last_row = sh.row_at((scroll.y + rect.height() / z) as f64 + 200.0) + 1;
+        let ri = std::sync::Arc::new(LineIndex::new(&sh.rows, sh.default_row_height, MAX_ROWS));
+        let ci = std::sync::Arc::new(LineIndex::new(&sh.cols, sh.default_col_width, MAX_COLS));
+        let last_row = ri.at((scroll.y + rect.height() / z) as f64 + 200.0) + 1;
         let digits = (last_row as f32).log10().floor() as i32 + 1;
         let header_w = if sh.show_headings { ((digits.max(2) as f32 * 7.0 + 14.0) * zoom.max(0.75)).round() } else { 0.0 };
         let (fr, fc) = sh.freeze.unwrap_or((0, 0));
-        let frozen_w = (sh.col_left(fc) as f32) * z;
-        let frozen_h = (sh.row_top(fr) as f32) * z;
+        let frozen_w = (ci.start(fc) as f32) * z;
+        let frozen_h = (ri.start(fr) as f32) * z;
         let cells = Rect::from_min_max(pos2(rect.left() + header_w, rect.top() + header_h), rect.max);
-        Geo { rect, cells, z, header_w, header_h, fr, fc, frozen_w, frozen_h, scroll }
+        Geo { rect, cells, z, header_w, header_h, fr, fc, frozen_w, frozen_h, scroll, ri, ci }
     }
-    pub fn x(&self, sh: &Sheet, col: u32) -> f32 {
+    pub fn x(&self, _sh: &Sheet, col: u32) -> f32 {
         if col < self.fc {
-            self.cells.left() + sh.col_left(col) as f32 * self.z
+            self.cells.left() + self.ci.start(col) as f32 * self.z
         } else {
-            self.cells.left() + self.frozen_w + (sh.col_left(col) as f32 - sh.col_left(self.fc) as f32 - self.scroll.x) * self.z
+            self.cells.left() + self.frozen_w + (self.ci.start(col) as f32 - self.ci.start(self.fc) as f32 - self.scroll.x) * self.z
         }
     }
-    pub fn y(&self, sh: &Sheet, row: u32) -> f32 {
+    pub fn y(&self, _sh: &Sheet, row: u32) -> f32 {
         if row < self.fr {
-            self.cells.top() + sh.row_top(row) as f32 * self.z
+            self.cells.top() + self.ri.start(row) as f32 * self.z
         } else {
-            self.cells.top() + self.frozen_h + (sh.row_top(row) as f32 - sh.row_top(self.fr) as f32 - self.scroll.y) * self.z
+            self.cells.top() + self.frozen_h + (self.ri.start(row) as f32 - self.ri.start(self.fr) as f32 - self.scroll.y) * self.z
         }
     }
     pub fn cell_rect(&self, sh: &Sheet, c: CellRef) -> Rect {
@@ -149,36 +154,36 @@ impl Geo {
         let b = self.cell_rect(sh, r.end);
         Rect::from_min_max(a.min, b.max)
     }
-    pub fn col_at(&self, sh: &Sheet, x: f32) -> u32 {
+    pub fn col_at(&self, _sh: &Sheet, x: f32) -> u32 {
         let dx = (x - self.cells.left()) / self.z;
         if dx < self.frozen_w / self.z {
-            sh.col_at(dx.max(0.0) as f64)
+            self.ci.at(dx.max(0.0) as f64)
         } else {
-            sh.col_at(sh.col_left(self.fc) + self.scroll.x as f64 + (dx - self.frozen_w / self.z) as f64)
+            self.ci.at(self.ci.start(self.fc) + self.scroll.x as f64 + (dx - self.frozen_w / self.z) as f64)
         }
     }
-    pub fn row_at(&self, sh: &Sheet, y: f32) -> u32 {
+    pub fn row_at(&self, _sh: &Sheet, y: f32) -> u32 {
         let dy = (y - self.cells.top()) / self.z;
         if dy < self.frozen_h / self.z {
-            sh.row_at(dy.max(0.0) as f64)
+            self.ri.at(dy.max(0.0) as f64)
         } else {
-            sh.row_at(sh.row_top(self.fr) + self.scroll.y as f64 + (dy - self.frozen_h / self.z) as f64)
+            self.ri.at(self.ri.start(self.fr) + self.scroll.y as f64 + (dy - self.frozen_h / self.z) as f64)
         }
     }
     pub fn cell_at(&self, sh: &Sheet, p: Pos2) -> CellRef {
         CellRef::new(self.row_at(sh, p.y), self.col_at(sh, p.x))
     }
     /// Visible scrolled rows (from the first visible row after the frozen ones).
-    fn scroll_rows(&self, sh: &Sheet) -> (u32, u32) {
-        let top = sh.row_top(self.fr) + self.scroll.y as f64;
-        let r0 = sh.row_at(top).max(self.fr);
-        let r1 = sh.row_at(top + ((self.cells.height() - self.frozen_h) / self.z) as f64).min(MAX_ROWS - 1);
+    fn scroll_rows(&self, _sh: &Sheet) -> (u32, u32) {
+        let top = self.ri.start(self.fr) + self.scroll.y as f64;
+        let r0 = self.ri.at(top).max(self.fr);
+        let r1 = self.ri.at(top + ((self.cells.height() - self.frozen_h) / self.z) as f64).min(MAX_ROWS - 1);
         (r0, r1)
     }
-    fn scroll_cols(&self, sh: &Sheet) -> (u32, u32) {
-        let left = sh.col_left(self.fc) + self.scroll.x as f64;
-        let c0 = sh.col_at(left).max(self.fc);
-        let c1 = sh.col_at(left + ((self.cells.width() - self.frozen_w) / self.z) as f64).min(MAX_COLS - 1);
+    fn scroll_cols(&self, _sh: &Sheet) -> (u32, u32) {
+        let left = self.ci.start(self.fc) + self.scroll.x as f64;
+        let c0 = self.ci.at(left).max(self.fc);
+        let c1 = self.ci.at(left + ((self.cells.width() - self.frozen_w) / self.z) as f64).min(MAX_COLS - 1);
         (c0, c1)
     }
 }

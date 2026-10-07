@@ -209,6 +209,67 @@ impl Sheet {
     }
 }
 
+/// Prefix sums over the custom-sized lines of an axis: O(log n) position ↔ line lookups even
+/// when every row has an explicit height (common in imported files).
+#[derive(Clone, Debug, Default)]
+pub struct LineIndex {
+    default: f64,
+    max: u32,
+    /// (line, start position of that line, its size), sorted by line.
+    lines: Vec<(u32, f64, f64)>,
+}
+
+impl LineIndex {
+    pub fn new(custom: &BTreeMap<u32, LineInfo>, default: f32, max: u32) -> LineIndex {
+        let default = default as f64;
+        let mut lines = Vec::with_capacity(custom.len());
+        let mut pos = 0.0;
+        let mut prev = 0u32;
+        for (&line, info) in custom {
+            pos += (line - prev) as f64 * default;
+            let size = if info.hidden { 0.0 } else { info.size.map_or(default, |s| s as f64) };
+            lines.push((line, pos, size));
+            pos += size;
+            prev = line + 1;
+        }
+        LineIndex { default, max, lines }
+    }
+    /// Start position of `line`.
+    pub fn start(&self, line: u32) -> f64 {
+        match self.lines.binary_search_by(|e| e.0.cmp(&line)) {
+            Ok(i) => self.lines.get(i).map_or(0.0, |e| e.1),
+            Err(0) => line as f64 * self.default,
+            Err(i) => match self.lines.get(i - 1) {
+                Some(&(l, p, s)) => p + s + (line - l - 1) as f64 * self.default,
+                None => line as f64 * self.default,
+            },
+        }
+    }
+    /// The line containing `pos`.
+    pub fn at(&self, pos: f64) -> u32 {
+        if pos <= 0.0 {
+            return 0;
+        }
+        // Last custom line starting at or before pos.
+        let i = self.lines.partition_point(|e| e.1 <= pos);
+        let (base_line, base_pos) = match i.checked_sub(1).and_then(|k| self.lines.get(k)) {
+            Some(&(l, p, s)) => {
+                if pos < p + s {
+                    return l.min(self.max - 1);
+                }
+                (l + 1, p + s)
+            }
+            None => (0, 0.0),
+        };
+        if self.default <= 0.0 {
+            return base_line.min(self.max - 1);
+        }
+        let k = ((pos - base_pos) / self.default).floor();
+        let r = base_line as f64 + k;
+        if r >= self.max as f64 { self.max - 1 } else { r as u32 }
+    }
+}
+
 /// Inverse of the cumulative size along an axis with sparse custom sizes.
 fn line_at(pos: f64, default: f64, custom: &BTreeMap<u32, LineInfo>, max: u32) -> u32 {
     if pos <= 0.0 {
@@ -242,6 +303,21 @@ fn line_at(pos: f64, default: f64, custom: &BTreeMap<u32, LineInfo>, max: u32) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn line_index_matches_linear() {
+        let mut s = Sheet::new("S");
+        for r in (0..5000).step_by(3) {
+            s.rows.insert(r, LineInfo { size: Some(10.0 + (r % 7) as f32), hidden: r % 11 == 0, ..Default::default() });
+        }
+        let idx = LineIndex::new(&s.rows, s.default_row_height, sheetcraft_core::MAX_ROWS);
+        for r in [0u32, 1, 2, 3, 4, 100, 999, 4998, 5000, 6000] {
+            assert!((idx.start(r) - s.row_top(r)).abs() < 1e-6, "start {r}");
+        }
+        for y in [0.0, 5.0, 33.3, 1000.0, 47_000.0, 90_000.0] {
+            assert_eq!(idx.at(y), s.row_at(y), "at {y}");
+        }
+    }
 
     #[test]
     fn geometry() {
