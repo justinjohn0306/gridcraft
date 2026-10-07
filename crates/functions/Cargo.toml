@@ -1,0 +1,13 @@
+[package]
+name = "sheetcraft-functions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SheetCraft worksheet function library: math, statistics, text, dates, lookup, financial, engineering"
+
+[lints]
+workspace = true
+
+[dependencies]
+sheetcraft-core = { workspace = true }
+regex = { workspace = true }

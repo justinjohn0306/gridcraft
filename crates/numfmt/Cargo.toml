@@ -1,0 +1,12 @@
+[package]
+name = "sheetcraft-numfmt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SheetCraft number formats: Excel format codes, General display, TEXT()"
+
+[lints]
+workspace = true
+
+[dependencies]
+sheetcraft-core = { workspace = true }

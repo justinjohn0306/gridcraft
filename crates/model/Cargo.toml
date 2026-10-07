@@ -1,0 +1,18 @@
+[package]
+name = "sheetcraft-model"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SheetCraft document model: workbooks, sheets, cells, styles, tables, charts"
+
+[lints]
+workspace = true
+
+[dependencies]
+sheetcraft-core = { workspace = true }
+sheetcraft-formula = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

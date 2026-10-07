@@ -1,0 +1,17 @@
+[package]
+name = "sheetcraft-calc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SheetCraft calculation engine: dependency graph, recalculation, evaluator, dynamic arrays"
+
+[lints]
+workspace = true
+
+[dependencies]
+sheetcraft-core = { workspace = true }
+sheetcraft-formula = { workspace = true }
+sheetcraft-functions = { workspace = true }
+sheetcraft-numfmt = { workspace = true }
+sheetcraft-model = { workspace = true }
+log = { workspace = true }
