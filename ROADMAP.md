@@ -6,16 +6,63 @@ web.
 
 ## Status (2026-10-07)
 
-**Parity estimate**
+### Where we are
 
 | Measure | Value | Notes |
 |---|---|---|
-| Ribbon/menu command catalog | **60%** (169 / 281) | `cargo xtask parity` → [`docs/parity.md`](docs/parity.md). Home is 97%. |
-| Worksheet functions | **~93%** (478 + 32 evaluator built-ins of ~545) | Missing: ODDF*/ODDL*, BAHTTEXT, IMAGE, TRANSLATE, COPILOT/PY, STOCKHISTORY, RTD |
-| Feature depth (weighted) | **~38%** | Pivot tables, Power Query, print/PDF, page layout view, chart formatting depth, ink, macros/scripts, threaded collaboration and solver/analysis tools are the big missing areas |
+| Ribbon/menu command catalog | **89%** (258 / 290) | `cargo xtask parity` → [`docs/parity.md`](docs/parity.md). Home, Draw, Page Layout, Formulas, Automate, Chart Design and PivotTable Design are at 100%. |
+| Worksheet functions | **~93%** of Excel's ~545 | Missing: ODDF*/ODDL*, BAHTTEXT, IMAGE, TRANSLATE, COPILOT/PY, STOCKHISTORY, RTD |
+| Feature depth (weighted) | **~65%** | The catalog counts a command once it exists; many are shallower than Excel's (see "What's left") |
+| Tests | 332 passing | engine, formula, functions, calc, XLSX (incl. PivotTable round-trip), PDF, MCP, CLI, kittest UI |
 
-**Estimated remaining effort to full parity: ~220 wall-clock hours of Claude Opus 5.5 agent
-work** (≈ 9–10 days running continuously with 3–4 parallel agents), broken down below.
+The catalog number is generous: it says "this button does something real", not "it does
+everything Excel's does". The weighted depth figure is our honest estimate of how much of what an
+Excel power user relies on works as well as in Excel.
+
+### How close to an alpha?
+
+**About 80% of the way to an alpha. Estimate: ~35 wall-clock hours of Claude Opus 5.5 agent
+work** (2–3 days with 2–3 parallel agents), plus a few minutes of human time to set up release
+secrets.
+
+Alpha means: someone can download a signed build, open their real workbooks, edit and save them
+without losing data, and not hit a crash in a normal session. The gates:
+
+| Alpha gate | State | Est. hours |
+|---|---|---|
+| Signed release builds on every platform | Workflows and packaging ready; **blocked on the `release` environment and secrets, which need a human** (see [`docs/releasing.md`](docs/releasing.md)). Then a test build per platform | 4 |
+| XLSX fidelity on real files | Round-trip tests pass for our own files. Needs a corpus run on real-world workbooks, and confirming Excel opens our output (including PivotTables) with no repair prompt | 10 |
+| Performance | Virtualised grid and O(log n) geometry are in. Still need: 100k-cell edit recalc under 100 ms (currently ~0.4 s), faster write-back, 1M-row open | 8 |
+| Never-crash soak | Every-command fuzz test exists. Needs a longer randomised UI soak and an autosave/recovery check | 4 |
+| Papercuts | Dark-mode row/column headers, a true Page Layout (paper) view, focus edge cases, error messages | 6 |
+| Docs and first-run | README, CLI/MCP docs exist; needs a "getting started" page and release notes | 3 |
+| **Total** | | **≈ 35** |
+
+### How far to 100% parity?
+
+**Estimate: ~180 wall-clock hours of Claude Opus 5.5 agent work beyond the alpha** (about 1–1.5
+weeks running continuously with 3–4 parallel agents), so **≈ 215 hours in total from today**.
+Breakdown under "What's left" below.
+
+Scope decisions that affect the count: VBA is out of scope (GridCraft has its own recorded and
+editable scripts instead), and features that need Microsoft cloud services (Copilot, live Stocks/
+Geography data types, co-authoring through OneDrive, Smart Lookup, Translate) will be replaced
+by open equivalents or left out, not cloned.
+
+### What's left
+
+| Area | What's missing | Est. hours |
+|---|---|---|
+| PivotTables | Slicers and timelines, calculated fields/items, PivotCharts, value/label filters, number grouping | 24 |
+| Charts | Trendlines, error bars, full axis options (log scale, units, crossing), element-level Format pane, chart sheets, Recommended Charts dialog, maps | 26 |
+| Data | Solver, Analysis ToolPak, Forecast Sheet, Get & Transform beyond CSV/JSON/HTML (Power Query editor lite), relationships / data model | 34 |
+| Page layout & print | True Page Layout view, header/footer editor on the page, print preview polish | 12 |
+| Insert & Review | Equations, WordArt, SmartArt-lite, signature line, comment navigation, Show Changes, Allow Edit Ranges, notes ↔ comments conversion | 20 |
+| XLSX depth | Remaining OOXML parts (form controls, slicer caches, external links, OLE stubs), round-trip of everything we don't model | 16 |
+| Functions | The remaining ~35 functions, exact Excel edge-case behaviour across the long tail | 10 |
+| Performance | Parallel recalc, 1M-row workbooks everywhere (sort, filter, fill), memory | 14 |
+| Fidelity | Side-by-side pixel tuning against Excel, keyboard shortcut completeness, accessibility, localisation | 24 |
+| **Total** | | **≈ 180** |
 
 **Working today**
 - Engine: A1/R1C1 formula parser with reference adjustment, dependency-graph recalculation with
@@ -42,6 +89,12 @@ work** (≈ 9–10 days running continuously with 3–4 parallel agents), broken
 - Data: sort (multi-level, by colour, custom lists), AutoFilter (values, custom, top 10,
   average, colour), tables with totals rows, remove duplicates, text to columns, data validation
   with error alerts, grouping/outline, subtotals.
+- PivotTables: Insert/Recommended PivotTables, field list pane, compact/outline/tabular layouts,
+  date grouping, sort, filters, show-values-as, refresh, and XLSX round-trip.
+- Page layout & print: Page Break Preview, print settings, PDF export and printing.
+- What-if: Goal Seek, scenarios, data tables. Spelling (system word list) and thesaurus.
+- Draw: pen, highlighter, eraser, ink strokes and Ink to Shape. Task panes: Comments (threaded
+  replies, resolve), Watch Window, Selection, Format Chart.
 - Charts: column, bar, line, area, pie, doughnut, scatter, bubble, radar, histogram, waterfall,
   funnel, treemap, sunburst, box & whisker, stock and combo charts; sparklines.
 - UI (egui): Excel-style title bar with Quick Access Toolbar and AutoSave, the full ribbon with
@@ -59,23 +112,22 @@ work** (≈ 9–10 days running continuously with 3–4 parallel agents), broken
 
 ## Milestones
 
-| # | Milestone | Status | Est. hours left |
-|---|---|---|---|
-| M0 | Foundation: core, number formats, formula language, functions, model, calc, XLSX/CSV, engine | ✅ done | — |
-| M1 | Excel look: chrome, ribbon, formula bar, grid, tabs, status bar, control channel | ✅ done (polish continues) | 8 |
-| M2 | Formatting completeness (Format Cells parity, borders drawing, themes fonts/effects, styles authoring) | 🟡 most | 10 |
-| M3 | Editing power (drag-move/copy with Alt, insert copied cells, AutoComplete in column, AutoCorrect, spelling) | 🟡 most | 12 |
-| M4 | Data (advanced filter, consolidate, what-if: goal seek, scenarios, data tables; Get & Transform lite) | 🟡 partial | 24 |
-| M5 | Formulas tab (trace arrows on the grid, watch window, evaluate stepper UI, error-check UI, remaining functions) | 🟡 partial | 12 |
-| M6 | Conditional formatting manager parity (rule editor dialog, all icon sets drawn, stop-if-true UI) | 🟡 most | 6 |
-| M7 | Charts parity (element selection & Format pane, axes options, trendlines, error bars, chart sheets, styles/colours galleries, PivotCharts) | 🟡 partial | 28 |
-| M8 | Insert & Review (icons library of our own, SmartArt-lite, equations, threaded comments pane, show changes, accessibility pane) | 🟡 partial | 18 |
-| M9 | Page layout & print (Page Layout and Page Break Preview views, header/footer editor, print to PDF, print preview) | ⬜ | 26 |
-| M10 | PivotTables (field list, layouts, grouping, calculated fields, slicers, timelines), Solver, Analysis ToolPak | ⬜ | 40 |
-| M11 | Automation (record actions → replayable scripts, Rhai script editor, form controls) | ⬜ | 14 |
-| M12 | Performance (1M-row files, parallel recalc, incremental geometry caches), accessibility, i18n | 🟡 partial | 16 |
-| M13 | Release & polish (signed builds green on every platform, side-by-side pixel tuning, README screenshots) | 🟡 tooling ready | 6 |
-| | **Total** | | **≈ 220** |
+| # | Milestone | Status |
+|---|---|---|
+| M0 | Foundation: core, number formats, formula language, functions, model, calc, XLSX/CSV, engine | ✅ done |
+| M1 | Excel look: chrome, ribbon, formula bar, grid, tabs, status bar, control channel | ✅ done (polish continues) |
+| M2 | Formatting completeness | ✅ done |
+| M3 | Editing power (AutoComplete, spelling, drag-move/copy) | ✅ done |
+| M4 | Data (advanced filter, consolidate, what-if) | 🟡 most; Solver, ToolPak and Power Query remain |
+| M5 | Formulas tab (trace arrows, watch window, evaluate, error checking) | ✅ done |
+| M6 | Conditional formatting manager parity | ✅ done |
+| M7 | Charts parity | 🟡 partial; Format pane in, trendlines/axes/error bars remain |
+| M8 | Insert & Review | 🟡 partial; ink, icons, comments pane in |
+| M9 | Page layout & print | 🟡 most; true Page Layout view remains |
+| M10 | PivotTables, Solver, Analysis ToolPak | 🟡 PivotTables in; slicers, Solver, ToolPak remain |
+| M11 | Automation (record actions, scripts) | ✅ done |
+| M12 | Performance, accessibility, i18n | 🟡 partial |
+| M13 | Release & polish | 🟡 tooling ready; needs release secrets |
 
 ## How to measure
 

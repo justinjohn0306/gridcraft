@@ -68,7 +68,11 @@
 </tr>
 <tr>
 <td width="50%" valign="top"><img src="docs/images/dark-insert.png" alt="The sales dashboard in dark mode with the Insert ribbon tab open, showing PivotTable, Table, Pictures, Shapes, chart, sparkline, link, comment, text box and symbol buttons" width="100%"><p align="center"><sub><b>Dark mode</b> and the Insert tab: tables, charts, sparklines, pictures, shapes, links and comments.</sub></p></td>
-<td width="50%" valign="top"><img src="docs/images/hero-sales.png" alt="Close-up of the sales dashboard" width="100%"><p align="center"><sub><b>Charts.</b> Column, bar, line, area, pie, doughnut, scatter, bubble, radar, histogram, waterfall, funnel, treemap, sunburst, box &amp; whisker, stock and combo.</sub></p></td>
+<td width="50%" valign="top"><img src="docs/images/pivot.png" alt="A PivotTable summarising revenue by region and product with a Channel report filter, grand totals and currency formatting, with the PivotTable Fields pane open on the right showing ticked fields and the Filters, Columns, Rows and Values areas" width="100%"><p align="center"><sub><b>PivotTables.</b> Field list, filters, layouts, date grouping and show-values-as, saved to and read from XLSX.</sub></p></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/images/format-chart.png" alt="The sales dashboard with the column chart selected: resize handles on the chart, its source data outlined in the table, the Chart Design tab open and the Format Chart Area pane on the right" width="100%"><p align="center"><sub><b>Charts.</b> Seventeen chart types, Chart Design tab and a Format pane; selecting a chart outlines its source data.</sub></p></td>
+<td width="50%" valign="top"><img src="docs/images/page-break.png" alt="The household budget in Page Break Preview: the print area outlined in blue with a dashed page break, Page 1 and Page 2 watermarks, and the area outside the print range greyed out" width="100%"><p align="center"><sub><b>Page Break Preview</b>, print settings, and PDF export and printing.</sub></p></td>
 </tr>
 </table>
 
@@ -78,10 +82,10 @@
   handle, point-mode formula entry with coloured references, Format Cells, Paste Special,
   conditional formatting, tables, charts and more. If you know Excel, you already know GridCraft.
 - **Compatible.** XLSX is the native format: styles, themes, formulas (including dynamic arrays),
-  tables, conditional formats, validation, comments, hyperlinks, charts, pictures, sparklines and
-  print settings round-trip. CSV and TSV too.
+  tables, conditional formats, validation, comments, hyperlinks, charts, pictures, sparklines,
+  PivotTables and print settings round-trip. CSV and TSV too.
 - **Capable.** A dependency-graph calculation engine with dynamic arrays and spilling,
-  478 worksheet functions plus LET, LAMBDA, MAP, REDUCE, SCAN, BYROW, BYCOL and MAKEARRAY,
+  500+ worksheet functions plus LET, LAMBDA, MAP, REDUCE, SCAN, BYROW, BYCOL and MAKEARRAY,
   structured table references, Excel's full number-format language, sort and AutoFilter,
   Flash Fill, data validation, outlining and subtotals.
 - **Fast.** Copy-on-write workbooks (undo snapshots are nearly free), incremental recalculation,
@@ -149,10 +153,12 @@ egui frontend is a separate crate, so the UI can be swapped without touching the
 
 ## Roadmap
 
-GridCraft is pre-alpha and moving fast. Today it covers 60% of Excel's ribbon and menu
-commands ([`docs/parity.md`](docs/parity.md)) and about 93% of its worksheet functions. PivotTables,
-printing and PDF, page layout view, deeper chart formatting and scripting come next. The plan
-and estimates are in [ROADMAP.md](ROADMAP.md).
+GridCraft is pre-alpha and moving fast. It covers 89% of Excel's ribbon and menu commands
+([`docs/parity.md`](docs/parity.md)) and about 93% of its worksheet functions; weighted by depth,
+we estimate about 65% of what Excel power users rely on. We're roughly 80% of the way to a first
+alpha. Next up: signed release builds, XLSX fidelity on real-world files, performance on very large
+sheets, then slicers, Solver, chart trendlines and a true Page Layout view. The plan and estimates
+are in [ROADMAP.md](ROADMAP.md).
 
 ## The Crafting Apps
 
