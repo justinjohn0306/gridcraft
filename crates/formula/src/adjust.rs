@@ -113,8 +113,20 @@ fn map_span(lo: u32, hi: u32, at: u32, count: u32, insert: bool, max: u32) -> Op
         if lo >= at && hi < end {
             return None; // fully deleted
         }
-        let lo2 = if lo < at { lo } else if lo >= end { lo - count } else { at };
-        let hi2 = if hi < at { hi } else if hi >= end { hi - count } else { at.saturating_sub(1) };
+        let lo2 = if lo < at {
+            lo
+        } else if lo >= end {
+            lo - count
+        } else {
+            at
+        };
+        let hi2 = if hi < at {
+            hi
+        } else if hi >= end {
+            hi - count
+        } else {
+            at.saturating_sub(1)
+        };
         Some((lo2, hi2.max(lo2)))
     }
 }

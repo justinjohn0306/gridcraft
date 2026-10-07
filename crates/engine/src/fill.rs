@@ -22,7 +22,13 @@ pub enum FillMode {
 fn lists() -> Vec<Vec<String>> {
     let short_days: Vec<String> = WEEKDAYS.iter().map(|d| d.get(..3).unwrap_or(d).to_string()).collect();
     let short_months: Vec<String> = MONTHS.iter().map(|m| m.get(..3).unwrap_or(m).to_string()).collect();
-    vec![short_days, WEEKDAYS.iter().map(|s| s.to_string()).collect(), short_months, MONTHS.iter().map(|s| s.to_string()).collect(), vec!["Q1".into(), "Q2".into(), "Q3".into(), "Q4".into()]]
+    vec![
+        short_days,
+        WEEKDAYS.iter().map(|s| s.to_string()).collect(),
+        short_months,
+        MONTHS.iter().map(|s| s.to_string()).collect(),
+        vec!["Q1".into(), "Q2".into(), "Q3".into(), "Q4".into()],
+    ]
 }
 
 /// Fills `target` (which contains `src` at one edge) from the pattern in `src`.
@@ -31,7 +37,11 @@ pub fn fill(cx: &mut Ctx, sheet: usize, src: RangeRef, target: RangeRef, mode: F
     let Some(sh) = cx.wb.sheet(sheet) else { return Ok(()) };
     // Direction: down/up if target extends rows, else right/left.
     let vertical = target.height() != src.height() || target.width() == src.width();
-    let forward = if vertical { target.end.row > src.end.row || target.start.row == src.start.row } else { target.end.col > src.end.col || target.start.col == src.start.col };
+    let forward = if vertical {
+        target.end.row > src.end.row || target.start.row == src.start.row
+    } else {
+        target.end.col > src.end.col || target.start.col == src.start.col
+    };
     let lanes: Vec<u32> = if vertical { (src.start.col..=src.end.col).collect() } else { (src.start.row..=src.end.row).collect() };
     let src_len = if vertical { src.height() } else { src.width() };
     let mut writes: Vec<(CellRef, Option<Cell>)> = Vec::new();
@@ -43,13 +53,24 @@ pub fn fill(cx: &mut Ctx, sheet: usize, src: RangeRef, target: RangeRef, mode: F
             })
             .collect();
         let targets: Vec<CellRef> = if vertical {
-            let rows: Vec<u32> = if forward { (src.end.row + 1..=target.end.row).collect() } else { (target.start.row..src.start.row).rev().collect() };
+            let rows: Vec<u32> =
+                if forward { (src.end.row + 1..=target.end.row).collect() } else { (target.start.row..src.start.row).rev().collect() };
             rows.into_iter().map(|r| CellRef::new(r, lane)).collect()
         } else {
-            let cols: Vec<u32> = if forward { (src.end.col + 1..=target.end.col).collect() } else { (target.start.col..src.start.col).rev().collect() };
+            let cols: Vec<u32> =
+                if forward { (src.end.col + 1..=target.end.col).collect() } else { (target.start.col..src.start.col).rev().collect() };
             cols.into_iter().map(|c| CellRef::new(lane, c)).collect()
         };
-        let pattern = if mode == FillMode::Series { Pattern::detect(&src_cells, &custom, cx.wb.date_system, cx.wb.styles.get(src_cells.first().and_then(|c| c.1.as_ref()).map(|c| c.style).unwrap_or_default()).num_fmt.as_str()) } else { Pattern::Copy };
+        let pattern = if mode == FillMode::Series {
+            Pattern::detect(
+                &src_cells,
+                &custom,
+                cx.wb.date_system,
+                cx.wb.styles.get(src_cells.first().and_then(|c| c.1.as_ref()).map(|c| c.style).unwrap_or_default()).num_fmt.as_str(),
+            )
+        } else {
+            Pattern::Copy
+        };
         for (k, t) in targets.iter().enumerate() {
             let step = k as i64 + 1;
             let idx = k % src_cells.len().max(1);
@@ -98,13 +119,35 @@ pub fn fill(cx: &mut Ctx, sheet: usize, src: RangeRef, target: RangeRef, mode: F
 enum Pattern {
     Copy,
     /// Linear numeric series: last value and step.
-    Linear { last: f64, first: f64, step: f64 },
+    Linear {
+        last: f64,
+        first: f64,
+        step: f64,
+    },
     /// Text with a trailing (or leading) number: `Item 1`, `Q1`.
-    TextNum { prefix: String, suffix: String, last: i64, first: i64, step: i64, width: usize },
+    TextNum {
+        prefix: String,
+        suffix: String,
+        last: i64,
+        first: i64,
+        step: i64,
+        width: usize,
+    },
     /// A position in a list (days, months, custom).
-    List { list: Vec<String>, last: usize, first: usize, step: i64, upper: bool, lower: bool },
+    List {
+        list: Vec<String>,
+        last: usize,
+        first: usize,
+        step: i64,
+        upper: bool,
+        lower: bool,
+    },
     /// Dates stepping by months (same day each month) or years.
-    Months { last: f64, first: f64, months: i64 },
+    Months {
+        last: f64,
+        first: f64,
+        months: i64,
+    },
 }
 
 impl Pattern {
@@ -404,7 +447,9 @@ fn apply_case(s: &str, c: Case) -> String {
 impl Program {
     fn apply(&self, src: &str) -> Option<String> {
         let toks = tokens(src);
-        let get = |i: i32| -> Option<&String> { if i >= 0 { toks.get(i as usize) } else { toks.len().checked_sub(i.unsigned_abs() as usize).and_then(|j| toks.get(j)) } };
+        let get = |i: i32| -> Option<&String> {
+            if i >= 0 { toks.get(i as usize) } else { toks.len().checked_sub(i.unsigned_abs() as usize).and_then(|j| toks.get(j)) }
+        };
         let mut out = String::new();
         for p in &self.0 {
             match p {

@@ -11,8 +11,24 @@ use crate::{Clipboard, Session};
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!("cell.set", "Enter Cell", [], None, "{cell?: \"B2\", input: \"text, number or =formula\", sheet?, array?: bool}", has_doc, cell_set),
-        cmd!("range.setValues", "Set Values", [], None, "{range?: \"A1\", values: [[...]] (rows of numbers/strings/bools/null; strings starting with = are formulas)}", has_doc, range_set_values),
-        cmd!("range.fill", "Fill Range With Input", [], Some("Ctrl+Enter"), "{range?, input}: enters the same input in every selected cell (relative formulas adjust)", has_doc, range_fill),
+        cmd!(
+            "range.setValues",
+            "Set Values",
+            [],
+            None,
+            "{range?: \"A1\", values: [[...]] (rows of numbers/strings/bools/null; strings starting with = are formulas)}",
+            has_doc,
+            range_set_values
+        ),
+        cmd!(
+            "range.fill",
+            "Fill Range With Input",
+            [],
+            Some("Ctrl+Enter"),
+            "{range?, input}: enters the same input in every selected cell (relative formulas adjust)",
+            has_doc,
+            range_fill
+        ),
         cmd!(noundo "selection.set", "Select", [], None, "{range: \"A1:B2,D4\" | cell, active?: \"A1\", sheet?}", has_doc, selection_set),
         cmd!(noundo "selection.move", "Move Selection", [], None, "{dr, dc, extend?: bool, jump?: bool (Ctrl+arrow), page?: bool}", has_doc, selection_move),
         cmd!(noundo "selection.next", "Next Cell in Selection", [], None, "{forward?: true, byRow?: false} (Enter/Tab inside a selection)", has_doc, selection_next),
@@ -26,24 +42,76 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!(noundo "edit.redo", "Redo", ["Edit"], Some("Cmd+Y"), "{steps?: 1}", can_redo, redo),
         cmd!(noundo "edit.copy", "Copy", ["Home", "Clipboard"], Some("Cmd+C"), "{range?}", has_doc, copy),
         cmd!(noundo "edit.cut", "Cut", ["Home", "Clipboard"], Some("Cmd+X"), "{range?}", has_doc, cut),
-        cmd!("edit.paste", "Paste", ["Home", "Clipboard"], Some("Cmd+V"), "{at?: \"C3\", text?: \"tab-separated text from the system clipboard\"}", has_doc, paste),
-        cmd!("edit.pasteSpecial", "Paste Special…", ["Home", "Clipboard"], Some("Ctrl+Cmd+V"), "{what: all|formulas|values|formats|comments|validation|allExceptBorders|columnWidths|formulasAndNumberFormats|valuesAndNumberFormats, operation?: none|add|subtract|multiply|divide, skipBlanks?, transpose?, link?}", has_clipboard, paste_special),
+        cmd!(
+            "edit.paste",
+            "Paste",
+            ["Home", "Clipboard"],
+            Some("Cmd+V"),
+            "{at?: \"C3\", text?: \"tab-separated text from the system clipboard\"}",
+            has_doc,
+            paste
+        ),
+        cmd!(
+            "edit.pasteSpecial",
+            "Paste Special…",
+            ["Home", "Clipboard"],
+            Some("Ctrl+Cmd+V"),
+            "{what: all|formulas|values|formats|comments|validation|allExceptBorders|columnWidths|formulasAndNumberFormats|valuesAndNumberFormats, operation?: none|add|subtract|multiply|divide, skipBlanks?, transpose?, link?}",
+            has_clipboard,
+            paste_special
+        ),
         cmd!(noundo "edit.clearClipboard", "Cancel Copy", [], Some("Escape"), "{}", has_doc, clear_clipboard),
         cmd!("edit.clearAll", "Clear All", ["Home", "Editing", "Clear"], None, "{range?}", has_doc, |s, p| clear(s, p, "all")),
         cmd!("edit.clearFormats", "Clear Formats", ["Home", "Editing", "Clear"], None, "{range?}", has_doc, |s, p| clear(s, p, "formats")),
-        cmd!("edit.clearContents", "Clear Contents", ["Home", "Editing", "Clear"], Some("Delete"), "{range?}", has_doc, |s, p| clear(s, p, "contents")),
-        cmd!("edit.clearComments", "Clear Comments and Notes", ["Home", "Editing", "Clear"], None, "{range?}", has_doc, |s, p| clear(s, p, "comments")),
+        cmd!("edit.clearContents", "Clear Contents", ["Home", "Editing", "Clear"], Some("Delete"), "{range?}", has_doc, |s, p| clear(
+            s, p, "contents"
+        )),
+        cmd!("edit.clearComments", "Clear Comments and Notes", ["Home", "Editing", "Clear"], None, "{range?}", has_doc, |s, p| clear(
+            s, p, "comments"
+        )),
         cmd!("edit.clearHyperlinks", "Clear Hyperlinks", ["Home", "Editing", "Clear"], None, "{range?}", has_doc, |s, p| clear(s, p, "hyperlinks")),
         cmd!("edit.fillDown", "Fill Down", ["Home", "Editing", "Fill"], Some("Cmd+D"), "{range?}", has_doc, |s, p| fill_dir(s, p, 1, 0)),
         cmd!("edit.fillRight", "Fill Right", ["Home", "Editing", "Fill"], Some("Cmd+R"), "{range?}", has_doc, |s, p| fill_dir(s, p, 0, 1)),
         cmd!("edit.fillUp", "Fill Up", ["Home", "Editing", "Fill"], None, "{range?}", has_doc, |s, p| fill_dir(s, p, -1, 0)),
         cmd!("edit.fillLeft", "Fill Left", ["Home", "Editing", "Fill"], None, "{range?}", has_doc, |s, p| fill_dir(s, p, 0, -1)),
-        cmd!("edit.autoFill", "AutoFill", [], None, "{source: \"A1:A2\", target: \"A1:A10\", mode?: series|copy|formats|values}: the fill-handle drag", has_doc, auto_fill),
-        cmd!("edit.fillSeries", "Series…", ["Home", "Editing", "Fill"], None, "{range?, direction?: columns|rows, type?: linear|growth|date|autofill, step?: 1, stop?, dateUnit?: day|weekday|month|year}", has_doc, fill_series),
+        cmd!(
+            "edit.autoFill",
+            "AutoFill",
+            [],
+            None,
+            "{source: \"A1:A2\", target: \"A1:A10\", mode?: series|copy|formats|values}: the fill-handle drag",
+            has_doc,
+            auto_fill
+        ),
+        cmd!(
+            "edit.fillSeries",
+            "Series…",
+            ["Home", "Editing", "Fill"],
+            None,
+            "{range?, direction?: columns|rows, type?: linear|growth|date|autofill, step?: 1, stop?, dateUnit?: day|weekday|month|year}",
+            has_doc,
+            fill_series
+        ),
         cmd!("edit.flashFill", "Flash Fill", ["Home", "Editing", "Fill"], Some("Cmd+E"), "{range?}", has_doc, flash_fill),
         cmd!(noundo "edit.find", "Find…", ["Home", "Editing", "Find & Select"], Some("Cmd+F"), "{what, matchCase?, wholeCell?, lookIn?: formulas|values, byColumns?, all?: bool, within?: sheet|workbook}", has_doc, find),
-        cmd!("edit.replace", "Replace…", ["Home", "Editing", "Find & Select"], Some("Ctrl+H"), "{what, with, matchCase?, wholeCell?, all?: true, within?: sheet|workbook}", has_doc, replace),
-        cmd!("edit.formatPainter", "Format Painter", ["Home", "Clipboard"], None, "{sticky?: bool} — first call picks up the selection's formats; with {apply: \"C3:D4\"} pastes them", has_doc, format_painter),
+        cmd!(
+            "edit.replace",
+            "Replace…",
+            ["Home", "Editing", "Find & Select"],
+            Some("Ctrl+H"),
+            "{what, with, matchCase?, wholeCell?, all?: true, within?: sheet|workbook}",
+            has_doc,
+            replace
+        ),
+        cmd!(
+            "edit.formatPainter",
+            "Format Painter",
+            ["Home", "Clipboard"],
+            None,
+            "{sticky?: bool} — first call picks up the selection's formats; with {apply: \"C3:D4\"} pastes them",
+            has_doc,
+            format_painter
+        ),
         cmd!(noundo "edit.beginEdit", "Edit Cell", [], Some("F2"), "{}", has_doc, begin_edit),
     ]
 }
@@ -62,7 +130,11 @@ pub(crate) fn input_to_cell(input: &str, old: Option<&Cell>, wb: &mut sheetcraft
     if fmt_is_text {
         return Ok(Some(Cell { value: Value::text(input), formula: None, style }));
     }
-    let is_formula = input.starts_with('=') || (input.len() > 1 && (input.starts_with('+') || input.starts_with('-')) && sheetcraft_core::parse::parse_number_text(input).is_none() && input.chars().nth(1).is_some_and(|c| c.is_ascii_alphabetic() || c == '('));
+    let is_formula = input.starts_with('=')
+        || (input.len() > 1
+            && (input.starts_with('+') || input.starts_with('-'))
+            && sheetcraft_core::parse::parse_number_text(input).is_none()
+            && input.chars().nth(1).is_some_and(|c| c.is_ascii_alphabetic() || c == '('));
     if is_formula {
         let body = input.strip_prefix('=').unwrap_or(input);
         // Excel closes missing parentheses for you.
@@ -81,7 +153,12 @@ pub(crate) fn input_to_cell(input: &str, old: Option<&Cell>, wb: &mut sheetcraft
         // Formulas whose result is a date/time get a format from functions like TODAY().
         if wb.styles.get(style).num_fmt.as_str() == "General" {
             let f = cell.formula.as_ref().map(|f| f.text.to_ascii_uppercase()).unwrap_or_default();
-            let auto = if f.starts_with("TODAY(") || f.starts_with("DATE(") || f.starts_with("EDATE(") || f.starts_with("EOMONTH(") || f.starts_with("WORKDAY(") {
+            let auto = if f.starts_with("TODAY(")
+                || f.starts_with("DATE(")
+                || f.starts_with("EDATE(")
+                || f.starts_with("EOMONTH(")
+                || f.starts_with("WORKDAY(")
+            {
                 Some("m/d/yyyy")
             } else if f.starts_with("NOW(") {
                 Some("m/d/yyyy h:mm")
@@ -117,9 +194,11 @@ fn cell_set(s: &mut Session, p: &Json) -> Result<Json> {
         Some(c) => c,
         None => s.doc()?.selection.active,
     };
-    let input = str_param(p, "input").or_else(|| str_param(p, "value")).map(str::to_string).or_else(|| p.get("value").map(json_to_input)).unwrap_or_default();
+    let input =
+        str_param(p, "input").or_else(|| str_param(p, "value")).map(str::to_string).or_else(|| p.get("value").map(json_to_input)).unwrap_or_default();
     let array = bool_param(p, "array").unwrap_or(false);
-    let protected = s.doc()?.wb.sheet(sheet).is_some_and(|sh| sh.is_protected() && s.doc().is_ok_and(|d| d.wb.styles.get(sh.style_id(at)).protection.locked));
+    let protected =
+        s.doc()?.wb.sheet(sheet).is_some_and(|sh| sh.is_protected() && s.doc().is_ok_and(|d| d.wb.styles.get(sh.style_id(at)).protection.locked));
     if protected {
         return Err(EngineError::Other("The cell or chart you're trying to change is on a protected sheet.".into()));
     }
@@ -156,7 +235,13 @@ fn cell_set(s: &mut Session, p: &Json) -> Result<Json> {
 pub(crate) fn json_to_input(v: &Json) -> String {
     match v {
         Json::Null => String::new(),
-        Json::Bool(b) => if *b { "TRUE".into() } else { "FALSE".into() },
+        Json::Bool(b) => {
+            if *b {
+                "TRUE".into()
+            } else {
+                "FALSE".into()
+            }
+        }
         Json::Number(n) => n.to_string(),
         Json::String(s) => s.clone(),
         other => other.to_string(),
@@ -182,7 +267,11 @@ fn range_set_values(s: &mut Session, p: &Json) -> Result<Json> {
                 let input = json_to_input(v);
                 let old = cx.wb.sheet(sheet).and_then(|sh| sh.cell(at)).cloned();
                 let cell = match v {
-                    Json::Number(n) => Some(Cell { value: Value::number(n.as_f64().unwrap_or(0.0)), formula: None, style: old.as_ref().map(|c| c.style).unwrap_or_default() }),
+                    Json::Number(n) => Some(Cell {
+                        value: Value::number(n.as_f64().unwrap_or(0.0)),
+                        formula: None,
+                        style: old.as_ref().map(|c| c.style).unwrap_or_default(),
+                    }),
                     Json::Bool(b) => Some(Cell { value: Value::Bool(*b), formula: None, style: old.as_ref().map(|c| c.style).unwrap_or_default() }),
                     _ => input_to_cell(&input, old.as_ref(), &mut cx.wb)?,
                 };
@@ -309,9 +398,7 @@ fn selection_move(s: &mut Session, p: &Json) -> Result<Json> {
             t = n;
             guard += 1;
         }
-        if !extend
-            && let Some(m) = sheet.merge_at(from)
-        {
+        if !extend && let Some(m) = sheet.merge_at(from) {
             // Leaving a merged cell moves from its edge.
             if dr > 0 {
                 t = CellRef::new((m.end.row + dr as u32).min(MAX_ROWS - 1), from.col);
@@ -674,7 +761,13 @@ fn paste_special(s: &mut Session, p: &Json) -> Result<Json> {
     let src = clip.range;
     let (h, w) = if transpose { (src.width(), src.height()) } else { (src.height(), src.width()) };
     // Tile the copy over a larger destination that is a multiple of its size.
-    let tile = sel.height() % h == 0 && sel.width() % w == 0 && !sel.is_single() && cell_param(p, "at").is_none() && !sel.is_full_cols() && !sel.is_full_rows() && sel.count() <= 4_000_000;
+    let tile = sel.height() % h == 0
+        && sel.width() % w == 0
+        && !sel.is_single()
+        && cell_param(p, "at").is_none()
+        && !sel.is_full_cols()
+        && !sel.is_full_rows()
+        && sel.count() <= 4_000_000;
     let (tiles_r, tiles_c) = if tile { (sel.height() / h, sel.width() / w) } else { (1, 1) };
     let same_doc = s.doc()?.uid == clip.doc_uid;
     let cut_move = clip.cut && same_doc && what == What::All;
@@ -706,7 +799,11 @@ fn paste_special(s: &mut Session, p: &Json) -> Result<Json> {
                         let sc = CellRef::new(src.start.row + r, src.start.col + c);
                         let (dr, dc) = if transpose { (c, r) } else { (r, c) };
                         let Some(dest) = at.offset((tr * h + dr) as i64, (tc * w + dc) as i64) else { continue };
-                        let src_cell = if cut_move { moved_formulas.iter().find(|(k, _)| *k == sc).map(|(_, v)| v.clone()) } else { src_sheet.cell(sc).cloned() };
+                        let src_cell = if cut_move {
+                            moved_formulas.iter().find(|(k, _)| *k == sc).map(|(_, v)| v.clone())
+                        } else {
+                            src_sheet.cell(sc).cloned()
+                        };
                         let src_val = src_sheet.value(sc);
                         if skip_blanks && src_val.is_empty() && src_cell.as_ref().is_none_or(|x| x.formula.is_none()) {
                             continue;
@@ -719,11 +816,16 @@ fn paste_special(s: &mut Session, p: &Json) -> Result<Json> {
                             if cut_move {
                                 return Some(std::sync::Arc::new(Formula::from_expr(e)));
                             }
-                            let moved = sheetcraft_formula::adjust::shift_relative(e, dest.row as i64 - sc.row as i64, dest.col as i64 - sc.col as i64);
+                            let moved =
+                                sheetcraft_formula::adjust::shift_relative(e, dest.row as i64 - sc.row as i64, dest.col as i64 - sc.col as i64);
                             Some(std::sync::Arc::new(Formula::from_expr(moved)))
                         };
                         if link {
-                            let sheet_prefix = if dest_sheet == clip.sheet && same_doc { String::new() } else { format!("{}!", sheetcraft_formula::quote_sheet(&src_sheet_name)) };
+                            let sheet_prefix = if dest_sheet == clip.sheet && same_doc {
+                                String::new()
+                            } else {
+                                format!("{}!", sheetcraft_formula::quote_sheet(&src_sheet_name))
+                            };
                             new.formula = Some(std::sync::Arc::new(Formula::new(&format!("={sheet_prefix}{}", sc.a1()))));
                             new.value = Value::Empty;
                         } else {
@@ -760,7 +862,10 @@ fn paste_special(s: &mut Session, p: &Json) -> Result<Json> {
                                 What::Comments | What::Validation | What::ColumnWidths => {}
                             }
                             // Operations combine numbers with what is already there.
-                            if op != "none" && matches!(what, What::All | What::Values | What::ValuesAndNumberFormats | What::Formulas) && new.formula.is_none() {
+                            if op != "none"
+                                && matches!(what, What::All | What::Values | What::ValuesAndNumberFormats | What::Formulas)
+                                && new.formula.is_none()
+                            {
                                 let a = old.value.clone();
                                 let b = new.value.clone();
                                 if let (Ok(x), Ok(y)) = (a.to_number(), b.to_number())
@@ -887,7 +992,8 @@ fn clear(s: &mut Session, p: &Json, what: &str) -> Result<Json> {
                 },
                 None => continue,
             };
-            let cells: Vec<(CellRef, Cell)> = cx.wb.sheet(sheet).map(|sh| sh.cells.iter_range(r).map(|(c, x)| (c, x.clone())).collect()).unwrap_or_default();
+            let cells: Vec<(CellRef, Cell)> =
+                cx.wb.sheet(sheet).map(|sh| sh.cells.iter_range(r).map(|(c, x)| (c, x.clone())).collect()).unwrap_or_default();
             let sh = cx.sheet_mut(sheet)?;
             for (c, mut cell) in cells {
                 match what {
@@ -991,7 +1097,9 @@ fn flash_fill(s: &mut Session, p: &Json) -> Result<Json> {
     let r = target_range(s, p)?;
     let n = edit(s, |cx| crate::fill::flash_fill(cx, sheet, r.start))?;
     if n == 0 {
-        return Err(EngineError::Other("We looked at all the data next to your selection and didn't see a pattern for filling in values for you.".into()));
+        return Err(EngineError::Other(
+            "We looked at all the data next to your selection and didn't see a pattern for filling in values for you.".into(),
+        ));
     }
     Ok(json!({"filled": n}))
 }
@@ -1080,7 +1188,8 @@ fn find(s: &mut Session, p: &Json) -> Result<Json> {
         return Err(EngineError::Other(format!("We couldn't find what you were looking for: {what}")));
     }
     if all {
-        let list: Vec<Json> = hits.iter().map(|(si, c, t)| json!({"sheet": d.wb.sheet(*si).map(|s| s.name.clone()), "cell": c.a1(), "value": t})).collect();
+        let list: Vec<Json> =
+            hits.iter().map(|(si, c, t)| json!({"sheet": d.wb.sheet(*si).map(|s| s.name.clone()), "cell": c.a1(), "value": t})).collect();
         return Ok(json!({"count": list.len(), "results": list}));
     }
     // Next hit after the active cell.
@@ -1109,7 +1218,8 @@ fn replace(s: &mut Session, p: &Json) -> Result<Json> {
         let sheets: Vec<usize> = if workbook { (0..cx.wb.sheets.len()).collect() } else { vec![cx.wb.active_sheet] };
         let mut n = 0;
         for si in sheets {
-            let cells: Vec<(CellRef, String)> = cx.wb.sheet(si).map(|sh| sh.cells.iter().map(|(c, cell)| (c, cell.input_text())).collect()).unwrap_or_default();
+            let cells: Vec<(CellRef, String)> =
+                cx.wb.sheet(si).map(|sh| sh.cells.iter().map(|(c, cell)| (c, cell.input_text())).collect()).unwrap_or_default();
             for (c, text) in cells {
                 if !all && c != active {
                     continue;

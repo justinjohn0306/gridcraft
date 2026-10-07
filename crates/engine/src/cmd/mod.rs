@@ -6,8 +6,8 @@ pub mod edit;
 pub mod file;
 pub mod format;
 pub mod formulas;
-pub mod inspect;
 pub mod insert;
+pub mod inspect;
 pub mod review;
 pub mod sheet;
 pub mod view;
@@ -195,6 +195,8 @@ pub struct Ctx<'a> {
     pub changed: Vec<Key>,
     pub structural: bool,
     pub sel: &'a mut Selection,
+    /// Rows whose automatic height should be recomputed (sheet, row).
+    pub fit_rows: Vec<(usize, u32)>,
 }
 
 pub(crate) fn edit<R>(s: &mut Session, f: impl FnOnce(&mut Ctx) -> Result<R>) -> Result<R> {
@@ -204,17 +206,65 @@ pub(crate) fn edit<R>(s: &mut Session, f: impl FnOnce(&mut Ctx) -> Result<R>) ->
 
 pub(crate) fn commit<R>(d: &mut DocState, f: impl FnOnce(&mut Ctx) -> Result<R>) -> Result<R> {
     let mut sel = d.selection.clone();
-    let mut ctx = Ctx { wb: (*d.wb).clone(), changed: Vec::new(), structural: false, sel: &mut sel };
+    let mut ctx = Ctx { wb: (*d.wb).clone(), changed: Vec::new(), structural: false, sel: &mut sel, fit_rows: Vec::new() };
     let r = f(&mut ctx)?;
-    let Ctx { mut wb, changed, structural, .. } = ctx;
+    let Ctx { mut wb, changed, structural, mut fit_rows, .. } = ctx;
+    if changed.len() <= 200_000 {
+        fit_rows.extend(changed.iter().map(|(s, c)| (*s, c.row)));
+    }
     if structural {
         d.calc.recalc_all(&mut wb);
     } else if !changed.is_empty() {
         d.calc.cells_changed(&mut wb, &changed);
     }
+    fit_rows.sort_unstable();
+    fit_rows.dedup();
+    for (si, row) in fit_rows {
+        auto_row_height(&mut wb, si, row);
+    }
     d.wb = std::sync::Arc::new(wb);
     d.selection = sel;
     Ok(r)
+}
+
+/// Recomputes an automatic row height from its content: the largest font, and wrapped or
+/// multi-line text. Rows with a user-set height keep it.
+pub fn auto_row_height(wb: &mut Workbook, si: usize, row: u32) {
+    let Some(sh) = wb.sheet(si) else { return };
+    if sh.rows.get(&row).is_some_and(|i| i.custom) {
+        return;
+    }
+    let default = sh.default_row_height;
+    let mut need: f32 = default;
+    for (c, cell) in sh.cells.row(row, 0, sheetcraft_core::MAX_COLS - 1) {
+        let st = wb.styles.get(cell.style);
+        let size = st.font.size;
+        let line = (size * 1.8).round().max(default * size / sheetcraft_model::DEFAULT_FONT_SIZE);
+        let mut lines = 1.0f32;
+        if !cell.value.is_empty() || cell.formula.is_some() {
+            let text = crate::display::cell_text(wb, sh, CellRef::new(row, c));
+            let explicit = text.lines().count().max(1) as f32;
+            lines = if st.align.wrap {
+                let w = sh.col_width(c).max(1.0) - 6.0;
+                text.lines()
+                    .map(|l| (crate::cmd::format::approx_text_width(l, size, st.font.bold) / w.max(1.0)).ceil().max(1.0))
+                    .sum::<f32>()
+                    .max(1.0)
+            } else {
+                explicit
+            };
+        } else if st.font.size <= sheetcraft_model::DEFAULT_FONT_SIZE {
+            continue;
+        }
+        let h = if lines > 1.0 { (size * 96.0 / 72.0 * 1.22 * lines + 5.0).ceil() } else { line };
+        need = need.max(h.min(546.0));
+    }
+    let Some(shm) = wb.sheet_mut(si) else { return };
+    let e = shm.rows.entry(row).or_default();
+    e.size = if (need - default).abs() < 0.5 { None } else { Some(need) };
+    if *e == sheetcraft_model::LineInfo::default() {
+        shm.rows.remove(&row);
+    }
 }
 
 impl Ctx<'_> {

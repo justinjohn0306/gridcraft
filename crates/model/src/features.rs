@@ -114,28 +114,86 @@ pub enum CfValueKind {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum CfRule {
     /// Cell value compared with one or two formulas.
-    CellIs { op: CfOperator, a: String, b: Option<String>, style: Box<Style> },
+    CellIs {
+        op: CfOperator,
+        a: String,
+        b: Option<String>,
+        style: Box<Style>,
+    },
     /// Custom formula (relative to the top-left cell of the range).
-    Expression { formula: String, style: Box<Style> },
-    ContainsText { text: String, style: Box<Style> },
-    NotContainsText { text: String, style: Box<Style> },
-    BeginsWith { text: String, style: Box<Style> },
-    EndsWith { text: String, style: Box<Style> },
-    Blanks { style: Box<Style> },
-    NoBlanks { style: Box<Style> },
-    Errors { style: Box<Style> },
-    NoErrors { style: Box<Style> },
-    Duplicate { style: Box<Style> },
-    Unique { style: Box<Style> },
+    Expression {
+        formula: String,
+        style: Box<Style>,
+    },
+    ContainsText {
+        text: String,
+        style: Box<Style>,
+    },
+    NotContainsText {
+        text: String,
+        style: Box<Style>,
+    },
+    BeginsWith {
+        text: String,
+        style: Box<Style>,
+    },
+    EndsWith {
+        text: String,
+        style: Box<Style>,
+    },
+    Blanks {
+        style: Box<Style>,
+    },
+    NoBlanks {
+        style: Box<Style>,
+    },
+    Errors {
+        style: Box<Style>,
+    },
+    NoErrors {
+        style: Box<Style>,
+    },
+    Duplicate {
+        style: Box<Style>,
+    },
+    Unique {
+        style: Box<Style>,
+    },
     /// Top/bottom N or N percent.
-    Top10 { bottom: bool, percent: bool, rank: u32, style: Box<Style> },
-    AboveAverage { below: bool, equal: bool, std_dev: u8, style: Box<Style> },
+    Top10 {
+        bottom: bool,
+        percent: bool,
+        rank: u32,
+        style: Box<Style>,
+    },
+    AboveAverage {
+        below: bool,
+        equal: bool,
+        std_dev: u8,
+        style: Box<Style>,
+    },
     /// `yesterday`, `today`, `tomorrow`, `last7Days`, `lastWeek`, `thisWeek`, `nextWeek`, `lastMonth`, `thisMonth`, `nextMonth`.
-    TimePeriod { period: String, style: Box<Style> },
-    ColorScale { stops: Vec<(CfValueKind, Color)> },
-    DataBar { min: CfValueKind, max: CfValueKind, color: Color, gradient: bool, show_value: bool },
+    TimePeriod {
+        period: String,
+        style: Box<Style>,
+    },
+    ColorScale {
+        stops: Vec<(CfValueKind, Color)>,
+    },
+    DataBar {
+        min: CfValueKind,
+        max: CfValueKind,
+        color: Color,
+        gradient: bool,
+        show_value: bool,
+    },
     /// Icon set name (`3Arrows`, `3TrafficLights1`, `4Rating`, `5Quarters`…).
-    IconSet { set: String, thresholds: Vec<CfValueKind>, reverse: bool, show_value: bool },
+    IconSet {
+        set: String,
+        thresholds: Vec<CfValueKind>,
+        reverse: bool,
+        show_value: bool,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -369,10 +427,21 @@ pub struct Sparkline {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum FilterCriterion {
     /// Show rows whose display text is one of these (case-insensitive); `blanks` includes empty.
-    Values { values: Vec<String>, blanks: bool },
+    Values {
+        values: Vec<String>,
+        blanks: bool,
+    },
     /// Custom: one or two comparisons (`op` like `>=`, `=*abc*`), joined by and/or.
-    Custom { a: (String, String), b: Option<(String, String)>, and: bool },
-    Top10 { bottom: bool, percent: bool, count: u32 },
+    Custom {
+        a: (String, String),
+        b: Option<(String, String)>,
+        and: bool,
+    },
+    Top10 {
+        bottom: bool,
+        percent: bool,
+        count: u32,
+    },
     AboveAverage(bool),
     FillColor(Color),
     FontColor(Color),
@@ -475,4 +544,7 @@ pub struct LineInfo {
     pub outline: u8,
     pub collapsed: bool,
     pub style: Option<crate::style::StyleId>,
+    /// The size was set by the user (rows): automatic heights follow the content.
+    #[serde(default)]
+    pub custom: bool,
 }

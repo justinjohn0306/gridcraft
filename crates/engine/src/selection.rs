@@ -141,12 +141,29 @@ pub fn jump(sheet: &Sheet, from: CellRef, dr: i64, dc: i64) -> CellRef {
             return cur;
         }
         let beyond = match used {
-            Some(u) => (dr > 0 && cur.row > u.end.row) || (dc > 0 && cur.col > u.end.col) || (dr < 0 && cur.row < u.start.row) || (dc < 0 && cur.col < u.start.col),
+            Some(u) => {
+                (dr > 0 && cur.row > u.end.row)
+                    || (dc > 0 && cur.col > u.end.col)
+                    || (dr < 0 && cur.row < u.start.row)
+                    || (dc < 0 && cur.col < u.start.col)
+            }
             None => true,
         };
         if beyond {
-            let r = if dr > 0 { MAX_ROWS - 1 } else if dr < 0 { 0 } else { cur.row };
-            let c = if dc > 0 { MAX_COLS - 1 } else if dc < 0 { 0 } else { cur.col };
+            let r = if dr > 0 {
+                MAX_ROWS - 1
+            } else if dr < 0 {
+                0
+            } else {
+                cur.row
+            };
+            let c = if dc > 0 {
+                MAX_COLS - 1
+            } else if dc < 0 {
+                0
+            } else {
+                cur.col
+            };
             return CellRef::new(r, c);
         }
         match cur.offset(dr, dc) {

@@ -144,7 +144,8 @@ pub fn time_fraction(h: f64, m: f64, s: f64) -> f64 {
     (h * 3600.0 + m * 60.0 + s) / 86400.0
 }
 
-pub const MONTHS: [&str; 12] = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+pub const MONTHS: [&str; 12] =
+    ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 pub const WEEKDAYS: [&str; 7] = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 #[cfg(test)]

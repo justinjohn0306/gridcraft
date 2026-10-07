@@ -281,10 +281,12 @@ fn read_row(cx: &mut Ctx<'_>, sheet: &mut Sheet, st: &mut RowState, row: &El) {
     }
     st.next_row = r + 1;
     let mut info = LineInfo::default();
-    if row.flag("customHeight", false)
-        && let Some(ht) = row.attr_f64("ht")
-    {
-        info.size = Some(pt_to_px(ht));
+    if let Some(ht) = row.attr_f64("ht") {
+        info.custom = row.flag("customHeight", false);
+        // Automatic heights equal to the default are noise.
+        if info.custom || (pt_to_px(ht) - sheet.default_row_height).abs() > 0.5 {
+            info.size = Some(pt_to_px(ht));
+        }
     }
     info.hidden = row.flag("hidden", false);
     info.outline = row.attr_u32("outlineLevel").unwrap_or(0).min(7) as u8;

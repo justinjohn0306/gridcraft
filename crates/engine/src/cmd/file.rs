@@ -50,12 +50,16 @@ fn open(s: &mut Session, p: &Json) -> Result<Json> {
     let title = std::path::Path::new(&name).file_name().and_then(|n| n.to_str()).unwrap_or("Book").to_string();
     let path = str_param(p, "path").map(str::to_string).filter(|p| crate::io::FileKind::from_path(p) == Some(crate::io::FileKind::Xlsx) || true);
     // Replace an untouched blank Book1 like Excel does.
-    if s.documents().len() == 1 && s.active().is_some_and(|d| d.path.is_none() && !d.is_dirty() && d.undo.is_empty() && d.wb.sheets.iter().all(|sh| sh.cells.is_empty())) {
+    if s.documents().len() == 1
+        && s.active().is_some_and(|d| d.path.is_none() && !d.is_dirty() && d.undo.is_empty() && d.wb.sheets.iter().all(|sh| sh.cells.is_empty()))
+    {
         s.close_document(0);
     }
     let i = s.add_document(DocState::new(wb, path, title));
     let d = s.doc()?;
-    Ok(json!({"index": i, "title": d.display_title(), "sheets": d.wb.sheets.iter().map(|s| s.name.clone()).collect::<Vec<_>>(), "warnings": warnings}))
+    Ok(
+        json!({"index": i, "title": d.display_title(), "sheets": d.wb.sheets.iter().map(|s| s.name.clone()).collect::<Vec<_>>(), "warnings": warnings}),
+    )
 }
 
 fn save(s: &mut Session, p: &Json) -> Result<Json> {
@@ -122,7 +126,14 @@ fn export(s: &mut Session, p: &Json, ext: &str) -> Result<Json> {
 fn properties(s: &mut Session, p: &Json) -> Result<Json> {
     edit(s, |cx| {
         let pr = &mut cx.wb.props;
-        for (k, slot) in [("title", &mut pr.title), ("subject", &mut pr.subject), ("author", &mut pr.author), ("company", &mut pr.company), ("keywords", &mut pr.keywords), ("description", &mut pr.description)] {
+        for (k, slot) in [
+            ("title", &mut pr.title),
+            ("subject", &mut pr.subject),
+            ("author", &mut pr.author),
+            ("company", &mut pr.company),
+            ("keywords", &mut pr.keywords),
+            ("description", &mut pr.description),
+        ] {
             if let Some(v) = str_param(p, k) {
                 *slot = v.to_string();
             }

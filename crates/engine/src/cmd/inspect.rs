@@ -24,7 +24,8 @@ pub fn value_json(v: &Value) -> Json {
         Value::Bool(b) => json!(b),
         Value::Error(e) => json!({"error": e.as_str()}),
         Value::Array(a) => {
-            let rows: Vec<Json> = (0..a.rows).map(|r| Json::Array((0..a.cols).map(|c| value_json(&a.get(r, c).cloned().unwrap_or_default())).collect())).collect();
+            let rows: Vec<Json> =
+                (0..a.rows).map(|r| Json::Array((0..a.cols).map(|c| value_json(&a.get(r, c).cloned().unwrap_or_default())).collect())).collect();
             Json::Array(rows)
         }
     }
@@ -146,7 +147,9 @@ fn sel_stats(s: &mut Session, _: &Json) -> Result<Json> {
 
 fn history(s: &mut Session, _: &Json) -> Result<Json> {
     let d = s.doc()?;
-    Ok(json!({"undo": d.undo.iter().rev().map(|e| e.label.clone()).collect::<Vec<_>>(), "redo": d.redo.iter().rev().map(|e| e.label.clone()).collect::<Vec<_>>()}))
+    Ok(
+        json!({"undo": d.undo.iter().rev().map(|e| e.label.clone()).collect::<Vec<_>>(), "redo": d.redo.iter().rev().map(|e| e.label.clone()).collect::<Vec<_>>()}),
+    )
 }
 
 fn list_commands(s: &mut Session, p: &Json) -> Result<Json> {

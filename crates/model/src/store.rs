@@ -81,11 +81,15 @@ impl CellStore {
     pub fn iter_range(&self, r: RangeRef) -> impl Iterator<Item = (CellRef, &Cell)> + '_ {
         let (b0, b1) = (r.start.row / BAND, r.end.row / BAND);
         self.bands.range(b0..=b1).flat_map(move |(_, band)| {
-            band.rows.range(r.start.row..=r.end.row).flat_map(move |(row, cols)| cols.range(r.start.col..=r.end.col).map(move |(col, cell)| (CellRef::new(*row, *col), cell)))
+            band.rows
+                .range(r.start.row..=r.end.row)
+                .flat_map(move |(row, cols)| cols.range(r.start.col..=r.end.col).map(move |(col, cell)| (CellRef::new(*row, *col), cell)))
         })
     }
     pub fn iter(&self) -> impl Iterator<Item = (CellRef, &Cell)> + '_ {
-        self.bands.values().flat_map(|band| band.rows.iter().flat_map(|(row, cols)| cols.iter().map(move |(col, cell)| (CellRef::new(*row, *col), cell))))
+        self.bands
+            .values()
+            .flat_map(|band| band.rows.iter().flat_map(|(row, cols)| cols.iter().map(move |(col, cell)| (CellRef::new(*row, *col), cell))))
     }
     /// Cells of one row in `c0..=c1`.
     pub fn row(&self, row: u32, c0: u32, c1: u32) -> impl Iterator<Item = (u32, &Cell)> + '_ {

@@ -17,7 +17,11 @@ impl T {
         T { wb: Workbook::new(), calc: Calc::new() }
     }
     fn set(&mut self, at: &str, input: &str) {
-        let cell = if input.starts_with('=') { Cell::formula(Formula::new(input)) } else { Cell::value(sheetcraft_core::parse::parse_input(input, self.wb.date_system).value) };
+        let cell = if input.starts_with('=') {
+            Cell::formula(Formula::new(input))
+        } else {
+            Cell::value(sheetcraft_core::parse::parse_input(input, self.wb.date_system).value)
+        };
         self.wb.sheet_mut(0).unwrap().cells.set(c(at), cell);
         self.calc.cells_changed(&mut self.wb, &[(0, c(at))]);
     }

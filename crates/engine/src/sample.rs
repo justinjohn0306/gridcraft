@@ -80,25 +80,35 @@ fn sales(s: &mut Session) -> bool {
         ok &= run(s, "table.totalFunction", json!({"table": "Sales", "column": col, "function": "sum"}));
     }
     ok &= run(s, "table.totalFunction", json!({"table": "Sales", "column": "Growth", "function": "average"}));
+    ok &= run(s, "table.totalFunction", json!({"table": "Sales", "column": "Trend", "function": "none"}));
     ok &= run(s, "home.numberFormat", json!({"range": "C5:G11", "code": "\"$\"#,##0"}));
     ok &= run(s, "home.numberFormat", json!({"range": "H5:H11", "code": "0.0%"}));
     ok &= run(s, "home.conditionalFormat", json!({"range": "G5:G10", "rule": {"type": "dataBar", "color": "#5B9BD5"}}));
     ok &= run(s, "home.conditionalFormat", json!({"range": "H5:H10", "rule": {"type": "iconSet", "set": "3Arrows"}}));
     ok &= run(s, "home.columnWidth", json!({"cols": "A:A", "width": 20}));
-    ok &= run(s, "home.columnWidth", json!({"cols": "B:B", "width": 90}));
+    ok &= run(s, "home.columnWidth", json!({"cols": "B:B", "width": 132}));
     ok &= run(s, "home.columnWidth", json!({"cols": "C:G", "width": 84}));
     ok &= run(s, "home.columnWidth", json!({"cols": "H:I", "width": 76}));
     ok &= run(s, "selection.set", json!({"range": "B4:F10"}));
     ok &= run(s, "insert.chart", json!({"type": "column", "title": "Revenue by Region", "at": "K3", "width": 460, "height": 270}));
     ok &= run(s, "selection.set", json!({"range": "B4:B10"}));
     // Pie of totals.
-    ok &= run(s, "insert.chart", json!({"range": "B4:B10", "type": "pie", "title": "Share of Annual Total", "at": "K19", "width": 460, "height": 260}));
+    ok &=
+        run(s, "insert.chart", json!({"range": "B4:B10", "type": "pie", "title": "Share of Annual Total", "at": "K19", "width": 460, "height": 260}));
     if let Ok(d) = s.doc_mut() {
         let wb = Arc::make_mut(&mut d.wb);
         if let Some(sh) = wb.sheet_mut(0)
             && let Some(c) = sh.charts.last_mut()
         {
-            c.series = vec![sheetcraft_model::Series { name: Some("Sales!$G$4".into()), categories: Some("Sales!$B$5:$B$10".into()), values: "Sales!$G$5:$G$10".into(), bubble_sizes: None, color: None, secondary: false, kind: None }];
+            c.series = vec![sheetcraft_model::Series {
+                name: Some("Sales!$G$4".into()),
+                categories: Some("Sales!$B$5:$B$10".into()),
+                values: "Sales!$G$5:$G$10".into(),
+                bubble_sizes: None,
+                color: None,
+                secondary: false,
+                kind: None,
+            }];
         }
     }
     ok &= run(s, "range.setValues", json!({"range": "B14", "values": [["Best region"], ["Average quarter"], ["Online share"], ["Year-over-year"]]}));
@@ -146,7 +156,11 @@ fn budget(s: &mut Session) -> bool {
     ok &= run(s, "home.cellStyle", json!({"range": "B15:F15", "name": "Total"}));
     ok &= run(s, "home.numberFormat", json!({"range": "C5:E15", "format": "Accounting"}));
     ok &= run(s, "home.numberFormat", json!({"range": "F5:F15", "code": "0%"}));
-    ok &= run(s, "home.conditionalFormat", json!({"range": "E5:E14", "rule": {"type": "cellIs", "operator": "less", "value": 0, "preset": "lightRedFillDarkRedText"}}));
+    ok &= run(
+        s,
+        "home.conditionalFormat",
+        json!({"range": "E5:E14", "rule": {"type": "cellIs", "operator": "less", "value": 0, "preset": "lightRedFillDarkRedText"}}),
+    );
     ok &= run(s, "home.conditionalFormat", json!({"range": "F5:F14", "rule": {"type": "colorScale", "colors": ["#63BE7B", "#FFEB84", "#F8696B"]}}));
     ok &= run(s, "home.columnWidth", json!({"cols": "B:B", "width": 130}));
     ok &= run(s, "home.columnWidth", json!({"cols": "C:E", "width": 90}));
@@ -172,12 +186,20 @@ fn grades(s: &mut Session) -> bool {
     let mut ok = run(s, "range.setValues", json!({"range": "A1", "values": rows}));
     for r in 2..=9 {
         ok &= run(s, "cell.set", json!({"cell": format!("F{r}"), "input": format!("=AVERAGE(B{r}:E{r})")}));
-        ok &= run(s, "cell.set", json!({"cell": format!("G{r}"), "input": format!("=IFS(F{r}>=90,\"A\",F{r}>=80,\"B\",F{r}>=70,\"C\",F{r}>=60,\"D\",TRUE,\"F\")")}));
+        ok &= run(
+            s,
+            "cell.set",
+            json!({"cell": format!("G{r}"), "input": format!("=IFS(F{r}>=90,\"A\",F{r}>=80,\"B\",F{r}>=70,\"C\",F{r}>=60,\"D\",TRUE,\"F\")")}),
+        );
     }
     ok &= run(s, "home.numberFormat", json!({"range": "F2:F9", "code": "0.0"}));
     ok &= run(s, "insert.table", json!({"range": "A1:G9", "style": "TableStyleLight9", "name": "Grades"}));
     ok &= run(s, "home.columnWidth", json!({"cols": "A:A", "width": 120}));
-    ok &= run(s, "home.conditionalFormat", json!({"range": "G2:G9", "rule": {"type": "cellIs", "operator": "equal", "value": "A", "preset": "greenFillDarkGreenText"}}));
+    ok &= run(
+        s,
+        "home.conditionalFormat",
+        json!({"range": "G2:G9", "rule": {"type": "cellIs", "operator": "equal", "value": "A", "preset": "greenFillDarkGreenText"}}),
+    );
     ok &= run(s, "home.conditionalFormat", json!({"range": "F2:F9", "rule": {"type": "dataBar", "color": "#63BE7B"}}));
     ok
 }

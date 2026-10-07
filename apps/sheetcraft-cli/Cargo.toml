@@ -1,0 +1,20 @@
+[package]
+name = "sheetcraft-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SheetCraft command line: inspect, convert, evaluate, script and serve MCP without a window"
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "sheetcraft-cli"
+path = "src/main.rs"
+
+[dependencies]
+sheetcraft-engine = { workspace = true }
+sheetcraft-mcp = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }

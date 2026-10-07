@@ -16,7 +16,10 @@ pub use cell::{Cell, Formula};
 pub use features::*;
 pub use sheet::{DEFAULT_COL_WIDTH, DEFAULT_ROW_HEIGHT, Sheet, Visibility};
 pub use store::CellStore;
-pub use style::{Alignment, BorderLine, BorderStyle, Borders, Color, Fill, Font, HAlign, NumFmt, PatternType, Style, StyleId, StyleTable, Theme, Underline, VAlign, VertAlign};
+pub use style::{
+    Alignment, BorderLine, BorderStyle, Borders, Color, Fill, Font, HAlign, NumFmt, PatternType, Style, StyleId, StyleTable, Theme, Underline,
+    VAlign, VertAlign,
+};
 pub use workbook::{CalcMode, CalcSettings, DefinedName, DocProps, Workbook};
 
 /// Font used for new workbooks. Only a name: renderers substitute an available open font

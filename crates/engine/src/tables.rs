@@ -119,9 +119,10 @@ pub fn table_cell_style(wb: &Workbook, sheet: usize, t: &Table, c: CellRef) -> S
         }
         if let Some(l) = lk.line
             && t.style.contains("Light")
-            && c.row == t.range.end.row {
-                s.borders.bottom = BorderLine { style: BorderStyle::Thin, color: l };
-            }
+            && c.row == t.range.end.row
+        {
+            s.borders.bottom = BorderLine { style: BorderStyle::Thin, color: l };
+        }
     }
     if (t.first_col && c.col == t.range.start.col) || (t.last_col && c.col == t.range.end.col) {
         s.font.bold = true;

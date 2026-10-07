@@ -10,40 +10,154 @@ use crate::selection::current_region;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!("insert.table", "Table", ["Insert", "Tables"], Some("Cmd+T"), "{range?, header?: true, style?: \"TableStyleMedium2\", name?}", has_doc, insert_table),
-        cmd!("home.formatAsTable", "Format as Table", ["Home", "Styles"], None, "{range?, style: \"TableStyleMedium2\", header?}", has_doc, insert_table),
-        cmd!("table.totalRow", "Total Row", ["Table", "Table Style Options"], None, "{table?, on?: bool}", has_doc, |s, p| table_flag(s, p, "totals")),
-        cmd!("table.bandedRows", "Banded Rows", ["Table", "Table Style Options"], None, "{table?, on?}", has_doc, |s, p| table_flag(s, p, "bandedRows")),
-        cmd!("table.bandedColumns", "Banded Columns", ["Table", "Table Style Options"], None, "{table?, on?}", has_doc, |s, p| table_flag(s, p, "bandedCols")),
+        cmd!(
+            "insert.table",
+            "Table",
+            ["Insert", "Tables"],
+            Some("Cmd+T"),
+            "{range?, header?: true, style?: \"TableStyleMedium2\", name?}",
+            has_doc,
+            insert_table
+        ),
+        cmd!(
+            "home.formatAsTable",
+            "Format as Table",
+            ["Home", "Styles"],
+            None,
+            "{range?, style: \"TableStyleMedium2\", header?}",
+            has_doc,
+            insert_table
+        ),
+        cmd!("table.totalRow", "Total Row", ["Table", "Table Style Options"], None, "{table?, on?: bool}", has_doc, |s, p| table_flag(
+            s, p, "totals"
+        )),
+        cmd!("table.bandedRows", "Banded Rows", ["Table", "Table Style Options"], None, "{table?, on?}", has_doc, |s, p| table_flag(
+            s,
+            p,
+            "bandedRows"
+        )),
+        cmd!("table.bandedColumns", "Banded Columns", ["Table", "Table Style Options"], None, "{table?, on?}", has_doc, |s, p| table_flag(
+            s,
+            p,
+            "bandedCols"
+        )),
         cmd!("table.headerRow", "Header Row", ["Table", "Table Style Options"], None, "{table?, on?}", has_doc, |s, p| table_flag(s, p, "header")),
-        cmd!("table.firstColumn", "First Column", ["Table", "Table Style Options"], None, "{table?, on?}", has_doc, |s, p| table_flag(s, p, "firstCol")),
+        cmd!("table.firstColumn", "First Column", ["Table", "Table Style Options"], None, "{table?, on?}", has_doc, |s, p| table_flag(
+            s, p, "firstCol"
+        )),
         cmd!("table.lastColumn", "Last Column", ["Table", "Table Style Options"], None, "{table?, on?}", has_doc, |s, p| table_flag(s, p, "lastCol")),
         cmd!("table.style", "Table Styles", ["Table", "Table Styles"], None, "{table?, style}", has_doc, table_style),
         cmd!("table.rename", "Table Name", ["Table", "Properties"], None, "{table?, name}", has_doc, table_rename),
         cmd!("table.convertToRange", "Convert to Range", ["Table", "Tools"], None, "{table?}", has_doc, table_convert),
-        cmd!("table.totalFunction", "Totals Function", [], None, "{table?, column: \"Sales\", function: sum|average|count|countNums|max|min|stdDev|var|none}", has_doc, table_total_fn),
-        cmd!("insert.chart", "Insert Chart", ["Insert", "Charts"], None, "{range?, type?: column|bar|line|pie|doughnut|area|scatter|bubble|radar|combo|histogram|waterfall|funnel|treemap|sunburst|boxWhisker|stock, subtype?: clustered|stacked|stacked100|markers, title?, at?: \"H2\", width?, height?}", has_doc, insert_chart),
-        cmd!("insert.recommendedCharts", "Recommended Charts", ["Insert", "Charts"], None, "{range?}", has_doc, |s, p| insert_chart(s, &with(p, "type", json!("auto")))),
-        cmd!("chart.set", "Chart Properties", ["Chart Design"], None, "{chart?: id, type?, title?, legend?: none|bottom|top|left|right, dataLabels?, gridlines?, style?, xTitle?, yTitle?, at?, width?, height?, dx?, dy?}", has_doc, chart_set),
+        cmd!(
+            "table.totalFunction",
+            "Totals Function",
+            [],
+            None,
+            "{table?, column: \"Sales\", function: sum|average|count|countNums|max|min|stdDev|var|none}",
+            has_doc,
+            table_total_fn
+        ),
+        cmd!(
+            "insert.chart",
+            "Insert Chart",
+            ["Insert", "Charts"],
+            None,
+            "{range?, type?: column|bar|line|pie|doughnut|area|scatter|bubble|radar|combo|histogram|waterfall|funnel|treemap|sunburst|boxWhisker|stock, subtype?: clustered|stacked|stacked100|markers, title?, at?: \"H2\", width?, height?}",
+            has_doc,
+            insert_chart
+        ),
+        cmd!("insert.recommendedCharts", "Recommended Charts", ["Insert", "Charts"], None, "{range?}", has_doc, |s, p| insert_chart(
+            s,
+            &with(p, "type", json!("auto"))
+        )),
+        cmd!(
+            "chart.set",
+            "Chart Properties",
+            ["Chart Design"],
+            None,
+            "{chart?: id, type?, title?, legend?: none|bottom|top|left|right, dataLabels?, gridlines?, style?, xTitle?, yTitle?, at?, width?, height?, dx?, dy?}",
+            has_doc,
+            chart_set
+        ),
         cmd!("chart.switchRowColumn", "Switch Row/Column", ["Chart Design", "Data"], None, "{chart?}", has_doc, chart_switch),
         cmd!("chart.delete", "Delete Chart", [], None, "{chart?}", has_doc, chart_delete),
-        cmd!("insert.sparkline", "Sparklines", ["Insert", "Sparklines"], None, "{range: \"B2:M2\", location: \"N2\", type?: line|column|winLoss, markers?}", has_doc, insert_sparkline),
-        cmd!("insert.picture", "Picture", ["Insert", "Illustrations"], None, "{path? | base64?: \"...\", mime?, at?: \"B2\", width?, height?, alt?}", has_doc, insert_picture),
-        cmd!("insert.shape", "Shapes", ["Insert", "Illustrations"], None, "{kind: rectangle|roundedRectangle|ellipse|triangle|line|arrow|textBox, at?, width?, height?, text?, fill?, line?}", has_doc, insert_shape),
-        cmd!("insert.textBox", "Text Box", ["Insert", "Text"], None, "{at?, width?, height?, text?}", has_doc, |s, p| insert_shape(s, &with(p, "kind", json!("textBox")))),
+        cmd!(
+            "insert.sparkline",
+            "Sparklines",
+            ["Insert", "Sparklines"],
+            None,
+            "{range: \"B2:M2\", location: \"N2\", type?: line|column|winLoss, markers?}",
+            has_doc,
+            insert_sparkline
+        ),
+        cmd!(
+            "insert.picture",
+            "Picture",
+            ["Insert", "Illustrations"],
+            None,
+            "{path? | base64?: \"...\", mime?, at?: \"B2\", width?, height?, alt?}",
+            has_doc,
+            insert_picture
+        ),
+        cmd!(
+            "insert.shape",
+            "Shapes",
+            ["Insert", "Illustrations"],
+            None,
+            "{kind: rectangle|roundedRectangle|ellipse|triangle|line|arrow|textBox, at?, width?, height?, text?, fill?, line?}",
+            has_doc,
+            insert_shape
+        ),
+        cmd!("insert.textBox", "Text Box", ["Insert", "Text"], None, "{at?, width?, height?, text?}", has_doc, |s, p| insert_shape(
+            s,
+            &with(p, "kind", json!("textBox"))
+        )),
         cmd!("object.delete", "Delete Object", [], None, "{kind: chart|image|shape, id}", has_doc, delete_object),
         cmd!("object.move", "Move Object", [], None, "{kind: chart|image|shape, id, at?: \"C3\", dx?, dy?, width?, height?}", has_doc, move_object),
-        cmd!("insert.link", "Link", ["Insert", "Links"], Some("Cmd+K"), "{cell?, target: \"https://…\" | \"Sheet2!A1\" | \"mailto:…\", text?, tooltip?, remove?: bool}", has_doc, insert_link),
+        cmd!(
+            "insert.link",
+            "Link",
+            ["Insert", "Links"],
+            Some("Cmd+K"),
+            "{cell?, target: \"https://…\" | \"Sheet2!A1\" | \"mailto:…\", text?, tooltip?, remove?: bool}",
+            has_doc,
+            insert_link
+        ),
         cmd!("review.newNote", "New Note", ["Review", "Notes"], None, "{cell?, text, author?}", has_doc, |s, p| comment(s, p, false)),
         cmd!("review.newComment", "New Comment", ["Review", "Comments"], None, "{cell?, text, author?}", has_doc, |s, p| comment(s, p, true)),
         cmd!("review.replyComment", "Reply", [], None, "{cell?, text, author?}", has_doc, reply_comment),
         cmd!("review.resolveComment", "Resolve Thread", [], None, "{cell?, resolved?: true}", has_doc, resolve_comment),
         cmd!("review.deleteComment", "Delete Comment", ["Review", "Comments"], None, "{cell?}", has_doc, delete_comment),
         cmd!("review.showNote", "Show/Hide Note", ["Review", "Notes"], None, "{cell?}", has_doc, show_note),
-        cmd!("insert.symbol", "Symbol", ["Insert", "Symbols"], None, "{char: \"€\"} (inserted at the end of the active cell's text)", has_doc, insert_symbol),
-        cmd!("home.conditionalFormat", "Conditional Formatting", ["Home", "Styles"], None, "{range?, rule: {type: cellIs|expression|containsText|beginsWith|endsWith|blanks|noBlanks|errors|noErrors|duplicate|unique|top10|aboveAverage|timePeriod|colorScale|dataBar|iconSet, operator?, value?, value2?, formula?, text?, rank?, bottom?, percent?, below?, period?, colors?: [..], color?, set?, style?: {font..fill..}|preset: lightRedFill|redText|yellowFill|greenFill|redBorder|lightRedFillDarkRedText…}}", has_doc, add_cf),
+        cmd!(
+            "insert.symbol",
+            "Symbol",
+            ["Insert", "Symbols"],
+            None,
+            "{char: \"€\"} (inserted at the end of the active cell's text)",
+            has_doc,
+            insert_symbol
+        ),
+        cmd!(
+            "home.conditionalFormat",
+            "Conditional Formatting",
+            ["Home", "Styles"],
+            None,
+            "{range?, rule: {type: cellIs|expression|containsText|beginsWith|endsWith|blanks|noBlanks|errors|noErrors|duplicate|unique|top10|aboveAverage|timePeriod|colorScale|dataBar|iconSet, operator?, value?, value2?, formula?, text?, rank?, bottom?, percent?, below?, period?, colors?: [..], color?, set?, style?: {font..fill..}|preset: lightRedFill|redText|yellowFill|greenFill|redBorder|lightRedFillDarkRedText…}}",
+            has_doc,
+            add_cf
+        ),
         cmd!("home.clearRules", "Clear Rules", ["Home", "Styles", "Conditional Formatting"], None, "{range?|sheet: true}", has_doc, clear_cf),
-        cmd!("home.manageRules", "Manage Rules…", ["Home", "Styles", "Conditional Formatting"], None, "{delete?: index, moveUp?: index, moveDown?: index}", has_doc, manage_cf),
+        cmd!(
+            "home.manageRules",
+            "Manage Rules…",
+            ["Home", "Styles", "Conditional Formatting"],
+            None,
+            "{delete?: index, moveUp?: index, moveDown?: index}",
+            has_doc,
+            manage_cf
+        ),
     ]
 }
 
@@ -82,7 +196,9 @@ fn insert_table(s: &mut Session, p: &Json) -> Result<Json> {
         let sh = d.wb.sheet(sheet);
         sh.is_some_and(|sh| (r.start.col..=r.end.col).all(|c| sh.value(CellRef::new(r.start.row, c)).is_text()) && r.height() > 1)
     });
-    let name = str_param(p, "name").map(str::to_string).unwrap_or_else(|| (1..).map(|n| format!("Table{n}")).find(|n| d.wb.table(n).is_none()).unwrap_or_else(|| "Table".into()));
+    let name = str_param(p, "name")
+        .map(str::to_string)
+        .unwrap_or_else(|| (1..).map(|n| format!("Table{n}")).find(|n| d.wb.table(n).is_none()).unwrap_or_else(|| "Table".into()));
     if d.wb.table(&name).is_some() || d.wb.names.iter().any(|n| n.name.eq_ignore_ascii_case(&name)) {
         return Err(EngineError::Other("The name entered already exists. Enter a unique name.".into()));
     }
@@ -144,7 +260,11 @@ fn find_table(s: &Session, p: &Json) -> Result<(usize, usize)> {
     }
     let sheet = d.wb.active_sheet;
     let sh = d.wb.sheet(sheet).ok_or(EngineError::NoDocument)?;
-    let ti = sh.tables.iter().position(|t| t.range.contains(d.selection.active)).ok_or_else(|| EngineError::Disabled("table".into(), "select a cell in a table".into()))?;
+    let ti = sh
+        .tables
+        .iter()
+        .position(|t| t.range.contains(d.selection.active))
+        .ok_or_else(|| EngineError::Disabled("table".into(), "select a cell in a table".into()))?;
     Ok((sheet, ti))
 }
 
@@ -204,7 +324,8 @@ fn write_totals(sh: &mut Sheet, ti: usize) {
         let c = CellRef::new(row, t.range.start.col + i as u32);
         if let Some(code) = col.totals.subtotal_code() {
             let f = format!("=SUBTOTAL({code},{}[{}])", t.name, col.name);
-            sh.cells.set(c, Cell { formula: Some(std::sync::Arc::new(Formula::new(&f))), value: sheetcraft_core::Value::Empty, style: sh.style_id(c) });
+            sh.cells
+                .set(c, Cell { formula: Some(std::sync::Arc::new(Formula::new(&f))), value: sheetcraft_core::Value::Empty, style: sh.style_id(c) });
         } else if let Some(l) = &col.totals_label {
             sh.set_value(c, sheetcraft_core::Value::text(l.as_str()));
         } else {
@@ -255,7 +376,11 @@ fn table_style(s: &mut Session, p: &Json) -> Result<Json> {
 fn table_rename(s: &mut Session, p: &Json) -> Result<Json> {
     let (si, ti) = find_table(s, p)?;
     let name = str_param(p, "name").ok_or_else(|| bad("table.rename", "missing `name`"))?.to_string();
-    if name.is_empty() || name.contains(' ') || name.chars().next().is_some_and(|c| c.is_ascii_digit()) || sheetcraft_core::CellRef::parse(&name).is_some() {
+    if name.is_empty()
+        || name.contains(' ')
+        || name.chars().next().is_some_and(|c| c.is_ascii_digit())
+        || sheetcraft_core::CellRef::parse(&name).is_some()
+    {
         return Err(EngineError::Other("The name that you entered is not valid.".into()));
     }
     if s.doc()?.wb.table(&name).is_some_and(|x| x != (si, ti)) {
@@ -268,7 +393,8 @@ fn table_rename(s: &mut Session, p: &Json) -> Result<Json> {
         }
         // Structured references follow the rename.
         for i in 0..cx.wb.sheets.len() {
-            let keys: Vec<(CellRef, std::sync::Arc<Formula>)> = cx.wb.sheets.get(i).map(|s| s.cells.iter().filter_map(|(c, x)| x.formula.clone().map(|f| (c, f))).collect()).unwrap_or_default();
+            let keys: Vec<(CellRef, std::sync::Arc<Formula>)> =
+                cx.wb.sheets.get(i).map(|s| s.cells.iter().filter_map(|(c, x)| x.formula.clone().map(|f| (c, f))).collect()).unwrap_or_default();
             let Some(sh) = cx.wb.sheet_mut(i) else { continue };
             for (c, f) in keys {
                 let Some(e) = f.expr() else { continue };
@@ -346,10 +472,20 @@ pub fn chart_kind(t: &str, sub: &str) -> ChartKind {
 /// Builds series from a block: first row/column as names/categories when they're text.
 pub fn series_from_range(sh: &Sheet, r: RangeRef, by_rows: bool) -> Vec<Series> {
     let q = sheetcraft_formula::quote_sheet(&sh.name);
-    let abs = |r: RangeRef| format!("{q}!${}${}:${}${}", sheetcraft_core::col_to_letters(r.start.col), r.start.row + 1, sheetcraft_core::col_to_letters(r.end.col), r.end.row + 1);
+    let abs = |r: RangeRef| {
+        format!(
+            "{q}!${}${}:${}${}",
+            sheetcraft_core::col_to_letters(r.start.col),
+            r.start.row + 1,
+            sheetcraft_core::col_to_letters(r.end.col),
+            r.end.row + 1
+        )
+    };
     let abs1 = |c: CellRef| format!("{q}!${}${}", sheetcraft_core::col_to_letters(c.col), c.row + 1);
     let is_text = |c: CellRef| sh.value(c).is_text() || sh.value(c).is_empty();
-    let header_row = r.height() > 1 && (r.start.col..=r.end.col).any(|c| sh.value(CellRef::new(r.start.row, c)).is_text()) && (r.start.col..=r.end.col).filter(|c| *c != r.start.col).all(|c| is_text(CellRef::new(r.start.row, c)));
+    let header_row = r.height() > 1
+        && (r.start.col..=r.end.col).any(|c| sh.value(CellRef::new(r.start.row, c)).is_text())
+        && (r.start.col..=r.end.col).filter(|c| *c != r.start.col).all(|c| is_text(CellRef::new(r.start.row, c)));
     let label_col = r.width() > 1 && (r.start.row + header_row as u32..=r.end.row).all(|row| is_text(CellRef::new(row, r.start.col)));
     let data = RangeRef::new(CellRef::new(r.start.row + header_row as u32, r.start.col + label_col as u32), r.end);
     let mut out = Vec::new();
@@ -369,7 +505,8 @@ pub fn series_from_range(sh: &Sheet, r: RangeRef, by_rows: bool) -> Vec<Series> 
         for row in data.start.row..=data.end.row {
             out.push(Series {
                 name: label_col.then(|| abs1(CellRef::new(row, r.start.col))),
-                categories: header_row.then(|| abs(RangeRef::new(CellRef::new(r.start.row, data.start.col), CellRef::new(r.start.row, data.end.col)))),
+                categories: header_row
+                    .then(|| abs(RangeRef::new(CellRef::new(r.start.row, data.start.col), CellRef::new(r.start.row, data.end.col)))),
                 values: abs(RangeRef::new(CellRef::new(row, data.start.col), CellRef::new(row, data.end.col))),
                 bubble_sizes: None,
                 color: None,
@@ -404,11 +541,23 @@ fn insert_chart(s: &mut Session, p: &Json) -> Result<Json> {
     }
     let id = d.wb.next_object_id();
     let at = cell_param(p, "at").unwrap_or_else(|| CellRef::new(r.start.row, r.end.col + 2));
-    let title = str_param(p, "title").map(str::to_string).or_else(|| if series.len() == 1 { series[0].name.as_ref().map(|n| sheetcraft_calc::evaluate(&d.wb, sheet, at, n).display()) } else { Some("Chart Title".into()) });
+    let title = str_param(p, "title").map(str::to_string).or_else(|| {
+        if series.len() == 1 {
+            series[0].name.as_ref().map(|n| sheetcraft_calc::evaluate(&d.wb, sheet, at, n).display())
+        } else {
+            Some("Chart Title".into())
+        }
+    });
     let chart = Chart {
         id,
         kind,
-        anchor: Anchor { cell: at, dx: 0.0, dy: 0.0, width: f64_param(p, "width").unwrap_or(480.0) as f32, height: f64_param(p, "height").unwrap_or(288.0) as f32 },
+        anchor: Anchor {
+            cell: at,
+            dx: 0.0,
+            dy: 0.0,
+            width: f64_param(p, "width").unwrap_or(480.0) as f32,
+            height: f64_param(p, "height").unwrap_or(288.0) as f32,
+        },
         title,
         series,
         legend: if matches!(kind, ChartKind::Pie | ChartKind::Doughnut) { LegendPos::Right } else { LegendPos::Bottom },
@@ -549,7 +698,9 @@ fn insert_picture(s: &mut Session, p: &Json) -> Result<Json> {
     if data.len() > 64 * 1024 * 1024 {
         return Err(bad("insert.picture", "image larger than 64 MB"));
     }
-    let mime = str_param(p, "mime").map(str::to_string).unwrap_or_else(|| if data.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png".into() } else { "image/jpeg".into() });
+    let mime = str_param(p, "mime")
+        .map(str::to_string)
+        .unwrap_or_else(|| if data.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png".into() } else { "image/jpeg".into() });
     let (w, h) = crate::io::image_size(&data).unwrap_or((320, 240));
     let d = s.doc()?;
     let id = d.wb.next_object_id();
@@ -557,7 +708,13 @@ fn insert_picture(s: &mut Session, p: &Json) -> Result<Json> {
     let scale = (640.0 / w.max(1) as f32).min(1.0);
     let img = Image {
         id,
-        anchor: Anchor { cell: at, dx: 0.0, dy: 0.0, width: f64_param(p, "width").map(|v| v as f32).unwrap_or(w as f32 * scale), height: f64_param(p, "height").map(|v| v as f32).unwrap_or(h as f32 * scale) },
+        anchor: Anchor {
+            cell: at,
+            dx: 0.0,
+            dy: 0.0,
+            width: f64_param(p, "width").map(|v| v as f32).unwrap_or(w as f32 * scale),
+            height: f64_param(p, "height").map(|v| v as f32).unwrap_or(h as f32 * scale),
+        },
         data,
         mime,
         alt: str_param(p, "alt").unwrap_or("").into(),
@@ -582,12 +739,23 @@ fn insert_shape(s: &mut Session, p: &Json) -> Result<Json> {
     let d = s.doc()?;
     let id = d.wb.next_object_id();
     let at = cell_param(p, "at").unwrap_or(d.selection.active);
-    let fill = super::format::color_param(p.get("fill")).unwrap_or(if kind == ShapeKind::TextBox { Color::rgb(255, 255, 255) } else { Color::Theme(4, 0) });
-    let line = super::format::color_param(p.get("line")).unwrap_or(if kind == ShapeKind::TextBox { Color::rgb(0x80, 0x80, 0x80) } else { Color::Theme(4, -250) });
+    let fill =
+        super::format::color_param(p.get("fill")).unwrap_or(if kind == ShapeKind::TextBox { Color::rgb(255, 255, 255) } else { Color::Theme(4, 0) });
+    let line = super::format::color_param(p.get("line")).unwrap_or(if kind == ShapeKind::TextBox {
+        Color::rgb(0x80, 0x80, 0x80)
+    } else {
+        Color::Theme(4, -250)
+    });
     let shape = Shape {
         id,
         kind,
-        anchor: Anchor { cell: at, dx: 0.0, dy: 0.0, width: f64_param(p, "width").unwrap_or(144.0) as f32, height: f64_param(p, "height").unwrap_or(if kind == ShapeKind::Line { 0.0 } else { 96.0 }) as f32 },
+        anchor: Anchor {
+            cell: at,
+            dx: 0.0,
+            dy: 0.0,
+            width: f64_param(p, "width").unwrap_or(144.0) as f32,
+            height: f64_param(p, "height").unwrap_or(if kind == ShapeKind::Line { 0.0 } else { 96.0 }) as f32,
+        },
         fill,
         line,
         text: str_param(p, "text").unwrap_or("").into(),
@@ -685,7 +853,9 @@ fn comment(s: &mut Session, p: &Json, threaded: bool) -> Result<Json> {
     let text = str_param(p, "text").unwrap_or("").to_string();
     let author = str_param(p, "author").map(str::to_string).unwrap_or_else(|| s.prefs.user_name.clone());
     edit(s, |cx| {
-        cx.sheet_mut(sheet)?.comments.insert(at, Comment { author: author.clone(), text: text.clone(), replies: vec![], threaded, resolved: false, visible: false });
+        cx.sheet_mut(sheet)?
+            .comments
+            .insert(at, Comment { author: author.clone(), text: text.clone(), replies: vec![], threaded, resolved: false, visible: false });
         Ok(json!({"cell": at.a1()}))
     })
 }
@@ -816,7 +986,13 @@ fn add_cf(s: &mut Session, p: &Json) -> Result<Json> {
             };
             let a = rule.get("value").map(super::edit::json_to_input).unwrap_or_default();
             let b = rule.get("value2").map(super::edit::json_to_input);
-            let quote = |v: String| if sheetcraft_core::parse::parse_number_text(&v).is_some() || v.starts_with('=') { v.trim_start_matches('=').to_string() } else { format!("\"{}\"", v.replace('"', "\"\"")) };
+            let quote = |v: String| {
+                if sheetcraft_core::parse::parse_number_text(&v).is_some() || v.starts_with('=') {
+                    v.trim_start_matches('=').to_string()
+                } else {
+                    format!("\"{}\"", v.replace('"', "\"\""))
+                }
+            };
             CfRule::CellIs { op, a: quote(a), b: b.map(quote), style }
         }
         "expression" => CfRule::Expression { formula: g("formula").unwrap_or_default().trim_start_matches('=').to_string(), style },
@@ -839,10 +1015,18 @@ fn add_cf(s: &mut Session, p: &Json) -> Result<Json> {
         "aboveAverage" => CfRule::AboveAverage { below: rule.get("below").and_then(Json::as_bool).unwrap_or(false), equal: false, std_dev: 0, style },
         "timePeriod" => CfRule::TimePeriod { period: g("period").unwrap_or_else(|| "today".into()), style },
         "colorScale" => {
-            let cols: Vec<Color> = rule.get("colors").and_then(Json::as_array).map(|a| a.iter().filter_map(|c| super::format::color_param(Some(c))).collect()).unwrap_or_else(|| vec![Color::rgb(0xF8, 0x69, 0x6B), Color::rgb(0xFF, 0xEB, 0x84), Color::rgb(0x63, 0xBE, 0x7B)]);
+            let cols: Vec<Color> = rule
+                .get("colors")
+                .and_then(Json::as_array)
+                .map(|a| a.iter().filter_map(|c| super::format::color_param(Some(c))).collect())
+                .unwrap_or_else(|| vec![Color::rgb(0xF8, 0x69, 0x6B), Color::rgb(0xFF, 0xEB, 0x84), Color::rgb(0x63, 0xBE, 0x7B)]);
             let stops = match cols.len() {
                 2 => vec![(CfValueKind::Min, cols[0]), (CfValueKind::Max, cols[1])],
-                _ => vec![(CfValueKind::Min, cols.first().copied().unwrap_or_default()), (CfValueKind::Percentile(50.0), cols.get(1).copied().unwrap_or_default()), (CfValueKind::Max, cols.get(2).copied().unwrap_or_default())],
+                _ => vec![
+                    (CfValueKind::Min, cols.first().copied().unwrap_or_default()),
+                    (CfValueKind::Percentile(50.0), cols.get(1).copied().unwrap_or_default()),
+                    (CfValueKind::Max, cols.get(2).copied().unwrap_or_default()),
+                ],
             };
             CfRule::ColorScale { stops }
         }
@@ -853,7 +1037,12 @@ fn add_cf(s: &mut Session, p: &Json) -> Result<Json> {
             gradient: rule.get("gradient").and_then(Json::as_bool).unwrap_or(true),
             show_value: true,
         },
-        "iconSet" => CfRule::IconSet { set: g("set").unwrap_or_else(|| "3TrafficLights1".into()), thresholds: vec![], reverse: rule.get("reverse").and_then(Json::as_bool).unwrap_or(false), show_value: true },
+        "iconSet" => CfRule::IconSet {
+            set: g("set").unwrap_or_else(|| "3TrafficLights1".into()),
+            thresholds: vec![],
+            reverse: rule.get("reverse").and_then(Json::as_bool).unwrap_or(false),
+            show_value: true,
+        },
         other => return Err(bad("home.conditionalFormat", format!("unknown rule type `{other}`"))),
     };
     edit(s, |cx| {
@@ -890,7 +1079,14 @@ fn clear_cf(s: &mut Session, p: &Json) -> Result<Json> {
 fn manage_cf(s: &mut Session, p: &Json) -> Result<Json> {
     let sheet = target_sheet(s, p)?;
     if p.get("delete").is_none() && p.get("moveUp").is_none() && p.get("moveDown").is_none() {
-        let list: Vec<Json> = s.doc()?.wb.sheet(sheet).map(|sh| sh.cond_formats.iter().map(|c| json!({"ranges": c.ranges.iter().map(|r| r.a1()).collect::<Vec<_>>(), "rule": c.rule})).collect()).unwrap_or_default();
+        let list: Vec<Json> = s
+            .doc()?
+            .wb
+            .sheet(sheet)
+            .map(|sh| {
+                sh.cond_formats.iter().map(|c| json!({"ranges": c.ranges.iter().map(|r| r.a1()).collect::<Vec<_>>(), "rule": c.rule})).collect()
+            })
+            .unwrap_or_default();
         return Ok(json!({"rules": list}));
     }
     edit(s, |cx| {

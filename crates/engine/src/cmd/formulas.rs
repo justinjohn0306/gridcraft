@@ -8,13 +8,45 @@ use super::*;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!("formulas.autoSum", "AutoSum", ["Formulas", "Function Library"], Some("Cmd+Shift+T"), "{function?: SUM|AVERAGE|COUNT|MAX|MIN, range?}", has_doc, auto_sum),
-        cmd!("formulas.insertFunction", "Insert Function…", ["Formulas", "Function Library"], Some("Shift+F3"), "{name?: \"VLOOKUP\"} (UI opens the dialog; with a name, starts the formula in the active cell)", has_doc, insert_function),
+        cmd!(
+            "formulas.autoSum",
+            "AutoSum",
+            ["Formulas", "Function Library"],
+            Some("Cmd+Shift+T"),
+            "{function?: SUM|AVERAGE|COUNT|MAX|MIN, range?}",
+            has_doc,
+            auto_sum
+        ),
+        cmd!(
+            "formulas.insertFunction",
+            "Insert Function…",
+            ["Formulas", "Function Library"],
+            Some("Shift+F3"),
+            "{name?: \"VLOOKUP\"} (UI opens the dialog; with a name, starts the formula in the active cell)",
+            has_doc,
+            insert_function
+        ),
         cmd!(query "formulas.functions", "List Functions", [], None, "{category?, search?} → [{name, category, signature, description}]", always, list_functions),
-        cmd!("formulas.defineName", "Define Name…", ["Formulas", "Defined Names"], None, "{name, refersTo?: \"=Sheet1!$A$1:$A$10\" (default: the selection), scope?: \"Workbook\"|sheet name, comment?}", has_doc, define_name),
+        cmd!(
+            "formulas.defineName",
+            "Define Name…",
+            ["Formulas", "Defined Names"],
+            None,
+            "{name, refersTo?: \"=Sheet1!$A$1:$A$10\" (default: the selection), scope?: \"Workbook\"|sheet name, comment?}",
+            has_doc,
+            define_name
+        ),
         cmd!("formulas.deleteName", "Delete Name", [], None, "{name, scope?}", has_doc, delete_name),
         cmd!(query "formulas.nameManager", "Name Manager", ["Formulas", "Defined Names"], Some("Cmd+F3"), "{} → names with values", has_doc, name_manager),
-        cmd!("formulas.createFromSelection", "Create from Selection", ["Formulas", "Defined Names"], Some("Cmd+Shift+F3"), "{range?, top?: true, left?: false, bottom?, right?}", has_doc, create_from_selection),
+        cmd!(
+            "formulas.createFromSelection",
+            "Create from Selection",
+            ["Formulas", "Defined Names"],
+            Some("Cmd+Shift+F3"),
+            "{range?, top?: true, left?: false, bottom?, right?}",
+            has_doc,
+            create_from_selection
+        ),
         cmd!(query "formulas.tracePrecedents", "Trace Precedents", ["Formulas", "Formula Auditing"], None, "{cell?} → ranges", has_doc, trace_precedents),
         cmd!(query "formulas.traceDependents", "Trace Dependents", ["Formulas", "Formula Auditing"], None, "{cell?} → cells", has_doc, trace_dependents),
         cmd!(noundo "formulas.removeArrows", "Remove Arrows", ["Formulas", "Formula Auditing"], None, "{}", has_doc, |_, _| ok()),
@@ -24,7 +56,15 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!(query "formulas.evaluate", "Evaluate", [], None, "{formula: \"=SUM(A1:A3)\", cell?} → value without changing the sheet", has_doc, evaluate),
         cmd!(noundo "formulas.calculateNow", "Calculate Now", ["Formulas", "Calculation"], Some("F9"), "{}", has_doc, calc_now),
         cmd!(noundo "formulas.calculateSheet", "Calculate Sheet", ["Formulas", "Calculation"], Some("Shift+F9"), "{}", has_doc, calc_now),
-        cmd!("formulas.calculationOptions", "Calculation Options", ["Formulas", "Calculation"], None, "{mode: automatic|automaticExceptTables|manual, iterative?, maxIterations?, maxChange?}", has_doc, calc_options),
+        cmd!(
+            "formulas.calculationOptions",
+            "Calculation Options",
+            ["Formulas", "Calculation"],
+            None,
+            "{mode: automatic|automaticExceptTables|manual, iterative?, maxIterations?, maxChange?}",
+            has_doc,
+            calc_options
+        ),
     ]
 }
 
@@ -58,7 +98,10 @@ fn auto_sum(s: &mut Session, p: &Json) -> Result<Json> {
     let mut range = None;
     if at.row > 0 && (numeric(CellRef::new(at.row - 1, at.col)) || at.col == 0 || !numeric(CellRef::new(at.row, at.col - 1))) {
         let mut top = at.row - 1;
-        while top > 0 && (numeric(CellRef::new(top - 1, at.col)) || sh.value(CellRef::new(top - 1, at.col)).is_empty() && top > 1 && numeric(CellRef::new(top - 2, at.col))) {
+        while top > 0
+            && (numeric(CellRef::new(top - 1, at.col))
+                || sh.value(CellRef::new(top - 1, at.col)).is_empty() && top > 1 && numeric(CellRef::new(top - 2, at.col)))
+        {
             top -= 1;
         }
         if numeric(CellRef::new(at.row - 1, at.col)) {
@@ -106,7 +149,12 @@ pub fn function_list() -> Vec<Json> {
         .map(|f| json!({"name": f.name, "category": format!("{:?}", f.category), "signature": f.signature, "description": f.description}))
         .collect();
     let specials: &[(&str, &str, &str, &str)] = &[
-        ("IF", "Logical", "IF(logical_test, [value_if_true], [value_if_false])", "Returns one value if a condition is true and another if it's false."),
+        (
+            "IF",
+            "Logical",
+            "IF(logical_test, [value_if_true], [value_if_false])",
+            "Returns one value if a condition is true and another if it's false.",
+        ),
         ("IFS", "Logical", "IFS(test1, value1, ...)", "Returns the value of the first true condition."),
         ("IFERROR", "Logical", "IFERROR(value, value_if_error)", "Returns a fallback when a value is an error."),
         ("IFNA", "Logical", "IFNA(value, value_if_na)", "Returns a fallback when a value is #N/A."),
@@ -154,7 +202,12 @@ fn list_functions(_: &mut Session, p: &Json) -> Result<Json> {
     let v: Vec<Json> = function_list()
         .into_iter()
         .filter(|f| cat.as_ref().is_none_or(|c| f["category"].as_str().is_some_and(|x| x.to_ascii_lowercase() == *c)))
-        .filter(|f| q.as_ref().is_none_or(|q| f["name"].as_str().is_some_and(|x| x.to_ascii_lowercase().contains(q.as_str())) || f["description"].as_str().is_some_and(|x| x.to_ascii_lowercase().contains(q.as_str()))))
+        .filter(|f| {
+            q.as_ref().is_none_or(|q| {
+                f["name"].as_str().is_some_and(|x| x.to_ascii_lowercase().contains(q.as_str()))
+                    || f["description"].as_str().is_some_and(|x| x.to_ascii_lowercase().contains(q.as_str()))
+            })
+        })
         .collect();
     Ok(Json::Array(v))
 }
@@ -245,7 +298,15 @@ fn create_from_selection(s: &mut Session, p: &Json) -> Result<Json> {
     let d = s.doc()?;
     let sh = d.wb.active().ok_or(EngineError::NoDocument)?;
     let q = sheetcraft_formula::quote_sheet(&sh.name);
-    let abs = |r: RangeRef| format!("{q}!${}${}:${}${}", sheetcraft_core::col_to_letters(r.start.col), r.start.row + 1, sheetcraft_core::col_to_letters(r.end.col), r.end.row + 1);
+    let abs = |r: RangeRef| {
+        format!(
+            "{q}!${}${}:${}${}",
+            sheetcraft_core::col_to_letters(r.start.col),
+            r.start.row + 1,
+            sheetcraft_core::col_to_letters(r.end.col),
+            r.end.row + 1
+        )
+    };
     let clean = |t: String| -> String {
         let mut n: String = t.trim().chars().map(|c| if c.is_alphanumeric() || c == '.' { c } else { '_' }).collect();
         if n.chars().next().is_some_and(|c| c.is_ascii_digit()) || CellRef::parse(&n).is_some() {
@@ -316,14 +377,17 @@ fn error_checking(s: &mut Session, _: &Json) -> Result<Json> {
     for sh in &d.wb.sheets {
         for (c, cell) in sh.cells.iter() {
             if let Some(e) = cell.value.as_error() {
-                out.push(json!({"sheet": sh.name, "cell": c.a1(), "error": e.as_str(), "formula": cell.formula.as_ref().map(|f| format!("={}", f.text))}));
+                out.push(
+                    json!({"sheet": sh.name, "cell": c.a1(), "error": e.as_str(), "formula": cell.formula.as_ref().map(|f| format!("={}", f.text))}),
+                );
             }
             if out.len() >= 10_000 {
                 break;
             }
         }
     }
-    let circ: Vec<String> = d.calc.circular.iter().map(|(si, c)| format!("{}!{}", d.wb.sheet(*si).map(|s| s.name.clone()).unwrap_or_default(), c.a1())).collect();
+    let circ: Vec<String> =
+        d.calc.circular.iter().map(|(si, c)| format!("{}!{}", d.wb.sheet(*si).map(|s| s.name.clone()).unwrap_or_default(), c.a1())).collect();
     Ok(json!({"errors": out, "circular": circ}))
 }
 
@@ -333,7 +397,13 @@ fn evaluate_formula(s: &mut Session, p: &Json) -> Result<Json> {
     let sheet = d.wb.active_sheet;
     let text = match str_param(p, "formula") {
         Some(f) => f.trim_start_matches('=').to_string(),
-        None => d.wb.sheet(sheet).and_then(|sh| sh.cell(at)).and_then(|c| c.formula.as_ref()).map(|f| f.text.clone()).ok_or_else(|| EngineError::Other("The cell has no formula.".into()))?,
+        None => {
+            d.wb.sheet(sheet)
+                .and_then(|sh| sh.cell(at))
+                .and_then(|c| c.formula.as_ref())
+                .map(|f| f.text.clone())
+                .ok_or_else(|| EngineError::Other("The cell has no formula.".into()))?
+        }
     };
     let expr = sheetcraft_formula::parse(&text).map_err(|e| EngineError::Other(e.to_string()))?;
     // Steps: each sub-expression (innermost first) with its value.

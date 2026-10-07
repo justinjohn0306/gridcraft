@@ -249,7 +249,11 @@ impl BorderStyle {
         match self {
             BorderStyle::None => 0.0,
             BorderStyle::Hair | BorderStyle::Thin | BorderStyle::Dashed | BorderStyle::Dotted | BorderStyle::DashDot | BorderStyle::DashDotDot => 1.0,
-            BorderStyle::Medium | BorderStyle::MediumDashed | BorderStyle::MediumDashDot | BorderStyle::MediumDashDotDot | BorderStyle::SlantDashDot => 2.0,
+            BorderStyle::Medium
+            | BorderStyle::MediumDashed
+            | BorderStyle::MediumDashDot
+            | BorderStyle::MediumDashDotDot
+            | BorderStyle::SlantDashDot => 2.0,
             BorderStyle::Thick | BorderStyle::Double => 3.0,
         }
     }

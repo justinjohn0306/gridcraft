@@ -336,12 +336,16 @@ impl<'h> Evaluator<'h> {
             };
         }
         let v = self.value(x);
-        Ev::V(map_unary(&v, &|n| match op {
-            UnOp::Neg => Value::number(-n),
-            UnOp::Plus => Value::number(n),
-            UnOp::Percent => Value::number(n / 100.0),
-            UnOp::At => Value::number(n),
-        }, op == UnOp::Plus))
+        Ev::V(map_unary(
+            &v,
+            &|n| match op {
+                UnOp::Neg => Value::number(-n),
+                UnOp::Plus => Value::number(n),
+                UnOp::Percent => Value::number(n / 100.0),
+                UnOp::At => Value::number(n),
+            },
+            op == UnOp::Plus,
+        ))
     }
 
     fn implicit_intersect(&self, a: &Area) -> Option<CellRef> {
@@ -711,8 +715,7 @@ impl<'h> Evaluator<'h> {
             evaluated.push(Arg { value, from_ref });
         }
         let mut ctx = FnCtx { ev: self };
-        sheetcraft_functions::call(spec, &evaluated, &mut ctx)
-            .pipe(Ev::V)
+        sheetcraft_functions::call(spec, &evaluated, &mut ctx).pipe(Ev::V)
     }
 
     pub fn apply_lambda(&mut self, l: &Lambda, args: &[Expr]) -> Ev {
@@ -862,7 +865,10 @@ impl<'h> Evaluator<'h> {
                 let mut out = Vec::with_capacity(rows * cols);
                 for r in 0..rows {
                     for c in 0..cols {
-                        let bound = vec![(l.params[0].clone(), Ev::V(Value::number(r as f64 + 1.0))), (l.params[1].clone(), Ev::V(Value::number(c as f64 + 1.0)))];
+                        let bound = vec![
+                            (l.params[0].clone(), Ev::V(Value::number(r as f64 + 1.0))),
+                            (l.params[1].clone(), Ev::V(Value::number(c as f64 + 1.0))),
+                        ];
                         let v = self.call_lambda_values(&l, bound);
                         out.push(self.deref(v).scalar());
                     }
@@ -1323,7 +1329,11 @@ pub fn precedents(wb: &Workbook, sheet: usize, e: &Expr) -> (Vec<Area>, bool) {
                 }
             }
         }
-        Expr::Call(n, _) if matches!(n.as_str(), "INDIRECT" | "OFFSET" | "NOW" | "TODAY" | "RAND" | "RANDBETWEEN" | "RANDARRAY" | "CELL" | "INFO") => dynamic = true,
+        Expr::Call(n, _)
+            if matches!(n.as_str(), "INDIRECT" | "OFFSET" | "NOW" | "TODAY" | "RAND" | "RANDBETWEEN" | "RANDARRAY" | "CELL" | "INFO") =>
+        {
+            dynamic = true
+        }
         Expr::Name(_) | Expr::Struct(_) => dynamic = true,
         Expr::Call(n, _) if sheetcraft_functions::lookup(n).is_none() && !is_special(n) => dynamic = true,
         _ => {}
@@ -1370,8 +1380,38 @@ fn is_special(n: &str) -> bool {
 
 /// Names of functions the evaluator implements itself (merged into the function list for UI).
 pub const SPECIAL_FUNCTIONS: &[&str] = &[
-    "IF", "IFS", "IFERROR", "IFNA", "CHOOSE", "SWITCH", "ROW", "COLUMN", "ROWS", "COLUMNS", "AREAS", "ISREF", "ISFORMULA", "FORMULATEXT", "SHEET", "SHEETS", "OFFSET",
-    "INDIRECT", "INDEX", "CELL", "SUBTOTAL", "AGGREGATE", "TEXT", "LET", "LAMBDA", "ISOMITTED", "MAP", "REDUCE", "SCAN", "BYROW", "BYCOL", "MAKEARRAY",
+    "IF",
+    "IFS",
+    "IFERROR",
+    "IFNA",
+    "CHOOSE",
+    "SWITCH",
+    "ROW",
+    "COLUMN",
+    "ROWS",
+    "COLUMNS",
+    "AREAS",
+    "ISREF",
+    "ISFORMULA",
+    "FORMULATEXT",
+    "SHEET",
+    "SHEETS",
+    "OFFSET",
+    "INDIRECT",
+    "INDEX",
+    "CELL",
+    "SUBTOTAL",
+    "AGGREGATE",
+    "TEXT",
+    "LET",
+    "LAMBDA",
+    "ISOMITTED",
+    "MAP",
+    "REDUCE",
+    "SCAN",
+    "BYROW",
+    "BYCOL",
+    "MAKEARRAY",
 ];
 
 pub fn is_known_function(n: &str) -> bool {

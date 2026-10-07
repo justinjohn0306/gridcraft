@@ -11,10 +11,30 @@ use super::*;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!("home.insertRows", "Insert Sheet Rows", ["Home", "Cells", "Insert"], Some("Ctrl+Shift+="), "{rows?: \"3:5\", count?}", has_doc, |s, p| insert_lines(s, p, Axis::Rows)),
-        cmd!("home.insertColumns", "Insert Sheet Columns", ["Home", "Cells", "Insert"], None, "{cols?: \"B:C\"}", has_doc, |s, p| insert_lines(s, p, Axis::Cols)),
-        cmd!("home.deleteRows", "Delete Sheet Rows", ["Home", "Cells", "Delete"], Some("Cmd+-"), "{rows?}", has_doc, |s, p| delete_lines(s, p, Axis::Rows)),
-        cmd!("home.deleteColumns", "Delete Sheet Columns", ["Home", "Cells", "Delete"], None, "{cols?}", has_doc, |s, p| delete_lines(s, p, Axis::Cols)),
+        cmd!(
+            "home.insertRows",
+            "Insert Sheet Rows",
+            ["Home", "Cells", "Insert"],
+            Some("Ctrl+Shift+="),
+            "{rows?: \"3:5\", count?}",
+            has_doc,
+            |s, p| insert_lines(s, p, Axis::Rows)
+        ),
+        cmd!("home.insertColumns", "Insert Sheet Columns", ["Home", "Cells", "Insert"], None, "{cols?: \"B:C\"}", has_doc, |s, p| insert_lines(
+            s,
+            p,
+            Axis::Cols
+        )),
+        cmd!("home.deleteRows", "Delete Sheet Rows", ["Home", "Cells", "Delete"], Some("Cmd+-"), "{rows?}", has_doc, |s, p| delete_lines(
+            s,
+            p,
+            Axis::Rows
+        )),
+        cmd!("home.deleteColumns", "Delete Sheet Columns", ["Home", "Cells", "Delete"], None, "{cols?}", has_doc, |s, p| delete_lines(
+            s,
+            p,
+            Axis::Cols
+        )),
         cmd!("home.insertCells", "Insert Cells…", ["Home", "Cells", "Insert"], None, "{range?, shift: right|down|row|column}", has_doc, insert_cells),
         cmd!("home.deleteCells", "Delete Cells…", ["Home", "Cells", "Delete"], None, "{range?, shift: left|up|row|column}", has_doc, delete_cells),
         cmd!("home.insertSheet", "Insert Sheet", ["Home", "Cells", "Insert"], Some("Shift+F11"), "{name?, before?: index}", has_doc, insert_sheet),
@@ -100,7 +120,10 @@ fn shift_sheet_features(sh: &mut Sheet, axis: Axis, at: u32, count: u32, insert:
                 let idx = (at - t.range.start.col) as usize;
                 for k in 0..count {
                     let name = format!("Column{}", t.columns.len() + 1);
-                    t.columns.insert((idx + k as usize).min(t.columns.len()), sheetcraft_model::TableColumn { name, totals: Default::default(), totals_label: None, formula: None });
+                    t.columns.insert(
+                        (idx + k as usize).min(t.columns.len()),
+                        sheetcraft_model::TableColumn { name, totals: Default::default(), totals_label: None, formula: None },
+                    );
                 }
             }
             if axis == Axis::Cols && !insert {
@@ -289,7 +312,11 @@ fn delete_cells(s: &mut Session, p: &Json) -> Result<Json> {
         // References into the deleted block become #REF!; the rest move.
         let deleted = Edit::Move { from: r, to_row: r.start.row, to_col: r.start.col };
         let _ = deleted;
-        let moved_from = if left { RangeRef::new(CellRef::new(r.start.row, r.end.col + 1), CellRef::new(r.end.row, MAX_COLS - 1)) } else { RangeRef::new(CellRef::new(r.end.row + 1, r.start.col), CellRef::new(MAX_ROWS - 1, r.end.col)) };
+        let moved_from = if left {
+            RangeRef::new(CellRef::new(r.start.row, r.end.col + 1), CellRef::new(r.end.row, MAX_COLS - 1))
+        } else {
+            RangeRef::new(CellRef::new(r.end.row + 1, r.start.col), CellRef::new(MAX_ROWS - 1, r.end.col))
+        };
         super::edit::rewrite_all_formulas(&mut cx.wb, &name, &Edit::Move { from: moved_from, to_row: r.start.row, to_col: r.start.col });
         cx.structural = true;
         Ok(Json::Null)
@@ -346,7 +373,8 @@ fn delete_sheet(s: &mut Session, p: &Json) -> Result<Json> {
     edit_doc(d, |cx| {
         cx.wb.sheets.remove(i);
         for si in 0..cx.wb.sheets.len() {
-            let keys: Vec<(CellRef, Arc<sheetcraft_model::Formula>)> = cx.wb.sheets.get(si).map(|s| s.cells.iter().filter_map(|(c, x)| x.formula.clone().map(|f| (c, f))).collect()).unwrap_or_default();
+            let keys: Vec<(CellRef, Arc<sheetcraft_model::Formula>)> =
+                cx.wb.sheets.get(si).map(|s| s.cells.iter().filter_map(|(c, x)| x.formula.clone().map(|f| (c, f))).collect()).unwrap_or_default();
             let Some(sh) = cx.wb.sheet_mut(si) else { continue };
             for (c, f) in keys {
                 if let Some(e) = f.expr() {
@@ -386,7 +414,8 @@ fn rename_sheet(s: &mut Session, p: &Json) -> Result<Json> {
         let old = cx.wb.sheet(i).map(|s| s.name.clone()).unwrap_or_default();
         cx.sheet_mut(i)?.name = name.clone();
         for si in 0..cx.wb.sheets.len() {
-            let keys: Vec<(CellRef, Arc<sheetcraft_model::Formula>)> = cx.wb.sheets.get(si).map(|s| s.cells.iter().filter_map(|(c, x)| x.formula.clone().map(|f| (c, f))).collect()).unwrap_or_default();
+            let keys: Vec<(CellRef, Arc<sheetcraft_model::Formula>)> =
+                cx.wb.sheets.get(si).map(|s| s.cells.iter().filter_map(|(c, x)| x.formula.clone().map(|f| (c, f))).collect()).unwrap_or_default();
             let Some(sh) = cx.wb.sheet_mut(si) else { continue };
             for (c, f) in keys {
                 if let Some(e) = f.expr() {
@@ -399,7 +428,11 @@ fn rename_sheet(s: &mut Session, p: &Json) -> Result<Json> {
                     }
                 }
             }
-            let fix = |t: &str| sheetcraft_formula::parse(t).map(|e| sheetcraft_formula::print(&sheetcraft_formula::adjust::rename_sheet(e, &old, &name))).unwrap_or_else(|_| t.to_string());
+            let fix = |t: &str| {
+                sheetcraft_formula::parse(t)
+                    .map(|e| sheetcraft_formula::print(&sheetcraft_formula::adjust::rename_sheet(e, &old, &name)))
+                    .unwrap_or_else(|_| t.to_string())
+            };
             for ch in sh.charts.iter_mut() {
                 for se in ch.series.iter_mut() {
                     se.values = fix(&se.values);

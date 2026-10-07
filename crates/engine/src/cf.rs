@@ -83,7 +83,11 @@ fn threshold(wb: &Workbook, sheet: usize, at: CellRef, st: &RuleStats, k: &CfVal
 
 fn lerp(a: [u8; 3], b: [u8; 3], t: f64) -> [u8; 3] {
     let t = t.clamp(0.0, 1.0);
-    [(a[0] as f64 + (b[0] as f64 - a[0] as f64) * t).round() as u8, (a[1] as f64 + (b[1] as f64 - a[1] as f64) * t).round() as u8, (a[2] as f64 + (b[2] as f64 - a[2] as f64) * t).round() as u8]
+    [
+        (a[0] as f64 + (b[0] as f64 - a[0] as f64) * t).round() as u8,
+        (a[1] as f64 + (b[1] as f64 - a[1] as f64) * t).round() as u8,
+        (a[2] as f64 + (b[2] as f64 - a[2] as f64) * t).round() as u8,
+    ]
 }
 
 /// Number of icons in a set name like `3TrafficLights1`, `5Quarters`.
@@ -104,7 +108,8 @@ impl CfCache {
         }
         let mut out = CfLook::default();
         let mut any = false;
-        let mut rules: Vec<(usize, &CondFormat)> = sh.cond_formats.iter().enumerate().filter(|(_, cf)| cf.ranges.iter().any(|r| r.contains(c))).collect();
+        let mut rules: Vec<(usize, &CondFormat)> =
+            sh.cond_formats.iter().enumerate().filter(|(_, cf)| cf.ranges.iter().any(|r| r.contains(c))).collect();
         rules.sort_by_key(|(_, cf)| cf.priority);
         let v = sh.value(c);
         for (idx, cf) in rules {
@@ -141,7 +146,9 @@ impl CfCache {
                     };
                     (ok && !v.is_empty()).then_some(style.as_ref())
                 }
-                CfRule::Expression { formula, style } => sheetcraft_calc::evaluate(wb, sheet, c, &relative(formula, first, c)).to_bool().unwrap_or(false).then_some(style.as_ref()),
+                CfRule::Expression { formula, style } => {
+                    sheetcraft_calc::evaluate(wb, sheet, c, &relative(formula, first, c)).to_bool().unwrap_or(false).then_some(style.as_ref())
+                }
                 CfRule::ContainsText { text: t, style } => text.to_lowercase().contains(&t.to_lowercase()).then_some(style.as_ref()),
                 CfRule::NotContainsText { text: t, style } => (!text.to_lowercase().contains(&t.to_lowercase())).then_some(style.as_ref()),
                 CfRule::BeginsWith { text: t, style } => text.to_lowercase().starts_with(&t.to_lowercase()).then_some(style.as_ref()),
@@ -150,13 +157,21 @@ impl CfCache {
                 CfRule::NoBlanks { style } => (!v.is_empty()).then_some(style.as_ref()),
                 CfRule::Errors { style } => v.is_error().then_some(style.as_ref()),
                 CfRule::NoErrors { style } => (!v.is_error()).then_some(style.as_ref()),
-                CfRule::Duplicate { style } => (!v.is_empty() && st.counts.get(&text.to_lowercase()).copied().unwrap_or(0) > 1).then_some(style.as_ref()),
-                CfRule::Unique { style } => (!v.is_empty() && st.counts.get(&text.to_lowercase()).copied().unwrap_or(0) == 1).then_some(style.as_ref()),
+                CfRule::Duplicate { style } => {
+                    (!v.is_empty() && st.counts.get(&text.to_lowercase()).copied().unwrap_or(0) > 1).then_some(style.as_ref())
+                }
+                CfRule::Unique { style } => {
+                    (!v.is_empty() && st.counts.get(&text.to_lowercase()).copied().unwrap_or(0) == 1).then_some(style.as_ref())
+                }
                 CfRule::Top10 { bottom, percent, rank, style } => match v.as_f64() {
                     Some(n) if !st.sorted.is_empty() => {
                         let k = if *percent { ((st.sorted.len() as f64) * (*rank as f64) / 100.0).floor().max(1.0) as usize } else { *rank as usize };
                         let k = k.clamp(1, st.sorted.len());
-                        let ok = if *bottom { n <= st.sorted.get(k - 1).copied().unwrap_or(n) } else { n >= st.sorted.get(st.sorted.len() - k).copied().unwrap_or(n) };
+                        let ok = if *bottom {
+                            n <= st.sorted.get(k - 1).copied().unwrap_or(n)
+                        } else {
+                            n >= st.sorted.get(st.sorted.len() - k).copied().unwrap_or(n)
+                        };
                         ok.then_some(style.as_ref())
                     }
                     _ => None,
@@ -175,7 +190,8 @@ impl CfCache {
                         let d = n.floor();
                         let wd = sheetcraft_core::date::datetime_from_serial(wb.date_system, today).map(|x| x.weekday as f64).unwrap_or(0.0);
                         let week_start = today - wd;
-                        let (ty, tm) = sheetcraft_core::date::datetime_from_serial(wb.date_system, today).map(|x| (x.year, x.month)).unwrap_or((2026, 1));
+                        let (ty, tm) =
+                            sheetcraft_core::date::datetime_from_serial(wb.date_system, today).map(|x| (x.year, x.month)).unwrap_or((2026, 1));
                         let ym = sheetcraft_core::date::datetime_from_serial(wb.date_system, d).map(|x| (x.year, x.month));
                         let month_off = |k: i32| {
                             let m = tm as i32 + k;
@@ -202,7 +218,10 @@ impl CfCache {
                 },
                 CfRule::ColorScale { stops } => {
                     if let Some(n) = v.as_f64() {
-                        let pts: Vec<(f64, [u8; 3])> = stops.iter().map(|(k, col)| (threshold(wb, sheet, c, &st, k), col.resolve(&wb.theme).unwrap_or([255, 255, 255]))).collect();
+                        let pts: Vec<(f64, [u8; 3])> = stops
+                            .iter()
+                            .map(|(k, col)| (threshold(wb, sheet, c, &st, k), col.resolve(&wb.theme).unwrap_or([255, 255, 255])))
+                            .collect();
                         let rgb = match pts.as_slice() {
                             [(a, ca), (b, cb)] => lerp(*ca, *cb, if b > a { (n - a) / (b - a) } else { 0.0 }),
                             [(a, ca), (m, cm), (b, cb)] => {
@@ -228,7 +247,11 @@ impl CfCache {
                         let lo = if lo > 0.0 { 0.0 } else { lo };
                         let frac = if hi > lo { ((n - lo) / (hi - lo)).clamp(0.0, 1.0) } else { 1.0 };
                         if out.bar.is_none() {
-                            out.bar = Some(((frac as f32) * 0.9 + 0.1 * (frac > 0.0) as u8 as f32, color.resolve(&wb.theme).unwrap_or([0x63, 0x8E, 0xC6]), *gradient));
+                            out.bar = Some((
+                                (frac as f32) * 0.9 + 0.1 * (frac > 0.0) as u8 as f32,
+                                color.resolve(&wb.theme).unwrap_or([0x63, 0x8E, 0xC6]),
+                                *gradient,
+                            ));
                             out.hide_value |= !show_value;
                             any = true;
                         }
@@ -238,7 +261,11 @@ impl CfCache {
                 CfRule::IconSet { set, thresholds, reverse, show_value } => {
                     if let Some(n) = v.as_f64() {
                         let k = icon_count(set);
-                        let cuts: Vec<f64> = if thresholds.len() + 1 == k { thresholds.iter().map(|t| threshold(wb, sheet, c, &st, t)).collect() } else { (1..k).map(|i| percentile(&st.sorted, i as f64 * 100.0 / k as f64)).collect() };
+                        let cuts: Vec<f64> = if thresholds.len() + 1 == k {
+                            thresholds.iter().map(|t| threshold(wb, sheet, c, &st, t)).collect()
+                        } else {
+                            (1..k).map(|i| percentile(&st.sorted, i as f64 * 100.0 / k as f64)).collect()
+                        };
                         let mut idx = cuts.iter().filter(|cut| n >= **cut).count();
                         if *reverse {
                             idx = k - 1 - idx.min(k - 1);
@@ -273,7 +300,11 @@ fn relative(f: &str, first: CellRef, c: CellRef) -> String {
         return f.to_string();
     }
     match sheetcraft_formula::parse(f.trim_start_matches('=')) {
-        Ok(e) => sheetcraft_formula::print(&sheetcraft_formula::adjust::shift_relative(e, c.row as i64 - first.row as i64, c.col as i64 - first.col as i64)),
+        Ok(e) => sheetcraft_formula::print(&sheetcraft_formula::adjust::shift_relative(
+            e,
+            c.row as i64 - first.row as i64,
+            c.col as i64 - first.col as i64,
+        )),
         Err(_) => f.to_string(),
     }
 }

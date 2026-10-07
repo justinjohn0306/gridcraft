@@ -8,9 +8,20 @@ use super::*;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!("view.freezePanes", "Freeze Panes", ["View", "Window", "Freeze Panes"], None, "{cell?: \"B2\" (rows above and columns left of it freeze)}", has_doc, freeze_panes),
+        cmd!(
+            "view.freezePanes",
+            "Freeze Panes",
+            ["View", "Window", "Freeze Panes"],
+            None,
+            "{cell?: \"B2\" (rows above and columns left of it freeze)}",
+            has_doc,
+            freeze_panes
+        ),
         cmd!("view.freezeTopRow", "Freeze Top Row", ["View", "Window", "Freeze Panes"], None, "{}", has_doc, |s, _| set_freeze(s, Some((1, 0)))),
-        cmd!("view.freezeFirstColumn", "Freeze First Column", ["View", "Window", "Freeze Panes"], None, "{}", has_doc, |s, _| set_freeze(s, Some((0, 1)))),
+        cmd!("view.freezeFirstColumn", "Freeze First Column", ["View", "Window", "Freeze Panes"], None, "{}", has_doc, |s, _| set_freeze(
+            s,
+            Some((0, 1))
+        )),
         cmd!("view.unfreezePanes", "Unfreeze Panes", ["View", "Window", "Freeze Panes"], None, "{}", has_doc, |s, _| set_freeze(s, None)),
         cmd!("view.gridlines", "Gridlines", ["View", "Show"], None, "{on?}", has_doc, |s, p| sheet_flag(s, p, "gridlines")),
         cmd!("view.headings", "Headings", ["View", "Show"], None, "{on?}", has_doc, |s, p| sheet_flag(s, p, "headings")),
@@ -20,15 +31,79 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("view.zoomToSelection", "Zoom to Selection", ["View", "Zoom"], None, "{viewWidth?, viewHeight?}", has_doc, zoom_selection),
         cmd!("pageLayout.orientation", "Orientation", ["Page Layout", "Page Setup"], None, "{orientation: portrait|landscape}", has_doc, orientation),
         cmd!("pageLayout.size", "Size", ["Page Layout", "Page Setup"], None, "{paper: Letter|Legal|A4|A3|A5|Tabloid|Executive}", has_doc, paper),
-        cmd!("pageLayout.margins", "Margins", ["Page Layout", "Page Setup"], None, "{preset?: normal|wide|narrow, left?, right?, top?, bottom?, header?, footer? (inches)}", has_doc, margins),
-        cmd!("pageLayout.printArea", "Set Print Area", ["Page Layout", "Page Setup", "Print Area"], None, "{range?, clear?: bool}", has_doc, print_area),
-        cmd!("pageLayout.printTitles", "Print Titles", ["Page Layout", "Page Setup"], None, "{rows?: \"1:1\", cols?: \"A:A\"}", has_doc, print_titles),
-        cmd!("pageLayout.scaleToFit", "Scale to Fit", ["Page Layout", "Scale to Fit"], None, "{scale?: 100, width?: pages, height?: pages}", has_doc, scale_fit),
-        cmd!("pageLayout.printGridlines", "Print Gridlines", ["Page Layout", "Sheet Options"], None, "{on?}", has_doc, |s, p| sheet_flag(s, p, "printGridlines")),
-        cmd!("pageLayout.printHeadings", "Print Headings", ["Page Layout", "Sheet Options"], None, "{on?}", has_doc, |s, p| sheet_flag(s, p, "printHeadings")),
-        cmd!("pageLayout.breaks", "Breaks", ["Page Layout", "Page Setup"], None, "{insert?: bool, remove?: bool, reset?: bool, cell?}", has_doc, breaks),
-        cmd!("pageLayout.headerFooter", "Header & Footer", ["Insert", "Text"], None, "{header?: \"&C&P\", footer?: \"&CPage &P of &N\"}", has_doc, header_footer),
-        cmd!("pageLayout.theme", "Themes", ["Page Layout", "Themes"], None, "{name: Craft|Slate|Meadow|Ember|Ocean|Orchid|Graphite, colors?: [12 hex], majorFont?, minorFont?}", has_doc, theme),
+        cmd!(
+            "pageLayout.margins",
+            "Margins",
+            ["Page Layout", "Page Setup"],
+            None,
+            "{preset?: normal|wide|narrow, left?, right?, top?, bottom?, header?, footer? (inches)}",
+            has_doc,
+            margins
+        ),
+        cmd!(
+            "pageLayout.printArea",
+            "Set Print Area",
+            ["Page Layout", "Page Setup", "Print Area"],
+            None,
+            "{range?, clear?: bool}",
+            has_doc,
+            print_area
+        ),
+        cmd!(
+            "pageLayout.printTitles",
+            "Print Titles",
+            ["Page Layout", "Page Setup"],
+            None,
+            "{rows?: \"1:1\", cols?: \"A:A\"}",
+            has_doc,
+            print_titles
+        ),
+        cmd!(
+            "pageLayout.scaleToFit",
+            "Scale to Fit",
+            ["Page Layout", "Scale to Fit"],
+            None,
+            "{scale?: 100, width?: pages, height?: pages}",
+            has_doc,
+            scale_fit
+        ),
+        cmd!("pageLayout.printGridlines", "Print Gridlines", ["Page Layout", "Sheet Options"], None, "{on?}", has_doc, |s, p| sheet_flag(
+            s,
+            p,
+            "printGridlines"
+        )),
+        cmd!("pageLayout.printHeadings", "Print Headings", ["Page Layout", "Sheet Options"], None, "{on?}", has_doc, |s, p| sheet_flag(
+            s,
+            p,
+            "printHeadings"
+        )),
+        cmd!(
+            "pageLayout.breaks",
+            "Breaks",
+            ["Page Layout", "Page Setup"],
+            None,
+            "{insert?: bool, remove?: bool, reset?: bool, cell?}",
+            has_doc,
+            breaks
+        ),
+        cmd!(
+            "pageLayout.headerFooter",
+            "Header & Footer",
+            ["Insert", "Text"],
+            None,
+            "{header?: \"&C&P\", footer?: \"&CPage &P of &N\"}",
+            has_doc,
+            header_footer
+        ),
+        cmd!(
+            "pageLayout.theme",
+            "Themes",
+            ["Page Layout", "Themes"],
+            None,
+            "{name: Craft|Slate|Meadow|Ember|Ocean|Orchid|Graphite, colors?: [12 hex], majorFont?, minorFont?}",
+            has_doc,
+            theme
+        ),
     ]
 }
 

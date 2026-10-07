@@ -1,0 +1,27 @@
+[package]
+name = "sheetcraft"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+default-run = "sheetcraft"
+description = "SheetCraft desktop app"
+
+[lints]
+workspace = true
+
+[dependencies]
+sheetcraft-engine = { workspace = true }
+sheetcraft-ui-egui = { workspace = true }
+eframe = { workspace = true, features = ["default_fonts", "wgpu", "accesskit", "wayland", "x11"] }
+egui = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+image = { workspace = true }
+
+[build-dependencies]
+# Icon + VERSIONINFO for sheetcraft.exe; build.rs only uses it when the target is Windows.
+winresource = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rfd = { workspace = true }

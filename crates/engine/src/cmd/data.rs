@@ -12,23 +12,81 @@ use crate::selection::current_region;
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!("data.sortAscending", "Sort A to Z", ["Data", "Sort & Filter"], None, "{range?, column?: \"B\"}", has_doc, |s, p| quick_sort(s, p, true)),
+        cmd!("data.sortAscending", "Sort A to Z", ["Data", "Sort & Filter"], None, "{range?, column?: \"B\"}", has_doc, |s, p| quick_sort(
+            s, p, true
+        )),
         cmd!("data.sortDescending", "Sort Z to A", ["Data", "Sort & Filter"], None, "{range?, column?}", has_doc, |s, p| quick_sort(s, p, false)),
-        cmd!("data.sort", "Sort…", ["Data", "Sort & Filter"], None, "{range?, header?: bool, keys: [{column: \"B\", order: asc|desc, by?: values|cellColor|fontColor, customList?: [..]}], orientation?: rows|columns, matchCase?}", has_doc, sort),
-        cmd!("data.filter", "Filter", ["Data", "Sort & Filter"], Some("Cmd+Shift+F"), "{range?} toggles AutoFilter on the current region", has_doc, toggle_filter),
-        cmd!("data.filterBy", "Filter Column", [], None, "{column: \"B\" (or 0-based offset), values?: [..], blanks?: bool, custom?: {op: \">\", value: \"10\", op2?, value2?, and?}, top?: {count, bottom?, percent?}, aboveAverage?: bool, clear?: bool}", has_doc, filter_by),
+        cmd!(
+            "data.sort",
+            "Sort…",
+            ["Data", "Sort & Filter"],
+            None,
+            "{range?, header?: bool, keys: [{column: \"B\", order: asc|desc, by?: values|cellColor|fontColor, customList?: [..]}], orientation?: rows|columns, matchCase?}",
+            has_doc,
+            sort
+        ),
+        cmd!(
+            "data.filter",
+            "Filter",
+            ["Data", "Sort & Filter"],
+            Some("Cmd+Shift+F"),
+            "{range?} toggles AutoFilter on the current region",
+            has_doc,
+            toggle_filter
+        ),
+        cmd!(
+            "data.filterBy",
+            "Filter Column",
+            [],
+            None,
+            "{column: \"B\" (or 0-based offset), values?: [..], blanks?: bool, custom?: {op: \">\", value: \"10\", op2?, value2?, and?}, top?: {count, bottom?, percent?}, aboveAverage?: bool, clear?: bool}",
+            has_doc,
+            filter_by
+        ),
         cmd!("data.clearFilter", "Clear", ["Data", "Sort & Filter"], None, "{}", has_doc, clear_filter),
         cmd!("data.reapply", "Reapply", ["Data", "Sort & Filter"], None, "{}", has_doc, reapply),
-        cmd!("data.removeDuplicates", "Remove Duplicates", ["Data", "Data Tools"], None, "{range?, columns?: [\"A\",\"C\"], header?: bool}", has_doc, remove_duplicates),
-        cmd!("data.textToColumns", "Text to Columns", ["Data", "Data Tools"], None, "{range?, delimiters?: [\",\", \"\\t\", \" \", \";\"], other?: \"|\", fixedWidths?: [5, 10], treatConsecutive?: bool, textQualifier?: \"\\\"\", destination?: \"B1\"}", has_doc, text_to_columns),
-        cmd!("data.validation", "Data Validation…", ["Data", "Data Tools"], None, "{range?, type: any|whole|decimal|list|date|time|textLength|custom, operator?: between|notBetween|equal|notEqual|greater|less|greaterOrEqual|lessOrEqual, formula1, formula2?, ignoreBlank?, dropdown?, inputTitle?, inputMessage?, errorStyle?: stop|warning|information, errorTitle?, errorMessage?, clear?: bool}", has_doc, validation),
+        cmd!(
+            "data.removeDuplicates",
+            "Remove Duplicates",
+            ["Data", "Data Tools"],
+            None,
+            "{range?, columns?: [\"A\",\"C\"], header?: bool}",
+            has_doc,
+            remove_duplicates
+        ),
+        cmd!(
+            "data.textToColumns",
+            "Text to Columns",
+            ["Data", "Data Tools"],
+            None,
+            "{range?, delimiters?: [\",\", \"\\t\", \" \", \";\"], other?: \"|\", fixedWidths?: [5, 10], treatConsecutive?: bool, textQualifier?: \"\\\"\", destination?: \"B1\"}",
+            has_doc,
+            text_to_columns
+        ),
+        cmd!(
+            "data.validation",
+            "Data Validation…",
+            ["Data", "Data Tools"],
+            None,
+            "{range?, type: any|whole|decimal|list|date|time|textLength|custom, operator?: between|notBetween|equal|notEqual|greater|less|greaterOrEqual|lessOrEqual, formula1, formula2?, ignoreBlank?, dropdown?, inputTitle?, inputMessage?, errorStyle?: stop|warning|information, errorTitle?, errorMessage?, clear?: bool}",
+            has_doc,
+            validation
+        ),
         cmd!(query "data.validate", "Check Value Against Validation", [], None, "{cell?, input} → {ok, message?}", has_doc, validate_cmd),
         cmd!(noundo "data.circleInvalid", "Circle Invalid Data", ["Data", "Data Tools", "Data Validation"], None, "{} → invalid cells", has_doc, circle_invalid),
         cmd!("data.group", "Group", ["Data", "Outline"], Some("Cmd+Shift+K"), "{rows?: \"2:5\" | cols?: \"B:C\"}", has_doc, |s, p| group(s, p, true)),
         cmd!("data.ungroup", "Ungroup", ["Data", "Outline"], Some("Cmd+Shift+J"), "{rows? | cols?}", has_doc, |s, p| group(s, p, false)),
         cmd!("data.hideDetail", "Hide Detail", ["Data", "Outline"], None, "{rows? | cols?}", has_doc, |s, p| detail(s, p, true)),
         cmd!("data.showDetail", "Show Detail", ["Data", "Outline"], None, "{rows? | cols?}", has_doc, |s, p| detail(s, p, false)),
-        cmd!("data.subtotal", "Subtotal", ["Data", "Outline"], None, "{range?, groupBy: \"A\", function?: sum|count|average|max|min|product, columns: [\"C\"], header?: true}", has_doc, subtotal),
+        cmd!(
+            "data.subtotal",
+            "Subtotal",
+            ["Data", "Outline"],
+            None,
+            "{range?, groupBy: \"A\", function?: sum|count|average|max|min|product, columns: [\"C\"], header?: true}",
+            has_doc,
+            subtotal
+        ),
         cmd!("data.flashFill", "Flash Fill", ["Data", "Data Tools"], None, "{range?}", has_doc, |s, p| s.execute("edit.flashFill", p.clone())),
     ]
 }
@@ -75,7 +133,9 @@ fn guess_header(wb: &Workbook, sh: &Sheet, r: RangeRef) -> bool {
         if a.is_text() && !b.is_text() && !b.is_empty() {
             votes += 1;
         }
-        if wb.styles.get(sh.style_id(CellRef::new(r.start.row, c))).font.bold != wb.styles.get(sh.style_id(CellRef::new(r.start.row + 1, c))).font.bold {
+        if wb.styles.get(sh.style_id(CellRef::new(r.start.row, c))).font.bold
+            != wb.styles.get(sh.style_id(CellRef::new(r.start.row + 1, c))).font.bold
+        {
             votes += 1;
         }
         if a.is_text() && b.is_text() {
@@ -165,8 +225,12 @@ fn do_sort(s: &mut Session, r: RangeRef, header: bool, keys: Vec<SortKey>, by_co
             let c = line(i, k.col);
             let v = sh.value(c);
             let color = match k.by.as_str() {
-                "cellColor" => styles.get(sh.style_id(c)).fill.fg.resolve(&theme).map(|[r, g, b]| u32::from_be_bytes([0, r, g, b])).unwrap_or(u32::MAX),
-                "fontColor" => styles.get(sh.style_id(c)).font.color.resolve(&theme).map(|[r, g, b]| u32::from_be_bytes([0, r, g, b])).unwrap_or(u32::MAX),
+                "cellColor" => {
+                    styles.get(sh.style_id(c)).fill.fg.resolve(&theme).map(|[r, g, b]| u32::from_be_bytes([0, r, g, b])).unwrap_or(u32::MAX)
+                }
+                "fontColor" => {
+                    styles.get(sh.style_id(c)).font.color.resolve(&theme).map(|[r, g, b]| u32::from_be_bytes([0, r, g, b])).unwrap_or(u32::MAX)
+                }
                 _ => 0,
             };
             (v, color)
@@ -217,7 +281,8 @@ fn do_sort(s: &mut Session, r: RangeRef, header: bool, keys: Vec<SortKey>, by_co
             }
         }
         // Row heights travel with rows.
-        let heights: Vec<Option<LineInfo>> = if by_cols { vec![] } else { order.iter().map(|&i| sh.rows.get(&(body.start.row + i)).copied()).collect() };
+        let heights: Vec<Option<LineInfo>> =
+            if by_cols { vec![] } else { order.iter().map(|&i| sh.rows.get(&(body.start.row + i)).copied()).collect() };
         let shm = cx.sheet_mut(sheet)?;
         for (c, cell) in &moved {
             match cell {
@@ -254,7 +319,8 @@ fn do_sort(s: &mut Session, r: RangeRef, header: bool, keys: Vec<SortKey>, by_co
 fn toggle_filter(s: &mut Session, p: &Json) -> Result<Json> {
     let sheet = s.doc()?.wb.active_sheet;
     let has = s.doc()?.wb.sheet(sheet).is_some_and(|sh| sh.autofilter.is_some());
-    let in_table = s.doc()?.wb.sheet(sheet).and_then(|sh| sh.table_at(s.doc().map(|d| d.selection.active).unwrap_or_default()).map(|t| t.name.clone()));
+    let in_table =
+        s.doc()?.wb.sheet(sheet).and_then(|sh| sh.table_at(s.doc().map(|d| d.selection.active).unwrap_or_default()).map(|t| t.name.clone()));
     if let Some(name) = in_table {
         return edit(s, |cx| {
             let sh = cx.sheet_mut(sheet)?;
@@ -300,7 +366,10 @@ fn filter_by(s: &mut Session, p: &Json) -> Result<Json> {
     let crit = if bool_param(p, "clear").unwrap_or(false) {
         None
     } else if let Some(vals) = p.get("values").and_then(Json::as_array) {
-        Some(FilterCriterion::Values { values: vals.iter().map(super::edit::json_to_input).collect(), blanks: bool_param(p, "blanks").unwrap_or(false) })
+        Some(FilterCriterion::Values {
+            values: vals.iter().map(super::edit::json_to_input).collect(),
+            blanks: bool_param(p, "blanks").unwrap_or(false),
+        })
     } else if let Some(c) = p.get("custom") {
         let a = (c.get("op").and_then(Json::as_str).unwrap_or("=").to_string(), c.get("value").map(super::edit::json_to_input).unwrap_or_default());
         let b = c.get("op2").and_then(Json::as_str).map(|o| (o.to_string(), c.get("value2").map(super::edit::json_to_input).unwrap_or_default()));
@@ -339,8 +408,20 @@ fn custom_ok(v: &Value, text: &str, op: &str, crit: &str) -> bool {
     };
     let wild = || super::edit::wildcard(&text.to_lowercase(), &crit.to_lowercase());
     match op {
-        "=" => if crit.contains(['*', '?']) { wild() } else { cmp == Some(Ordering::Equal) },
-        "<>" => if crit.contains(['*', '?']) { !wild() } else { cmp != Some(Ordering::Equal) },
+        "=" => {
+            if crit.contains(['*', '?']) {
+                wild()
+            } else {
+                cmp == Some(Ordering::Equal)
+            }
+        }
+        "<>" => {
+            if crit.contains(['*', '?']) {
+                !wild()
+            } else {
+                cmp != Some(Ordering::Equal)
+            }
+        }
         ">" => cmp == Some(Ordering::Greater),
         "<" => cmp == Some(Ordering::Less),
         ">=" => matches!(cmp, Some(Ordering::Greater | Ordering::Equal)),
@@ -405,7 +486,13 @@ pub(crate) fn apply_filter(wb: &mut Workbook, sheet: usize) {
                     _ => false,
                 },
                 FilterCriterion::AboveAverage(above) => match (v.as_f64(), col_stats.get(off)) {
-                    (Some(n), Some((_, avg))) => if *above { n > *avg } else { n < *avg },
+                    (Some(n), Some((_, avg))) => {
+                        if *above {
+                            n > *avg
+                        } else {
+                            n < *avg
+                        }
+                    }
                     _ => false,
                 },
                 FilterCriterion::FillColor(col) => wb.styles.get(sh.style_id(c)).fill.fg == *col,
@@ -493,7 +580,11 @@ fn remove_duplicates(s: &mut Session, p: &Json) -> Result<Json> {
     let d = s.doc()?;
     let sh = d.wb.active().ok_or(EngineError::NoDocument)?;
     let header = bool_param(p, "header").unwrap_or_else(|| guess_header(&d.wb, sh, r));
-    let cols: Vec<u32> = p.get("columns").and_then(Json::as_array).map(|a| a.iter().filter_map(|c| col_param(Some(c), r.start.col)).collect()).unwrap_or_else(|| (r.start.col..=r.end.col).collect());
+    let cols: Vec<u32> = p
+        .get("columns")
+        .and_then(Json::as_array)
+        .map(|a| a.iter().filter_map(|c| col_param(Some(c), r.start.col)).collect())
+        .unwrap_or_else(|| (r.start.col..=r.end.col).collect());
     let sheet = d.wb.active_sheet;
     let start = r.start.row + header as u32;
     let mut removed = 0;
@@ -509,7 +600,8 @@ fn remove_duplicates(s: &mut Session, p: &Json) -> Result<Json> {
                 removed += 1;
             }
         }
-        let rows: Vec<Vec<Option<Cell>>> = keep.iter().map(|row| (r.start.col..=r.end.col).map(|c| sh.cell(CellRef::new(*row, c)).cloned()).collect()).collect();
+        let rows: Vec<Vec<Option<Cell>>> =
+            keep.iter().map(|row| (r.start.col..=r.end.col).map(|c| sh.cell(CellRef::new(*row, c)).cloned()).collect()).collect();
         let shm = cx.sheet_mut(sheet)?;
         for row in start..=r.end.row {
             for c in r.start.col..=r.end.col {
@@ -535,11 +627,16 @@ fn remove_duplicates(s: &mut Session, p: &Json) -> Result<Json> {
 fn text_to_columns(s: &mut Session, p: &Json) -> Result<Json> {
     let r = target_range(s, p)?;
     let sheet = target_sheet(s, p)?;
-    let mut delims: Vec<char> = p.get("delimiters").and_then(Json::as_array).map(|a| a.iter().filter_map(|d| d.as_str().and_then(|x| x.chars().next())).collect()).unwrap_or_else(|| vec!['\t']);
+    let mut delims: Vec<char> = p
+        .get("delimiters")
+        .and_then(Json::as_array)
+        .map(|a| a.iter().filter_map(|d| d.as_str().and_then(|x| x.chars().next())).collect())
+        .unwrap_or_else(|| vec!['\t']);
     if let Some(o) = str_param(p, "other").and_then(|o| o.chars().next()) {
         delims.push(o);
     }
-    let fixed: Option<Vec<usize>> = p.get("fixedWidths").and_then(Json::as_array).map(|a| a.iter().filter_map(|x| x.as_u64().map(|v| v as usize)).collect());
+    let fixed: Option<Vec<usize>> =
+        p.get("fixedWidths").and_then(Json::as_array).map(|a| a.iter().filter_map(|x| x.as_u64().map(|v| v as usize)).collect());
     let consecutive = bool_param(p, "treatConsecutive").unwrap_or(false);
     let quote = str_param(p, "textQualifier").and_then(|q| q.chars().next()).unwrap_or('"');
     let dest = cell_param(p, "destination").unwrap_or(r.start);
@@ -554,7 +651,9 @@ fn text_to_columns(s: &mut Session, p: &Json) -> Result<Json> {
                     let mut cuts = vec![0];
                     cuts.extend(w.iter().copied().filter(|x| *x < chars.len()));
                     cuts.push(chars.len());
-                    cuts.windows(2).map(|p| chars.get(p[0]..p[1]).map(|s| s.iter().collect::<String>().trim().to_string()).unwrap_or_default()).collect()
+                    cuts.windows(2)
+                        .map(|p| chars.get(p[0]..p[1]).map(|s| s.iter().collect::<String>().trim().to_string()).unwrap_or_default())
+                        .collect()
                 }
                 None => split_delimited(&text, &delims, consecutive, quote),
             };
@@ -680,7 +779,12 @@ fn validation(s: &mut Session, p: &Json) -> Result<Json> {
 /// List entries of a list validation (literal or from a range).
 pub fn list_items(wb: &Workbook, sheet: usize, dv: &Validation) -> Vec<String> {
     let f = dv.f1.trim();
-    if f.starts_with('"') || (!f.contains('!') && sheetcraft_formula::parse(f).map(|e| !matches!(e, sheetcraft_formula::Expr::Ref(_) | sheetcraft_formula::Expr::Name(_))).unwrap_or(true)) {
+    if f.starts_with('"')
+        || (!f.contains('!')
+            && sheetcraft_formula::parse(f)
+                .map(|e| !matches!(e, sheetcraft_formula::Expr::Ref(_) | sheetcraft_formula::Expr::Name(_)))
+                .unwrap_or(true))
+    {
         return f.trim_matches('"').split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect();
     }
     let at = dv.ranges.first().map(|r| r.start).unwrap_or_default();
@@ -724,7 +828,11 @@ pub fn check_validation(wb: &Workbook, sheet: usize, at: CellRef, input: &str) -
     if ok {
         return None;
     }
-    let msg = if dv.error_message.is_empty() { "This value doesn't match the data validation restrictions defined for this cell.".to_string() } else { dv.error_message.clone() };
+    let msg = if dv.error_message.is_empty() {
+        "This value doesn't match the data validation restrictions defined for this cell.".to_string()
+    } else {
+        dv.error_message.clone()
+    };
     Some((dv.clone(), msg))
 }
 
@@ -782,11 +890,7 @@ fn outline_lines(s: &Session, p: &Json) -> Result<(bool, u32, u32)> {
         return Ok((false, r.start.col, r.end.col));
     }
     let r = s.doc()?.selection.current();
-    if r.is_full_cols() && !r.is_full_rows() {
-        Ok((false, r.start.col, r.end.col))
-    } else {
-        Ok((true, r.start.row, r.end.row))
-    }
+    if r.is_full_cols() && !r.is_full_rows() { Ok((false, r.start.col, r.end.col)) } else { Ok((true, r.start.row, r.end.row)) }
 }
 
 fn group(s: &mut Session, p: &Json, on: bool) -> Result<Json> {
@@ -847,7 +951,11 @@ fn subtotal(s: &mut Session, p: &Json) -> Result<Json> {
         "product" => 6,
         _ => 9,
     };
-    let cols: Vec<u32> = p.get("columns").and_then(Json::as_array).map(|a| a.iter().filter_map(|c| col_param(Some(c), r.start.col)).collect()).unwrap_or_else(|| vec![r.end.col]);
+    let cols: Vec<u32> = p
+        .get("columns")
+        .and_then(Json::as_array)
+        .map(|a| a.iter().filter_map(|c| col_param(Some(c), r.start.col)).collect())
+        .unwrap_or_else(|| vec![r.end.col]);
     let label = match func {
         "count" => "Count",
         "average" => "Average",

@@ -1,0 +1,21 @@
+[package]
+name = "sheetcraft-ui-egui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SheetCraft egui frontend (Excel-style UI); swappable — nothing below depends on it"
+
+[lints]
+workspace = true
+
+[dependencies]
+sheetcraft-engine = { workspace = true }
+sheetcraft-chart = { workspace = true }
+egui = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+log = { workspace = true }
+image = { workspace = true }
+
+[dev-dependencies]
+egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }

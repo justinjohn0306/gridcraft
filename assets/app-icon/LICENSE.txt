@@ -1,0 +1,13 @@
+SheetCraft app icon (sheetcraft.svg and every file derived from it in this directory:
+sheetcraft-1024.png, sheetcraft-macos-512.png, sheetcraft.icns, sheetcraft.ico, hicolor/).
+
+PLACEHOLDER artwork: original work written for this project by SheetCraft contributors (simple
+hand-written SVG geometry). No third-party material. Licensed like the rest of SheetCraft, under
+either of
+
+  * Apache License, Version 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+  * MIT license (https://opensource.org/licenses/MIT)
+
+at your option.
+
+Regenerate the derived files with packaging/icons.sh.

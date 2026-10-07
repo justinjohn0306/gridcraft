@@ -96,7 +96,11 @@ fn esc(s: &str) -> String {
 pub fn to_html(wb: &Workbook, sheet: usize) -> String {
     let Some(sh) = wb.sheet(sheet) else { return String::new() };
     let mut out = String::new();
-    let _ = write!(out, "<!doctype html><html><head><meta charset=\"utf-8\"><title>{}</title><style>table{{border-collapse:collapse;font-family:Calibri,Carlito,Arial,sans-serif;font-size:11pt}}td{{border:1px solid #d4d4d4;padding:2px 4px;white-space:nowrap}}</style></head><body><table>", esc(&sh.name));
+    let _ = write!(
+        out,
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>{}</title><style>table{{border-collapse:collapse;font-family:Calibri,Carlito,Arial,sans-serif;font-size:11pt}}td{{border:1px solid #d4d4d4;padding:2px 4px;white-space:nowrap}}</style></head><body><table>",
+        esc(&sh.name)
+    );
     if let Some(r) = sh.used_range() {
         for row in r.start.row..=r.end.row.min(r.start.row + 100_000) {
             if sh.is_row_hidden(row) {
@@ -133,7 +137,12 @@ pub fn to_html(wb: &Workbook, sheet: usize) -> String {
                     _ => "left",
                 };
                 let _ = write!(css, "text-align:{align};");
-                let span = sh.merges.iter().find(|m| m.start == c).map(|m| format!(" rowspan=\"{}\" colspan=\"{}\"", m.height(), m.width())).unwrap_or_default();
+                let span = sh
+                    .merges
+                    .iter()
+                    .find(|m| m.start == c)
+                    .map(|m| format!(" rowspan=\"{}\" colspan=\"{}\"", m.height(), m.width()))
+                    .unwrap_or_default();
                 let _ = write!(out, "<td style=\"{css}\"{span}>{}</td>", esc(&crate::display::cell_text(wb, sh, c)));
             }
             out.push_str("</tr>");

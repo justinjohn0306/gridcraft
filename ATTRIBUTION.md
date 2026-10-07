@@ -17,3 +17,19 @@ Generated-in-code art is original and has no file to list: the UI icon set (`cra
 | `docs/brand/artcraft-mark-black.svg` | ArtCraft Team | craftrules `assets/brand/` | ArtCraft brand terms | Trademark |
 | `docs/brand/artcraft-mark-black.png` | ArtCraft Team | craftrules `assets/brand/` | ArtCraft brand terms | Trademark |
 | `docs/brand/LICENSE-brand.txt` | (licence text) | craftrules | — | |
+| `assets/app-icon/sheetcraft.svg` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | PLACEHOLDER app icon (ledger page); replaced by the owner's creature art later |
+| `assets/app-icon/sheetcraft-1024.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, rendered from sheetcraft.svg |
+| `assets/app-icon/sheetcraft-macos-512.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, macOS grid render |
+| `assets/app-icon/sheetcraft.icns` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, macOS bundle icon |
+| `assets/app-icon/sheetcraft.ico` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, Windows exe icon |
+| `assets/app-icon/hicolor/16x16/apps/ai.storyteller.sheetcraft.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, Linux hicolor render |
+| `assets/app-icon/hicolor/24x24/apps/ai.storyteller.sheetcraft.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, Linux hicolor render |
+| `assets/app-icon/hicolor/32x32/apps/ai.storyteller.sheetcraft.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, Linux hicolor render |
+| `assets/app-icon/hicolor/48x48/apps/ai.storyteller.sheetcraft.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, Linux hicolor render |
+| `assets/app-icon/hicolor/64x64/apps/ai.storyteller.sheetcraft.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, Linux hicolor render |
+| `assets/app-icon/hicolor/128x128/apps/ai.storyteller.sheetcraft.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, Linux hicolor render |
+| `assets/app-icon/hicolor/256x256/apps/ai.storyteller.sheetcraft.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, Linux hicolor render |
+| `assets/app-icon/hicolor/512x512/apps/ai.storyteller.sheetcraft.png` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, Linux hicolor render |
+| `assets/app-icon/hicolor/scalable/apps/ai.storyteller.sheetcraft.svg` | SheetCraft contributors | original (hand-written SVG; `packaging/icons.sh`) | MIT OR Apache-2.0 (`assets/app-icon/LICENSE.txt`) | Placeholder icon, copy of sheetcraft.svg |
+| `assets/app-icon/README.md` | SheetCraft contributors | original | MIT OR Apache-2.0 | Icon documentation |
+| `assets/app-icon/LICENSE.txt` | (licence text) | original | — | Licence of the app icon files |

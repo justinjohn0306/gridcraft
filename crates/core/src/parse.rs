@@ -212,7 +212,9 @@ fn parse_date(t: &str, sys: DateSystem) -> Option<(f64, &'static str)> {
     let parts: Vec<&str> = t.split(seps).collect();
     if parts.len() == 3 {
         let (a, b, c) = (parts[0].trim(), parts[1].trim(), parts[2].trim());
-        if a.len() == 4 && let (Some(y), Some(m), Some(d)) = (num(a), num(b), num(c)) {
+        if a.len() == 4
+            && let (Some(y), Some(m), Some(d)) = (num(a), num(b), num(c))
+        {
             return valid_ymd(sys, y, m, d).map(|s| (s, "yyyy-mm-dd"));
         }
         if let (Some(m), Some(d), Some(y)) = (num(a), num(b), num(c)) {

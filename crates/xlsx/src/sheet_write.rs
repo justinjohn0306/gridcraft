@@ -271,7 +271,7 @@ pub fn write_sheet(wb: &Workbook, si: usize, selected: bool, out: &mut Out) -> (
             let _ = write!(s, " s=\"{}\" customFormat=\"1\"", sid(st));
         }
         if let Some(h) = info.size {
-            let _ = write!(s, " ht=\"{}\" customHeight=\"1\"", num(px_to_pt(h)));
+            let _ = write!(s, " ht=\"{}\"{}", num(px_to_pt(h)), if info.custom { " customHeight=\"1\"" } else { "" });
         }
         if info.hidden {
             s.push_str(" hidden=\"1\"");
