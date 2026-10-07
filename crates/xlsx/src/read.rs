@@ -24,6 +24,8 @@ pub struct Ctx<'a> {
     /// Threaded-comment person id → display name.
     pub persons: std::collections::HashMap<String, String>,
     pub next_id: u32,
+    /// Custom number formats from the styles part, by id.
+    pub num_fmts: std::collections::HashMap<u32, String>,
 }
 
 impl Ctx<'_> {
@@ -73,6 +75,7 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<(Workbook, ReadReport), IoError> {
         styles: StyleTable::default(),
         persons: Default::default(),
         next_id: 1,
+        num_fmts: Default::default(),
     };
     let root_rels = cx.pkg.rels("")?;
     let wb_part = find_rel(&root_rels, "officeDocument").map(|r| r.target.clone()).unwrap_or_else(|| "xl/workbook.xml".into());
@@ -98,7 +101,8 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<(Workbook, ReadReport), IoError> {
     // Styles and theme.
     if let Some(r) = find_rel(&wb_rels, "styles").cloned() {
         if let Some(x) = cx.optional_xml(&r.target)? {
-            let StylesIn { xfs, dxfs, palette, named } = read_styles(&x);
+            let StylesIn { xfs, dxfs, palette, named, num_fmts } = read_styles(&x);
+            cx.num_fmts = num_fmts;
             cx.xf_map = xfs.into_iter().enumerate().map(|(i, s)| if i == 0 { StyleId::DEFAULT } else { cx.styles.intern(s) }).collect();
             cx.dxfs = dxfs;
             cx.palette = palette;
@@ -169,6 +173,7 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<(Workbook, ReadReport), IoError> {
 
     // Sheets. `file_to_model[i]` maps the i-th <sheet> to a model sheet index.
     let mut file_to_model: Vec<Option<usize>> = vec![];
+    let mut pivot_caches = crate::pivot::CachesIn::new(&wb_xml, &wb_rels);
     let sheet_els: Vec<El> = wb_xml.child("sheets").map(|s| s.kids("sheet").cloned().collect()).unwrap_or_default();
     for (i, se) in sheet_els.iter().enumerate() {
         let name = se.attr("name").unwrap_or("").to_string();
@@ -192,6 +197,11 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<(Workbook, ReadReport), IoError> {
                 Sheet::new(name.clone())
             }
         };
+        match crate::pivot::read_pivots(&mut cx, &mut pivot_caches, &rel.target, &name) {
+            Ok(p) => sheet.pivots = p,
+            Err(IoError::TooLarge(m)) => return Err(IoError::TooLarge(m)),
+            Err(e) => cx.warn(format!("PivotTables on sheet \"{name}\" could not be read: {e}")),
+        }
         sheet.visibility = match se.attr("state") {
             Some("hidden") => Visibility::Hidden,
             Some("veryHidden") => Visibility::VeryHidden,
@@ -265,9 +275,6 @@ pub fn read_xlsx(bytes: &[u8]) -> Result<(Workbook, ReadReport), IoError> {
 
     if wb_rels.iter().any(|r| r.kind == "vbaProject") {
         cx.warn("macros (VBA project) are not supported and were dropped");
-    }
-    if wb_rels.iter().any(|r| r.kind == "pivotCacheDefinition") {
-        cx.warn("pivot tables are not supported; their cached values were kept as plain cells");
     }
     if wb_rels.iter().any(|r| r.kind == "externalLink") {
         cx.warn("links to external workbooks are not supported");

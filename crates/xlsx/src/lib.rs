@@ -15,6 +15,7 @@ mod csv;
 mod drawing;
 mod fmla;
 mod package;
+mod pivot;
 mod read;
 mod sheet_read;
 mod sheet_write;

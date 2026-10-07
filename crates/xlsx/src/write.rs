@@ -157,9 +157,11 @@ pub fn write_xlsx(wb: &Workbook) -> Result<Vec<u8>, IoError> {
     };
 
     let mut wb_rels = Rels::default();
+    let mut pivots = crate::pivot::PivotWriter::default();
     let mut sheets_xml = String::new();
     for (i, sheet) in wb.sheets.iter().enumerate() {
-        let (xml, rels) = crate::sheet_write::write_sheet(wb, i, i == active, &mut out);
+        let (xml, mut rels) = crate::sheet_write::write_sheet(wb, i, i == active, &mut out);
+        pivots.add_sheet(wb, i, &mut out, &mut rels);
         let name = format!("xl/worksheets/sheet{}.xml", i + 1);
         out.part(&name, Some(CT_WORKSHEET), xml.into_bytes());
         if !rels.is_empty() {
@@ -241,10 +243,13 @@ pub fn write_xlsx(wb: &Workbook) -> Result<Vec<u8>, IoError> {
     if out.needs_calc {
         w.push_str(" fullCalcOnLoad=\"1\"");
     }
-    w.push_str("/></workbook>");
+    w.push_str("/>");
+    w.push_str(&pivots.workbook_xml(&mut wb_rels));
+    w.push_str("</workbook>");
 
     // Workbook-level parts.
-    let styles = crate::styles::write_styles(wb, &out.dxfs);
+    let (styles, fmt_ids) = crate::styles::write_styles(wb, &out.dxfs, &pivots.number_formats(wb));
+    pivots.finish(wb, &mut out, &|code: &str| crate::tables::builtin_id(code).or_else(|| fmt_ids.get(code).copied()));
     out.part("xl/styles.xml", Some("application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"), styles.into_bytes());
     wb_rels.add("styles", "styles.xml");
     out.part(

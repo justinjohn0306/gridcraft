@@ -24,6 +24,8 @@ pub struct StylesIn {
     pub palette: Vec<u32>,
     /// Named cell styles (`cellStyles` with their `cellStyleXfs`).
     pub named: Vec<(String, Style)>,
+    /// Custom number formats (`numFmts`) by id.
+    pub num_fmts: HashMap<u32, String>,
 }
 
 pub fn read_color(e: &El, palette: &[u32]) -> Color {
@@ -368,7 +370,7 @@ pub fn read_styles(root: &El) -> StylesIn {
                 .collect()
         })
         .unwrap_or_default();
-    StylesIn { xfs, dxfs, palette, named }
+    StylesIn { xfs, dxfs, palette, named, num_fmts: fmts }
 }
 
 // ---------------------------------------------------------------- writing
@@ -566,7 +568,9 @@ impl NumFmts {
 
 /// `styles.xml` for the workbook: one cell format per model style, in `StyleId` order (so a
 /// cell's `s` attribute is its style id), plus the given differential formats.
-pub fn write_styles(wb: &Workbook, dxfs: &[Style]) -> String {
+/// `extra_fmts` are number formats used outside cell styles (PivotTable value fields); the
+/// returned map gives the id of every custom format written.
+pub fn write_styles(wb: &Workbook, dxfs: &[Style], extra_fmts: &[String]) -> (String, HashMap<String, u32>) {
     let mut nf = NumFmts { custom: vec![], map: HashMap::new() };
     let mut fonts: Vec<Font> = vec![];
     let mut font_map = HashMap::new();
@@ -668,6 +672,9 @@ pub fn write_styles(wb: &Workbook, dxfs: &[Style]) -> String {
         }
         dx.push_str("</dxf>");
     }
+    for f in extra_fmts {
+        nf.id(f);
+    }
 
     let mut s = String::from(
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">",
@@ -696,7 +703,7 @@ pub fn write_styles(wb: &Workbook, dxfs: &[Style]) -> String {
     let _ = write!(s, "<cellStyles count=\"{named}\">{cell_styles}</cellStyles>");
     let _ = write!(s, "<dxfs count=\"{}\">{dx}</dxfs>", dxfs.len());
     s.push_str("<tableStyles count=\"0\" defaultTableStyle=\"TableStyleMedium2\" defaultPivotStyle=\"PivotStyleLight16\"/></styleSheet>");
-    s
+    (s, nf.map)
 }
 
 /// Index of a differential format, adding it when new.
