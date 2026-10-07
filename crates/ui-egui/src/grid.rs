@@ -77,6 +77,8 @@ pub struct GridState {
     pub renaming_tab: Option<usize>,
     pub rename_text: String,
     pub list_picker: Option<CellRef>,
+    /// Open task pane: comments, watch, selection, formatChart.
+    pub pane: Option<String>,
     /// Ink stroke being drawn (sheet points).
     pub ink: Vec<[f32; 2]>,
     /// Page ranges for Page Break Preview, cached per (doc uid, revision, sheet).
@@ -1026,7 +1028,12 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
                     .grid
                     .ink
                     .iter()
-                    .map(|q| pos2(geo.cells.left() + geo.frozen_w + (q[0] - sh.col_left(geo.fc) as f32 - geo.scroll.x) * geo.z, geo.cells.top() + geo.frozen_h + (q[1] - sh.row_top(geo.fr) as f32 - geo.scroll.y) * geo.z))
+                    .map(|q| {
+                        pos2(
+                            geo.cells.left() + geo.frozen_w + (q[0] - sh.col_left(geo.fc) as f32 - geo.scroll.x) * geo.z,
+                            geo.cells.top() + geo.frozen_h + (q[1] - sh.row_top(geo.fr) as f32 - geo.scroll.y) * geo.z,
+                        )
+                    })
                     .collect();
                 ui.painter().add(egui::epaint::PathShape::line(pts, egui::epaint::PathStroke::new(2.0 * geo.z, Color32::from_rgb(0x1F, 0x5F, 0xC9))));
             }
@@ -1052,6 +1059,9 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
             && let Some((kind, id, rect)) = crate::chartview::hit(app, geo, sh, p)
         {
             app.selected_chart = Some(id);
+            if kind == "chart" && resp.double_clicked() {
+                app.grid.pane = Some("formatChart".into());
+            }
             if resp.drag_started() {
                 let a = object_anchor(sh, kind, id);
                 let resize = (p - rect.right_bottom()).length() < 10.0;

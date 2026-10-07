@@ -13,6 +13,7 @@ pub mod editor;
 pub mod formula_bar;
 pub mod grid;
 pub mod icons;
+pub mod panes;
 pub mod pivot_pane;
 pub mod ribbon;
 pub mod tabs;
@@ -408,6 +409,7 @@ impl SheetApp {
         }
         tabs::sheet_tabs(self, ui);
         pivot_pane::show(self, ui);
+        panes::show(self, ui);
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(t.grid_bg)).show(ui, |ui| {
             let g0 = now_ms();
             grid::show(self, ui);

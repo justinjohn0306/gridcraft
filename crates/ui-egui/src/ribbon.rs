@@ -1370,6 +1370,9 @@ fn formulas(app: &mut SheetApp, ui: &mut Ui) {
         if small_button(ui, Icon::Calc, "Evaluate Formula", "Evaluate Formula", false).clicked() {
             app.open_dialog("evaluateFormula", json!({}));
         }
+        if small_button(ui, Icon::Search, "Watch Window", "Watch Window", false).clicked() {
+            app.grid.pane = Some("watch".into());
+        }
     });
     sep(ui);
     let co = big_button(ui, Icon::Calc, "Calculation\nOptions", "Calculation Options", true);
@@ -1484,6 +1487,9 @@ fn review(app: &mut SheetApp, ui: &mut Ui) {
     sep(ui);
     if big_button(ui, Icon::Comment, "New\nComment", "New Comment", false).clicked() {
         app.open_dialog("comment", json!({"threaded": true}));
+    }
+    if big_button(ui, Icon::Comment, "Show\nComments", "Comments pane", false).clicked() {
+        app.grid.pane = Some("comments".into());
     }
     if big_button(ui, Icon::Delete, "Delete", "Delete Comment", false).clicked() {
         act(app, "review.deleteComment", json!({}));
@@ -1676,6 +1682,9 @@ fn chart_design(app: &mut SheetApp, ui: &mut Ui) {
             }
         }
     });
+    if big_button(ui, Icon::Settings, "Format\nPane", "Format Chart pane", false).clicked() {
+        app.grid.pane = Some("formatChart".into());
+    }
     if big_button(ui, Icon::TextBox, "Chart\nTitle", "Edit chart title", false).clicked() {
         app.open_dialog("chartTitle", json!({"chart": id}));
     }

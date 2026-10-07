@@ -15,7 +15,15 @@ pub fn specs() -> Vec<CommandSpec> {
             ok()
         }),
         cmd!("draw.stroke", "Ink Stroke", [], None, "{points: [[x,y],…] in sheet points, color?: hex, width?: 2}", has_doc, stroke),
-        cmd!("draw.inkToShape", "Ink to Shape", ["Draw", "Convert"], None, "{id?} converts an ink stroke (default: the last) into a rectangle, ellipse, triangle or line", has_doc, ink_to_shape),
+        cmd!(
+            "draw.inkToShape",
+            "Ink to Shape",
+            ["Draw", "Convert"],
+            None,
+            "{id?} converts an ink stroke (default: the last) into a rectangle, ellipse, triangle or line",
+            has_doc,
+            ink_to_shape
+        ),
     ]
 }
 
@@ -45,7 +53,13 @@ fn stroke(s: &mut Session, p: &Json) -> Result<Json> {
     let pts: Vec<[f64; 2]> = p
         .get("points")
         .and_then(Json::as_array)
-        .map(|a| a.iter().filter_map(|q| Some([q.get(0)?.as_f64()?, q.get(1)?.as_f64()?])).filter(|q| q[0].is_finite() && q[1].is_finite()).take(20_000).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|q| Some([q.get(0)?.as_f64()?, q.get(1)?.as_f64()?]))
+                .filter(|q| q[0].is_finite() && q[1].is_finite())
+                .take(20_000)
+                .collect()
+        })
         .unwrap_or_default();
     if pts.len() < 2 {
         return Err(bad("draw.stroke", "a stroke needs at least two points"));
@@ -54,7 +68,8 @@ fn stroke(s: &mut Session, p: &Json) -> Result<Json> {
     let miny = pts.iter().map(|q| q[1]).fold(f64::INFINITY, f64::min).max(0.0);
     let maxx = pts.iter().map(|q| q[0]).fold(f64::NEG_INFINITY, f64::max);
     let maxy = pts.iter().map(|q| q[1]).fold(f64::NEG_INFINITY, f64::max);
-    let color = str_param(p, "color").map(str::to_string).unwrap_or_else(|| if s.draw_color.is_empty() { "#1F5FC9".into() } else { s.draw_color.clone() });
+    let color =
+        str_param(p, "color").map(str::to_string).unwrap_or_else(|| if s.draw_color.is_empty() { "#1F5FC9".into() } else { s.draw_color.clone() });
     let width = f64_param(p, "width").map(|w| w as f32).unwrap_or(if s.draw_width <= 0.0 { 2.0 } else { s.draw_width }).clamp(0.5, 40.0);
     let d = s.doc()?;
     let si = d.wb.active_sheet;

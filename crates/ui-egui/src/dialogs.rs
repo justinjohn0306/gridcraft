@@ -545,7 +545,21 @@ impl Dialog {
             "saveCopy" => Dialog::custom("saveCopy", "Save a Copy", json!({"format": p("format")})),
             "saveChanges" => Dialog::custom("saveChanges", "Save Changes?", json!({"title": p("title")})),
             "start" => Dialog::custom("start", "SheetCraft", json!({})),
-            "comments" => Dialog::custom("comments", "Comments", json!({})),
+            "comments" => {
+                app.grid.pane = Some("comments".into());
+                return None;
+            }
+            "watch" | "selectionPane" | "formatChart" => {
+                app.grid.pane = Some(
+                    match name {
+                        "watch" => "watch",
+                        "selectionPane" => "selection",
+                        _ => "formatChart",
+                    }
+                    .into(),
+                );
+                return None;
+            }
             _ => return None,
         };
         Some(d)

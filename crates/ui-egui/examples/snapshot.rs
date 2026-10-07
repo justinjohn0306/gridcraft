@@ -16,6 +16,8 @@ fn main() {
     let mut cmds: Vec<String> = vec![];
     let mut tab = None;
     let mut dark = false;
+    let mut pane: Option<String> = None;
+    let mut chart: Option<u32> = None;
     let mut out = "snapshot.png".to_string();
     let mut i = 0;
     while i < args.len() {
@@ -49,6 +51,14 @@ fn main() {
                 tab = args.get(i).cloned();
             }
             "--dark" => dark = true,
+            "--pane" => {
+                i += 1;
+                pane = args.get(i).cloned();
+            }
+            "--chart" => {
+                i += 1;
+                chart = args.get(i).and_then(|s| s.parse().ok());
+            }
             other => out = other.to_string(),
         }
         i += 1;
@@ -80,6 +90,8 @@ fn main() {
                 if let Some(t) = tab {
                     app.ui.ribbon_tab = t;
                 }
+                app.grid.pane = pane;
+                app.selected_chart = chart;
                 app
             },
         );
