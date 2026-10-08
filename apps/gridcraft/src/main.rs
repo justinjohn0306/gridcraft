@@ -161,7 +161,8 @@ fn main() -> eframe::Result<()> {
         if log::log_enabled!(log::Level::Error) {
             log::error!("{report}");
         } else {
-            eprintln!("gridcraft: {report}");
+            // `eprintln!` panics on a broken stderr pipe, and a panic inside the panic hook aborts.
+            let _ = std::io::Write::write_fmt(&mut std::io::stderr(), format_args!("gridcraft: {report}\n"));
         }
     }));
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -196,7 +197,8 @@ fn main() -> eframe::Result<()> {
         match log_dir().filter(|_| prefs_enabled()) {
             Some(dir) => match logger.attach_dir(&dir) {
                 Ok(path) => log::info!("GridCraft {}, log file {}", env!("CARGO_PKG_VERSION"), path.display()),
-                Err(e) => eprintln!("gridcraft: no log file: {e}"),
+                // Standard error only by now (`attach_dir` gave up on the file); unlike `eprintln!`, never panics.
+                Err(e) => log::warn!("no log file: {e}"),
             },
             None => logger.no_file(),
         }
