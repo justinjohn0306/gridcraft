@@ -115,6 +115,19 @@ cd apps/gridcraft-web && trunk serve --release     # http://127.0.0.1:8771  (?sa
 You need [trunk](https://trunkrs.dev) and the `wasm32-unknown-unknown` target. Open uses the
 browser's file picker (dropping files works too) and Save downloads the workbook.
 
+### Logs
+
+The desktop app writes its log to standard error and to `gridcraft.log` in the `logs` folder
+next to its settings: `~/.config/gridcraft/logs` on Linux and BSD (`$XDG_CONFIG_HOME/gridcraft/logs`
+when set), `~/Library/Application Support/GridCraft/logs` on macOS and
+`%APPDATA%\GridCraft\logs` on Windows. Each start moves the previous log to `gridcraft.1.log` and
+that one to `gridcraft.2.log`, so the log of a run that crashed survives the next start; attach
+them to a bug report. A log file stops growing at 16 MiB. By default GridCraft's own crates log
+at `info` and everything else at `warn`; `RUST_LOG` replaces that with env_logger-style
+directives, e.g. `RUST_LOG=debug` or `RUST_LOG=warn,gridcraft_engine=debug` (a trailing `*`
+matches a prefix: `gridcraft*=debug`). Runs with `GRIDCRAFT_NO_PREFS` set (no saved settings)
+log to standard error only.
+
 ## For agents: MCP, CLI and the control channel
 
 ```sh
