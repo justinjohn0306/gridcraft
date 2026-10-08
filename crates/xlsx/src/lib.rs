@@ -93,6 +93,7 @@ impl Default for CsvOptions {
 pub enum Format {
     Xlsx,
     Csv,
+    Encrypted,
     Unknown,
 }
 
@@ -100,6 +101,10 @@ pub enum Format {
 pub fn sniff(bytes: &[u8]) -> Format {
     if bytes.starts_with(b"PK\x03\x04") || bytes.starts_with(b"PK\x05\x06") || bytes.starts_with(b"PK\x07\x08") {
         return Format::Xlsx;
+    }
+    // CFB/OLE2 compound file: Excel password-protected files.
+    if bytes.starts_with(&[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]) {
+        return Format::Encrypted;
     }
     if bytes.starts_with(&[0xFF, 0xFE]) || bytes.starts_with(&[0xFE, 0xFF]) || bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
         return Format::Csv;

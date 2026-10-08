@@ -105,6 +105,8 @@ fn writing() {
 fn sniffing_formats() {
     assert_eq!(sniff(b"PK\x03\x04rest"), Format::Xlsx);
     assert_eq!(sniff(b"a,b\n1,2"), Format::Csv);
+    // An Excel password-protected file is a CFB/OLE2 compound file, not a zip.
+    assert_eq!(sniff(&[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0, 0]), Format::Encrypted);
     assert_eq!(sniff(&[0xD0, 0xCF, 0x11, 0xE0, 0, 0, 1, 2]), Format::Unknown);
     assert_eq!(sniff(b""), Format::Unknown);
     assert_eq!(sniff(&[0xFF, 0xFE, b'a', 0]), Format::Csv);

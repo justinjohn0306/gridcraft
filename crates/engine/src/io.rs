@@ -36,6 +36,11 @@ impl FileKind {
 pub fn open_bytes(name: &str, bytes: &[u8]) -> Result<(Workbook, Vec<String>)> {
     let kind = FileKind::from_path(name);
     let sniffed = gridcraft_xlsx::sniff(bytes);
+    if sniffed == gridcraft_xlsx::Format::Encrypted {
+        return Err(EngineError::Other(format!(
+            "'{name}' is password-protected. GridCraft can't open encrypted workbooks yet; remove the password in Excel and try again."
+        )));
+    }
     if sniffed == gridcraft_xlsx::Format::Xlsx || kind == Some(FileKind::Xlsx) {
         let (wb, report) = gridcraft_xlsx::read_xlsx(bytes).map_err(|e| EngineError::Other(format!("We can't open '{name}': {e}")))?;
         return Ok((wb, report.warnings));
@@ -243,4 +248,19 @@ pub fn image_size(data: &[u8]) -> Option<(u32, u32)> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encrypted_workbook_is_reported_not_misread() {
+        // A CFB/OLE2 header: Excel's password-protected container.
+        let cfb = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0, 0, 0, 0];
+        let err = open_bytes("secret.xlsx", &cfb).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("password-protected"), "got: {msg}");
+        assert!(!msg.contains("zip"), "must not surface the zip error: {msg}");
+    }
 }
