@@ -190,3 +190,93 @@ fn ink_strokes_and_ink_to_shape() {
     assert_eq!(s.execute("draw.inkToShape", json!({})).unwrap()["kind"], "Line");
     assert!(s.execute("draw.stroke", json!({"points": [[1.0, 1.0]]})).is_err());
 }
+
+/// A 2×2 PNG, so objects can be injected into a workbook in tests.
+fn tiny_png() -> Vec<u8> {
+    let img = image::RgbaImage::from_raw(2, 2, vec![255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 255, 0, 0, 0, 0]).unwrap();
+    let mut png = Vec::new();
+    image::DynamicImage::ImageRgba8(img).write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png).unwrap();
+    png
+}
+
+fn add_image(s: &mut Session, cell: &str, mode: gridcraft_model::AnchorMode) -> u32 {
+    let d = s.doc_mut().unwrap();
+    let wb = std::sync::Arc::make_mut(&mut d.wb);
+    let id = wb.next_object_id();
+    wb.sheet_mut(0).unwrap().images.push(gridcraft_model::Image {
+        id,
+        anchor: gridcraft_model::Anchor { cell: CellRef::parse(cell).unwrap(), dx: 0.0, dy: 0.0, width: 40.0, height: 40.0, mode },
+        data: tiny_png(),
+        mime: "image/png".into(),
+        alt: String::new(),
+    });
+    id
+}
+
+fn image_cell(s: &Session, id: u32) -> Option<CellRef> {
+    s.doc().unwrap().wb.active().unwrap().images.iter().find(|i| i.id == id).map(|i| i.anchor.cell)
+}
+
+/// Issue #5: images anchored in cells follow their row when the sheet is sorted.
+#[test]
+fn sort_moves_anchored_images_with_their_rows() {
+    use gridcraft_model::AnchorMode;
+    let mut s = s();
+    s.execute("range.setValues", json!({"range": "A1", "values": [["Name", "Score"], ["b", 2], ["c", 3], ["a", 1]]})).unwrap();
+    // One picture per data row, in its own row.
+    let ib = add_image(&mut s, "A2", AnchorMode::MoveAndSize);
+    let ic = add_image(&mut s, "A3", AnchorMode::MoveAndSize);
+    let ia = add_image(&mut s, "A4", AnchorMode::MoveAndSize);
+    s.execute("selection.set", json!({"range": "A1:B4"})).unwrap();
+    s.execute("data.sortAscending", json!({"header": true, "column": "A"})).unwrap();
+    // Ascending by name: b, c, a → a, b, c. Each picture lands in its row's new home.
+    assert_eq!(image_cell(&s, ib), Some(CellRef::parse("A3").unwrap()));
+    assert_eq!(image_cell(&s, ic), Some(CellRef::parse("A4").unwrap()));
+    assert_eq!(image_cell(&s, ia), Some(CellRef::parse("A2").unwrap()));
+}
+
+/// An `absolute`-pinned object stays exactly where it was drawn across a sort and a row delete.
+#[test]
+fn absolute_objects_ignore_sort_and_structural_edits() {
+    use gridcraft_model::AnchorMode;
+    let mut s = s();
+    s.execute("range.setValues", json!({"range": "A1", "values": [["Name", "Score"], ["b", 2], ["c", 3], ["a", 1]]})).unwrap();
+    let pinned = add_image(&mut s, "A3", AnchorMode::Absolute);
+    s.execute("selection.set", json!({"range": "A1:B4"})).unwrap();
+    s.execute("data.sortAscending", json!({"header": true, "column": "A"})).unwrap();
+    assert_eq!(image_cell(&s, pinned), Some(CellRef::parse("A3").unwrap()));
+    s.execute("home.deleteRows", json!({"rows": "2:2"})).unwrap();
+    assert_eq!(image_cell(&s, pinned), Some(CellRef::parse("A3").unwrap()));
+}
+
+/// A "move but don't size" object follows its row across a sort but keeps its size.
+#[test]
+fn move_only_objects_follow_but_do_not_resize() {
+    use gridcraft_model::AnchorMode;
+    let mut s = s();
+    s.execute("range.setValues", json!({"range": "A1", "values": [["Name", "N"], ["b", 2], ["a", 1]]})).unwrap();
+    let id = add_image(&mut s, "A2", AnchorMode::MoveOnly);
+    s.execute("selection.set", json!({"range": "A1:B3"})).unwrap();
+    s.execute("data.sortAscending", json!({"column": "A"})).unwrap();
+    // "a" moved to row 2 and "b" to row 3, so the image follows from A2 to A3.
+    assert_eq!(image_cell(&s, id), Some(CellRef::parse("A3").unwrap()));
+    let a = s.doc().unwrap().wb.active().unwrap().images.iter().find(|i| i.id == id).unwrap().anchor;
+    assert_eq!((a.width, a.height), (40.0, 40.0));
+}
+
+/// `object.setAnchorMode` changes how an object follows its cells.
+#[test]
+fn set_anchor_mode_changes_following() {
+    use gridcraft_model::AnchorMode;
+    let mut s = s();
+    s.execute("range.setValues", json!({"range": "A1", "values": [["Name", "N"], ["b", 2], ["a", 1]]})).unwrap();
+    let id = add_image(&mut s, "A2", AnchorMode::MoveAndSize);
+    let r = s.execute("object.setAnchorMode", json!({"kind": "image", "id": id, "mode": "dontMoveOrSizeWithCells"})).unwrap();
+    assert_eq!(r["mode"], "absolute");
+    s.execute("selection.set", json!({"range": "A1:B3"})).unwrap();
+    s.execute("data.sortAscending", json!({"column": "A"})).unwrap();
+    // Pinned absolute: it stays put even though its row moved.
+    assert_eq!(image_cell(&s, id), Some(CellRef::parse("A2").unwrap()));
+    // A bad mode is rejected, not silently ignored.
+    assert!(s.execute("object.setAnchorMode", json!({"kind": "image", "id": id, "mode": "sideways"})).is_err());
+}

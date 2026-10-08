@@ -125,6 +125,15 @@ pub fn specs() -> Vec<CommandSpec> {
         cmd!("object.delete", "Delete Object", [], None, "{kind: chart|image|shape, id}", has_doc, delete_object),
         cmd!("object.move", "Move Object", [], None, "{kind: chart|image|shape, id, at?: \"C3\", dx?, dy?, width?, height?}", has_doc, move_object),
         cmd!(
+            "object.setAnchorMode",
+            "Object Properties",
+            [],
+            None,
+            "{kind: chart|image|shape, id, mode: moveAndSize|moveOnly|absolute}",
+            has_doc,
+            set_anchor_mode
+        ),
+        cmd!(
             "insert.link",
             "Link",
             ["Insert", "Links"],
@@ -566,6 +575,7 @@ fn insert_chart(s: &mut Session, p: &Json) -> Result<Json> {
             dy: 0.0,
             width: f64_param(p, "width").unwrap_or(480.0) as f32,
             height: f64_param(p, "height").unwrap_or(288.0) as f32,
+            mode: anchor_mode_param(p).unwrap_or_default(),
         },
         title,
         series,
@@ -723,6 +733,7 @@ fn insert_picture(s: &mut Session, p: &Json) -> Result<Json> {
             dy: 0.0,
             width: f64_param(p, "width").map(|v| v as f32).unwrap_or(w as f32 * scale),
             height: f64_param(p, "height").map(|v| v as f32).unwrap_or(h as f32 * scale),
+            mode: anchor_mode_param(p).unwrap_or_default(),
         },
         data,
         mime,
@@ -764,6 +775,7 @@ fn insert_shape(s: &mut Session, p: &Json) -> Result<Json> {
             dy: 0.0,
             width: f64_param(p, "width").unwrap_or(144.0) as f32,
             height: f64_param(p, "height").unwrap_or(if kind == ShapeKind::Line { 0.0 } else { 96.0 }) as f32,
+            mode: anchor_mode_param(p).unwrap_or_default(),
         },
         fill,
         line,
@@ -819,6 +831,27 @@ fn move_object(s: &mut Session, p: &Json) -> Result<Json> {
             a.height = v.clamp(0.0, 10000.0) as f32;
         }
         Ok(Json::Null)
+    })
+}
+
+/// Sets an object's anchor mode (Excel's "Move and size with cells" / "Move but don't size with
+/// cells" / "Don't move or size with cells"), so it follows — or ignores — its rows and columns
+/// when the sheet is sorted or edited structurally.
+fn set_anchor_mode(s: &mut Session, p: &Json) -> Result<Json> {
+    let id = u32_param(p, "id").ok_or_else(|| bad("object.setAnchorMode", "missing `id`"))?;
+    let kind = str_param(p, "kind").unwrap_or("").to_string();
+    let mode = anchor_mode_param(p).ok_or_else(|| bad("object.setAnchorMode", "mode must be moveAndSize, moveOnly or absolute"))?;
+    let sheet = s.doc()?.wb.active_sheet;
+    edit(s, |cx| {
+        let sh = cx.sheet_mut(sheet)?;
+        let anchor = match kind.as_str() {
+            "chart" => sh.charts.iter_mut().find(|c| c.id == id).map(|c| &mut c.anchor),
+            "image" => sh.images.iter_mut().find(|c| c.id == id).map(|c| &mut c.anchor),
+            _ => sh.shapes.iter_mut().find(|c| c.id == id).map(|c| &mut c.anchor),
+        };
+        let Some(a) = anchor else { return Err(bad("object.setAnchorMode", "no such object")) };
+        a.mode = mode;
+        Ok(json!({"mode": anchor_mode_name(mode)}))
     })
 }
 
@@ -1134,7 +1167,7 @@ fn insert_icon(s: &mut Session, p: &Json) -> Result<Json> {
     let shape = Shape {
         id,
         kind: ShapeKind::Icon,
-        anchor: Anchor { cell: at, dx: 4.0, dy: 4.0, width: size, height: size },
+        anchor: Anchor { cell: at, dx: 4.0, dy: 4.0, width: size, height: size, mode: anchor_mode_param(p).unwrap_or_default() },
         fill: color,
         line: Color::Auto,
         text: name,
