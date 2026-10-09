@@ -146,3 +146,26 @@ fn column_autocomplete_completes_on_enter() {
     key(&mut h, Key::Enter, Modifiers::NONE);
     assert_eq!(value(&h, "A5"), Value::from("Ea"));
 }
+
+#[test]
+fn general_numbers_fit_by_the_cells_own_font() {
+    // 9pt marks in narrow columns (a stored width of 4, i.e. 28px; common in mark sheets): "100" fits.
+    let mut s = blank();
+    s.execute("range.setValues", json!({"range": "A1", "values": [[100, 123456789]]})).unwrap();
+    s.execute("home.fontSize", json!({"range": "A1:B1", "size": 9})).unwrap();
+    s.execute("home.columnWidth", json!({"cols": "A:B", "width": 28})).unwrap();
+    s.execute("selection.set", json!({"cell": "C3"})).unwrap();
+    let h = harness(s);
+    let texts: Vec<String> = h
+        .output()
+        .shapes
+        .iter()
+        .filter_map(|c| match &c.shape {
+            egui::Shape::Text(t) => Some(t.galley.job.text.clone()),
+            _ => None,
+        })
+        .collect();
+    assert!(texts.iter().any(|t| t == "100"), "100 drawn in full: {texts:?}");
+    // A number that really doesn't fit still shows #### (once: only B1).
+    assert_eq!(texts.iter().filter(|t| t.starts_with('#')).count(), 1, "{texts:?}");
+}
