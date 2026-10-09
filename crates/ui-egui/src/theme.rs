@@ -292,9 +292,9 @@ pub fn font_definitions() -> FontDefinitions {
     let mut fonts = FontDefinitions::default();
     let base_prop: Vec<String> = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
     let base_mono: Vec<String> = fonts.families.get(&FontFamily::Monospace).cloned().unwrap_or_default();
-    // CJK has to sit at the end of each chain: a Latin font owns Latin, and epaint picks the first
-    // face that has the glyph, so the CJK faces only ever catch Han/Kana/Hangul.
-    let cjk = load_cjk(&mut fonts);
+    // The non-Latin fallback faces have to sit at the end of each chain: a Latin font owns Latin,
+    // and epaint picks the first face that has the glyph, so they only catch their own scripts.
+    let fallback = load_fallback(&mut fonts);
     for role in [UI, UI_BOLD, CELL, CELL_BOLD, CELL_ITALIC, CELL_BOLD_ITALIC, SERIF, MONO] {
         let paths = candidates(role);
         let refs: Vec<(&str, u32)> = paths.iter().map(|(p, i)| (p.as_str(), *i)).collect();
@@ -309,7 +309,7 @@ pub fn font_definitions() -> FontDefinitions {
             chain.push(format!("sys-{CELL}"));
         }
         chain.extend(if role == MONO { base_mono.clone() } else { base_prop.clone() });
-        chain.extend(cjk.iter().cloned());
+        chain.extend(fallback.iter().cloned());
         chain.retain(|k| fonts.font_data.contains_key(k));
         fonts.families.insert(FontFamily::Name(role.into()), chain);
     }
@@ -320,13 +320,15 @@ pub fn font_definitions() -> FontDefinitions {
     fonts
 }
 
-/// Loads the system CJK faces (Han/Kana and Hangul, one file each) and returns their keys so every
-/// family can carry them as fallback. egui's bundled fonts have no CJK coverage, so without this a
-/// Japanese or Chinese workbook renders as tofu boxes even though the text was read correctly.
+/// Loads the system non-Latin fallback faces (one file per script family) and returns their keys so
+/// every family can carry them as fallback. egui's bundled fonts have no coverage beyond Latin, so
+/// without this a Thai, Hebrew, Japanese or Chinese workbook renders as tofu boxes even though the
+/// text was read correctly. epaint shapes the complex scripts itself (via `harfrust`); it only needs
+/// a face that has the glyphs.
 #[cfg(not(target_arch = "wasm32"))]
-fn load_cjk(fonts: &mut FontDefinitions) -> Vec<String> {
+fn load_fallback(fonts: &mut FontDefinitions) -> Vec<String> {
     let mut keys = Vec::new();
-    for (key, cands) in [("sys-cjk-han", cjk_han()), ("sys-cjk-hangul", cjk_hangul())] {
+    for (key, cands) in fallback_faces() {
         let refs: Vec<(&str, u32)> = cands.iter().map(|(p, i)| (p.as_str(), *i)).collect();
         if let Some(fd) = try_load(&refs) {
             fonts.font_data.insert(key.to_string(), Arc::new(fd));
@@ -337,8 +339,16 @@ fn load_cjk(fonts: &mut FontDefinitions) -> Vec<String> {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn load_cjk(_fonts: &mut FontDefinitions) -> Vec<String> {
+fn load_fallback(_fonts: &mut FontDefinitions) -> Vec<String> {
     Vec::new()
+}
+
+/// Every fallback face we look for, in chain order: `(key, candidate files)`. One file per script
+/// family is enough — epaint picks the first face with the glyph, and a script's glyphs live in one
+/// file. Order only matters between faces that both cover a glyph (e.g. Japanese vs Chinese kanji).
+#[cfg(not(target_arch = "wasm32"))]
+fn fallback_faces() -> Vec<(&'static str, Vec<(String, u32)>)> {
+    vec![("sys-cjk-han", cjk_han()), ("sys-cjk-hangul", cjk_hangul()), ("sys-thai", thai()), ("sys-hebrew", hebrew())]
 }
 
 /// Han + Kana faces, in fallback order. A Japanese face comes first (kana and JIS kanji render
@@ -375,6 +385,51 @@ fn cjk_hangul() -> Vec<(String, u32)> {
     for d in lin {
         v.push((format!("{d}/NotoSansCJKkr-Regular.otf"), 0));
         v.push((format!("{d}/NotoSansCJK-Regular.ttc"), 0));
+    }
+    v
+}
+
+/// Thai faces. Windows ships Leelawadee UI and Tahoma/Microsoft Sans Serif (both carry Thai);
+/// macOS has Thonburi; Linux usually has Noto Sans Thai or Garuda.
+#[cfg(not(target_arch = "wasm32"))]
+fn thai() -> Vec<(String, u32)> {
+    let mac_sys = "/System/Library/Fonts";
+    let mac_sup = "/System/Library/Fonts/Supplemental";
+    let win = std::env::var("WINDIR").map(|w| format!("{w}\\Fonts")).unwrap_or_else(|_| "C:\\Windows\\Fonts".into());
+    let lin = ["/usr/share/fonts/truetype/noto", "/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype", "/usr/share/fonts"];
+    let mut v: Vec<(String, u32)> = Vec::new();
+    v.push((format!("{win}\\LeelawUI.ttf"), 0)); // Leelawadee UI
+    v.push((format!("{win}\\tahoma.ttf"), 0)); // Tahoma
+    v.push((format!("{win}\\micross.ttf"), 0)); // Microsoft Sans Serif
+    v.push((format!("{mac_sup}/Thonburi.ttc"), 0));
+    v.push((format!("{mac_sys}/SukhumvitSet.ttc"), 0));
+    for d in lin {
+        v.push((format!("{d}/NotoSansThai-Regular.ttf"), 0));
+        v.push((format!("{d}/tlwg/Garuda.ttf"), 0));
+        v.push((format!("{d}/garuda/Garuda.ttf"), 0));
+    }
+    v
+}
+
+/// Hebrew faces. Windows has David and FrankRuehl (and Tahoma/Courier New carry Hebrew); macOS has
+/// Arial Hebrew and David; Linux usually has Noto Sans Hebrew or DejaVu Sans.
+#[cfg(not(target_arch = "wasm32"))]
+fn hebrew() -> Vec<(String, u32)> {
+    let mac_sys = "/System/Library/Fonts";
+    let mac_sup = "/System/Library/Fonts/Supplemental";
+    let win = std::env::var("WINDIR").map(|w| format!("{w}\\Fonts")).unwrap_or_else(|_| "C:\\Windows\\Fonts".into());
+    let lin = ["/usr/share/fonts/truetype/noto", "/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype", "/usr/share/fonts"];
+    let mut v: Vec<(String, u32)> = Vec::new();
+    v.push((format!("{win}\\david.ttf"), 0)); // David
+    v.push((format!("{win}\\frank.ttf"), 0)); // FrankRuehl
+    v.push((format!("{win}\\tahoma.ttf"), 0)); // Tahoma
+    v.push((format!("{mac_sup}/Arial Hebrew.ttf"), 0));
+    v.push((format!("{mac_sup}/David.ttf"), 0));
+    v.push((format!("{mac_sys}/Lucida Grande.ttc"), 0));
+    for d in lin {
+        v.push((format!("{d}/NotoSansHebrew-Regular.ttf"), 0));
+        v.push((format!("{d}/dejavu/DejaVuSans.ttf"), 0));
+        v.push((format!("{d}/freefont/FreeSans.ttf"), 0));
     }
     v
 }
@@ -420,35 +475,43 @@ mod tests {
     use super::*;
 
     #[test]
-    fn cjk_fallback_is_appended_to_every_family() {
-        // Structural: whatever loaded, the CJK keys must sit at the end of each chain (after the
-        // Latin/default fonts) so Latin still wins for Latin text.
+    fn fallback_faces_are_appended_to_every_family() {
+        // Structural: whatever loaded, the non-Latin fallback keys must sit at the end of each chain
+        // (after the Latin/default fonts) so Latin still wins for Latin text.
         let fonts = font_definitions();
-        let cjk_keys: Vec<String> =
-            ["sys-cjk-han", "sys-cjk-hangul"].into_iter().filter(|k| fonts.font_data.contains_key(*k)).map(str::to_string).collect();
-        if cjk_keys.is_empty() {
-            return; // no CJK face on this machine (minimal Linux)
+        let fb_keys: Vec<String> = fallback_faces().into_iter().map(|(k, _)| k.to_string()).filter(|k| fonts.font_data.contains_key(k)).collect();
+        if fb_keys.is_empty() {
+            return; // no fallback face on this machine (minimal Linux)
         }
         for role in [UI, UI_BOLD, CELL, CELL_BOLD, CELL_ITALIC, CELL_BOLD_ITALIC, SERIF, MONO] {
             let chain = fonts.families.get(&FontFamily::Name(role.into())).map(Vec::as_slice).unwrap_or_default();
-            assert!(chain.len() >= cjk_keys.len(), "{role} chain too short for its CJK fallback");
-            let tail = &chain[chain.len() - cjk_keys.len()..];
-            assert_eq!(tail, cjk_keys.as_slice(), "{role} must end its chain with the CJK faces");
+            assert!(chain.len() >= fb_keys.len(), "{role} chain too short for its fallback");
+            let tail = &chain[chain.len() - fb_keys.len()..];
+            assert_eq!(tail, fb_keys.as_slice(), "{role} must end its chain with the fallback faces");
         }
     }
 
     #[test]
-    fn cjk_fallback_covers_japanese() {
-        // Real render check: the proportional family (what cells and the UI use) must resolve
-        // Japanese kana/kanji to a glyph, not the tofu replacement char.
-        if cjk_han().iter().all(|(p, _)| std::fs::read(p).is_err()) {
-            return; // no CJK face on this machine (minimal Linux); nothing to assert
-        }
+    fn fallback_covers_its_script() {
+        // Real render check, per script: the proportional family (what cells and the UI use) must
+        // resolve a sample string to a real glyph, not the tofu replacement char. Skips a script
+        // whose face is absent (a minimal machine) and fails if a face is present but not wired in.
+        let cases: [(&str, Vec<(String, u32)>, &str); 4] = [
+            ("sys-cjk-han", cjk_han(), "カテゴリ"),
+            ("sys-cjk-hangul", cjk_hangul(), "한글"),
+            ("sys-thai", thai(), "ทดสอบ"),
+            ("sys-hebrew", hebrew(), "עברית"),
+        ];
         let ctx = egui::Context::default();
         ctx.set_fonts(font_definitions());
         let mut out = ctx.run_ui(egui::RawInput::default(), |_ui| {});
         out.textures_delta.clear(); // nothing consumes the atlas in a headless test
-        let covered = ctx.fonts_mut(|f| f.has_glyphs(&FontId::proportional(14.0), "カテゴリ"));
-        assert!(covered, "Japanese text must render with a real glyph, not tofu");
+        for (key, cands, sample) in cases {
+            if cands.iter().all(|(p, _)| std::fs::read(p).is_err()) {
+                continue; // no face for this script on this machine; nothing to assert
+            }
+            let covered = ctx.fonts_mut(|f| f.has_glyphs(&FontId::proportional(14.0), sample));
+            assert!(covered, "{key} is present but {sample:?} still renders as tofu");
+        }
     }
 }
