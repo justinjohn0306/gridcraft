@@ -9,6 +9,8 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 mod control_server;
+#[cfg(any(target_os = "windows", test))]
+mod graphics;
 #[cfg(target_os = "macos")]
 mod native_menu;
 
@@ -187,6 +189,13 @@ fn main() -> eframe::Result<()> {
         viewport = viewport.with_icon(i);
     }
     let options = eframe::NativeOptions { viewport, ..Default::default() };
+    // Before eframe creates the wgpu instance: default Windows to DirectX 12 only (see graphics.rs).
+    #[cfg(target_os = "windows")]
+    let options = {
+        let mut options = options;
+        graphics::configure(&mut options, eframe::wgpu::Backends::from_env());
+        options
+    };
     eframe::run_native(
         "GridCraft",
         options,
