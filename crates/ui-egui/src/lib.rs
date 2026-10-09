@@ -276,7 +276,7 @@ impl SheetApp {
     pub fn begin_edit(&mut self, text: Option<String>, from_formula_bar: bool) {
         let Some(d) = self.session.active() else { return };
         let Some(sh) = d.wb.active() else { return };
-        let at = d.selection.active;
+        let at = sh.merge_at(d.selection.active).map(|m| m.start).unwrap_or(d.selection.active);
         let current = sh.cell(at).map(|c| c.input_text()).unwrap_or_default();
         let (text, replace) = match text {
             Some(t) => (t, true),
