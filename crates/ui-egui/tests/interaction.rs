@@ -146,3 +146,42 @@ fn column_autocomplete_completes_on_enter() {
     key(&mut h, Key::Enter, Modifiers::NONE);
     assert_eq!(value(&h, "A5"), Value::from("Ea"));
 }
+
+fn text_shapes(shape: &egui::Shape, clip: egui::Rect, out: &mut Vec<(egui::epaint::TextShape, egui::Rect)>) {
+    match shape {
+        egui::Shape::Text(t) => out.push((t.clone(), clip)),
+        egui::Shape::Vec(v) => v.iter().for_each(|s| text_shapes(s, clip, out)),
+        _ => {}
+    }
+}
+
+#[test]
+fn rotated_wrapped_text_is_drawn_rotated_inside_its_cell() {
+    // Narrow columns with tall, upright headers (mark sheets): rotation and Wrap Text together.
+    let header = "Term 1 : Drama : Continuous Assessment";
+    let mut s = blank();
+    s.execute("range.setValues", json!({"range": "A1", "values": [[header, header]]})).unwrap();
+    s.execute("home.wrapText", json!({"range": "A1:B1", "on": true})).unwrap();
+    s.execute("home.orientation", json!({"range": "A1", "angle": "up"})).unwrap();
+    s.execute("home.orientation", json!({"range": "B1", "angle": "down"})).unwrap();
+    s.execute("home.columnWidth", json!({"cols": "A:B", "chars": 6})).unwrap();
+    s.execute("home.rowHeight", json!({"rows": "1:1", "height": 267})).unwrap();
+    s.execute("selection.set", json!({"cell": "C3"})).unwrap();
+    let h = harness(s);
+    let mut found = Vec::new();
+    for c in &h.output().shapes {
+        text_shapes(&c.shape, c.clip_rect, &mut found);
+    }
+    let rotated: Vec<_> = found.iter().filter(|(t, _)| t.galley.job.text == header).collect();
+    assert_eq!(rotated.len(), 2, "both headers drawn as one text block each");
+    for (t, clip) in rotated {
+        assert!((t.angle.abs() - std::f32::consts::FRAC_PI_2).abs() < 1e-3, "drawn at ±90°, got {}", t.angle);
+        // Wrapped along the row height into a couple of long lines, not across the narrow column.
+        assert!(t.galley.rows.len() <= 3, "{} lines", t.galley.rows.len());
+        let bb = t.visual_bounding_rect();
+        assert!(bb.height() > bb.width(), "upright, not flat: {bb:?}");
+        assert!(clip.expand(1.0).contains_rect(bb), "inside its cell: {bb:?} not in {clip:?}");
+        // Upright text never spills into the neighbouring columns: the clip is the cell itself.
+        assert!(clip.width() < 70.0, "clip spans one 6-character column, got {clip:?}");
+    }
+}
