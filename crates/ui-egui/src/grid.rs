@@ -416,13 +416,14 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
         paint_headers(&painter, &geo, sh, &sel, &t, &quads);
     }
     // Interaction.
+    let previous_popups = (app.grid.filter_menu, app.grid.list_picker, app.grid.header_menu);
     interact(app, ui, &resp, &geo, sh, &wb);
     if app.editor.as_ref().is_some_and(|e| !e.from_formula_bar) {
         in_cell_editor(app, ui, &geo, sh, &wb);
     }
-    filter_menu(app, ui, &geo);
-    list_picker(app, ui, &geo);
-    header_menu(app, ui);
+    filter_menu(app, ui, &geo, previous_popups.0 == app.grid.filter_menu);
+    list_picker(app, ui, &geo, previous_popups.1 == app.grid.list_picker);
+    header_menu(app, ui, previous_popups.2 == app.grid.header_menu);
     context_menu(app, ui);
     if app.session.clipboard.is_some() {
         app.grid.marching_phase = (app.grid.marching_phase + 0.5) % 8.0;
@@ -1643,7 +1644,13 @@ fn in_cell_editor(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo, sh: &Sheet, 
     crate::formula_bar::editor_widget(app, &mut child, id, font, false, erect.width() - 4.0);
 }
 
-fn filter_menu(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
+/// Test the popup itself, not whether the pointer is over any part of the app.
+/// A trigger can sit outside its popup, so its opening click must be ignored.
+fn popup_dismissed(response: &egui::Response, was_open: bool) -> bool {
+    response.ctx.input(|i| !i.focused || i.key_pressed(egui::Key::Escape)) || (was_open && response.clicked_elsewhere())
+}
+
+fn filter_menu(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo, was_open: bool) {
     let Some((col, at)) = app.grid.filter_menu else { return };
     let Some(d) = app.session.active() else { return };
     let wb = d.wb.clone();
@@ -1676,9 +1683,10 @@ fn filter_menu(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
     }
     let wb = app.session.active().map(|d| d.wb.clone()).unwrap_or(wb);
     let values = gridcraft_engine::cmd::data::filter_values(&wb, si, col);
+    let key = egui::Id::new(("filter_sel", col));
     let mut close = false;
     let area = egui::Area::new(egui::Id::new("filter_menu")).fixed_pos(at + vec2(-180.0, 10.0)).order(egui::Order::Foreground);
-    area.show(ui.ctx(), |ui| {
+    let response = area.show(ui.ctx(), |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             ui.set_width(230.0);
             if ui.button("↑  Sort Ascending").clicked() {
@@ -1691,7 +1699,6 @@ fn filter_menu(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
             }
             ui.separator();
             ui.label(egui::RichText::new("Filter").strong());
-            let key = egui::Id::new(("filter_sel", col));
             let mut checks: Vec<(String, bool)> = ui.ctx().data_mut(|d| d.get_temp::<Vec<(String, bool)>>(key)).unwrap_or(values.clone());
             let all = checks.iter().all(|(_, b)| *b);
             let mut all_new = all;
@@ -1710,7 +1717,6 @@ fn filter_menu(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
             ui.horizontal(|ui| {
                 if ui.button("Clear Filter").clicked() {
                     let _ = app.run("data.filterBy", json!({"column": col_to_letters(col), "clear": true}));
-                    ui.ctx().data_mut(|d| d.remove::<Vec<(String, bool)>>(key));
                     close = true;
                 }
                 if ui.button("Apply").clicked() {
@@ -1722,13 +1728,13 @@ fn filter_menu(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
                         json!({"column": col_to_letters(col), "values": vals, "blanks": blanks})
                     };
                     let _ = app.run("data.filterBy", p);
-                    ui.ctx().data_mut(|d| d.remove::<Vec<(String, bool)>>(key));
                     close = true;
                 }
             });
         });
     });
-    if close || ui.input(|i| i.key_pressed(egui::Key::Escape)) || (ui.input(|i| i.pointer.any_pressed()) && !ui.ctx().is_pointer_over_egui()) {
+    if close || popup_dismissed(&response.response, was_open) {
+        ui.ctx().data_mut(|d| d.remove::<Vec<(String, bool)>>(key));
         app.grid.filter_menu = None;
     }
 }
@@ -1939,7 +1945,7 @@ fn paint_overlays(
     let _ = (wb, si);
 }
 
-fn list_picker(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
+fn list_picker(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo, was_open: bool) {
     let Some(c) = app.grid.list_picker else { return };
     let Some(d) = app.session.active() else { return };
     let wb = d.wb.clone();
@@ -1952,7 +1958,7 @@ fn list_picker(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
     let items = gridcraft_engine::cmd::data::list_items(&wb, si, &dv);
     let r = geo.cell_rect(sh, c);
     let mut close = false;
-    egui::Area::new(egui::Id::new("dv_list")).fixed_pos(r.left_bottom()).order(egui::Order::Foreground).show(ui.ctx(), |ui| {
+    let response = egui::Area::new(egui::Id::new("dv_list")).fixed_pos(r.left_bottom()).order(egui::Order::Foreground).show(ui.ctx(), |ui| {
         egui::Frame::popup(ui.style()).inner_margin(2.0).show(ui, |ui| {
             ui.set_min_width(r.width().max(100.0));
             egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
@@ -1965,15 +1971,15 @@ fn list_picker(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo) {
             });
         });
     });
-    if close || ui.input(|i| i.key_pressed(egui::Key::Escape)) || (ui.input(|i| i.pointer.any_pressed()) && !ui.ctx().is_pointer_over_egui()) {
+    if close || popup_dismissed(&response.response, was_open) {
         app.grid.list_picker = None;
     }
 }
 
-fn header_menu(app: &mut SheetApp, ui: &mut egui::Ui) {
+fn header_menu(app: &mut SheetApp, ui: &mut egui::Ui, was_open: bool) {
     let Some((at, rows)) = app.grid.header_menu else { return };
     let mut close = false;
-    egui::Area::new(egui::Id::new("header_menu")).fixed_pos(at).order(egui::Order::Foreground).show(ui.ctx(), |ui| {
+    let response = egui::Area::new(egui::Id::new("header_menu")).fixed_pos(at).order(egui::Order::Foreground).show(ui.ctx(), |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             ui.set_min_width(190.0);
             let items: Vec<(&str, &str)> = if rows {
@@ -2033,7 +2039,7 @@ fn header_menu(app: &mut SheetApp, ui: &mut egui::Ui) {
             }
         });
     });
-    if close || ui.input(|i| i.key_pressed(egui::Key::Escape)) || (ui.input(|i| i.pointer.any_pressed()) && !ui.ctx().is_pointer_over_egui()) {
+    if close || popup_dismissed(&response.response, was_open) {
         app.grid.header_menu = None;
     }
 }
