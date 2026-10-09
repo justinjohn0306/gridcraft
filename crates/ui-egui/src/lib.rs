@@ -13,6 +13,7 @@ pub mod dialogs;
 pub mod editor;
 pub mod formula_bar;
 pub mod grid;
+pub mod i18n;
 pub mod icons;
 pub mod panes;
 pub mod pivot_pane;
@@ -41,6 +42,9 @@ pub struct UiState {
     pub formula_bar_expanded: bool,
     pub status_bar: bool,
     pub recent: Vec<String>,
+    /// Interface language. Absent in older `ui.json` → the system's language (English fallback).
+    #[serde(default = "i18n::Language::system")]
+    pub language: i18n::Language,
 }
 
 impl Default for UiState {
@@ -53,6 +57,7 @@ impl Default for UiState {
             formula_bar_expanded: false,
             status_bar: true,
             recent: vec![],
+            language: i18n::Language::system(),
         }
     }
 }
@@ -187,6 +192,24 @@ impl SheetApp {
                 Ok(json!({"on": self.ui.dark}))
             }
             "view.zoom100" => return Some(self.session.run("view.zoom", json!({"percent": 100})).inspect(|_| self.after_engine())),
+            "app.language.set" => {
+                let code = p.get("language").and_then(Json::as_str).and_then(i18n::Language::parse);
+                match code {
+                    Some(l) => {
+                        self.ui.language = l;
+                        Ok(json!({"language": l}))
+                    }
+                    None => Err(format!("unknown language {:?} (use \"en\" or \"ja\")", p.get("language").and_then(Json::as_str).unwrap_or(""))),
+                }
+            }
+            "app.language.english" => {
+                self.ui.language = i18n::Language::En;
+                Ok(json!({"language": i18n::Language::En}))
+            }
+            "app.language.japanese" => {
+                self.ui.language = i18n::Language::Ja;
+                Ok(json!({"language": i18n::Language::Ja}))
+            }
             "ui.dialog" => {
                 let name = p.get("name").and_then(Json::as_str).unwrap_or("");
                 self.open_dialog(name, p.clone());
@@ -399,6 +422,8 @@ impl SheetApp {
             return;
         }
         let t0 = now_ms();
+        // The language the widgets translate with this frame (see `i18n::current`).
+        i18n::set_current(&ctx, self.ui.language);
         let t = theme::Tokens::get(&ctx);
         ribbon::title_bar(self, ui);
         ribbon::show(self, ui);

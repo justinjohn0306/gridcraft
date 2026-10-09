@@ -99,6 +99,22 @@ fn renders_every_ribbon_tab_without_panicking() {
 }
 
 #[test]
+fn language_switch_translates_the_ribbon_and_persists() {
+    use gridcraft_ui_egui::i18n::Language;
+    let mut h = harness(blank());
+    // English by default on a machine whose system language is not Japanese.
+    assert_ne!(h.state().ui.language, Language::Ja);
+    h.state_mut().run("app.language.japanese", json!({})).unwrap();
+    h.run_steps(2); // the ribbon renders the Japanese tabs without panicking
+    assert_eq!(h.state().ui.language, Language::Ja);
+    // The preference round-trips through the saved UiState.
+    let restored: gridcraft_ui_egui::UiState = serde_json::from_str(&serde_json::to_string(&h.state().ui).unwrap()).unwrap();
+    assert_eq!(restored.language, Language::Ja);
+    h.state_mut().run("app.language.english", json!({})).unwrap();
+    assert_eq!(h.state().ui.language, Language::En);
+}
+
+#[test]
 fn dialogs_open_and_close() {
     let mut h = harness(blank());
     for name in [

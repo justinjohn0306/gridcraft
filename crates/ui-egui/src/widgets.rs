@@ -4,8 +4,15 @@
 use egui::{Align2, Color32, Rect, Response, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 
 use crate::SheetApp;
+use crate::i18n;
 use crate::icons::{self, Icon};
 use crate::theme::{self, Tokens};
+
+/// Translates a label or tooltip for the language of the frame being drawn (English if untranslated).
+/// Ribbon chrome all flows through these widgets, so translating here localises it in one place.
+fn tr<'a>(ui: &Ui, text: &'a str) -> &'a str {
+    i18n::current(ui.ctx()).tr(text)
+}
 
 /// A flat square icon button with hover highlight and tooltip.
 pub fn icon_button(ui: &mut Ui, icon: Icon, color: Color32, tip: &str, size: egui::Vec2) -> Response {
@@ -17,7 +24,7 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, color: Color32, tip: &str, size: egu
         ui.painter().rect_filled(rect, 4.0, t.hover);
     }
     icons::paint(ui.painter(), Rect::from_center_size(rect.center(), vec2(16.0, 16.0)), icon, color);
-    resp.on_hover_text(tip)
+    resp.on_hover_text(tr(ui, tip))
 }
 
 /// A toggle-able small button (e.g. Bold) showing a checked state.
@@ -31,13 +38,14 @@ pub fn toggle_button(ui: &mut Ui, icon: Icon, on: bool, tip: &str) -> Response {
         ui.painter().rect_filled(rect, 4.0, t.hover);
     }
     icons::paint(ui.painter(), Rect::from_center_size(rect.center(), vec2(16.0, 16.0)), icon, t.text);
-    resp.on_hover_text(tip)
+    resp.on_hover_text(tr(ui, tip))
 }
 
 /// Large ribbon button: 32px icon over a one- or two-line label.
 pub fn big_button(ui: &mut Ui, icon: Icon, label: &str, tip: &str, dropdown: bool) -> Response {
     let t = Tokens::get(ui.ctx());
     let font = theme::ui_font(11.5);
+    let label = tr(ui, label);
     let lines: Vec<&str> = label.split('\n').collect();
     let text_w = lines.iter().map(|l| ui.painter().layout_no_wrap(l.to_string(), font.clone(), t.text).size().x).fold(0.0, f32::max);
     let w = (text_w + 12.0).max(44.0);
@@ -49,19 +57,20 @@ pub fn big_button(ui: &mut Ui, icon: Icon, label: &str, tip: &str, dropdown: boo
     }
     icons::paint(ui.painter(), Rect::from_center_size(pos2(rect.center().x, rect.top() + 21.0), vec2(30.0, 30.0)), icon, t.text);
     for (i, l) in lines.iter().enumerate() {
-        let mut s = l.to_string();
+        let mut s = (*l).to_string();
         if dropdown && i + 1 == lines.len() {
             s.push_str(" ▾");
         }
         ui.painter().text(pos2(rect.center().x, rect.top() + 46.0 + i as f32 * 13.0), Align2::CENTER_CENTER, s, font.clone(), t.text);
     }
-    resp.on_hover_text(tip)
+    resp.on_hover_text(tr(ui, tip))
 }
 
 /// Small ribbon button: 16px icon with optional label to the right.
 pub fn small_button(ui: &mut Ui, icon: Icon, label: &str, tip: &str, dropdown: bool) -> Response {
     let t = Tokens::get(ui.ctx());
     let font = theme::ui_font(12.5);
+    let label = tr(ui, label);
     let tw = if label.is_empty() { 0.0 } else { ui.painter().layout_no_wrap(label.to_string(), font.clone(), t.text).size().x + 6.0 };
     let w = 24.0 + tw + if dropdown { 12.0 } else { 0.0 };
     let (rect, resp) = ui.allocate_exact_size(vec2(w, 23.0), Sense::click());
@@ -82,7 +91,7 @@ pub fn small_button(ui: &mut Ui, icon: Icon, label: &str, tip: &str, dropdown: b
             t.text_dim,
         );
     }
-    resp.on_hover_text(tip)
+    resp.on_hover_text(tr(ui, tip))
 }
 
 /// A split button: main part runs the default action, the arrow opens a menu.
@@ -103,7 +112,7 @@ pub fn split_button(ui: &mut Ui, icon: Icon, accent: Option<Color32>, tip: &str)
         ui.painter().rect_filled(Rect::from_min_size(pos2(main.left() + 4.0, main.bottom() - 5.0), vec2(17.0, 3.0)), 0.0, c);
     }
     icons::paint(ui.painter(), Rect::from_center_size(arrow.center(), vec2(10.0, 10.0)), Icon::Chevron, t.text_dim);
-    (m.on_hover_text(tip).clicked(), a)
+    (m.on_hover_text(tr(ui, tip)).clicked(), a)
 }
 
 /// Our colour palette (theme row + tints + standard colours), returns a picked hex colour,
