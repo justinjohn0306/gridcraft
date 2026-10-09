@@ -167,6 +167,9 @@ pub fn show(app: &mut SheetApp, ui: &mut Ui) {
                         if resp.double_clicked() {
                             app.ui.ribbon_collapsed = !collapsed;
                         }
+                        if tab == "Home" && app.keytips.prefix() == Some("") {
+                            keytip(app, ui, "H", pos2(r.center().x, r.bottom() - 1.0));
+                        }
                     }
                 });
             });
@@ -242,13 +245,36 @@ fn act(app: &mut SheetApp, id: &str, params: serde_json::Value) {
     app.run_or_alert(id, params);
 }
 
+/// Keytips are painted, not focusable widgets: the grid retains keyboard focus.
+fn keytip(app: &SheetApp, ui: &Ui, sequence: &str, at: egui::Pos2) {
+    let Some(rest) = app.keytips.prefix().and_then(|prefix| sequence.strip_prefix(prefix)).filter(|s| !s.is_empty()) else { return };
+    let t = Tokens::get(ui.ctx());
+    let painter = ui.ctx().layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("ribbon_keytips"))).with_clip_rect(ui.clip_rect());
+    let text = painter.layout_no_wrap(rest.into(), theme::ui_bold(10.5), t.text);
+    let rect = Rect::from_center_size(at, text.size() + vec2(7.0, 3.0));
+    painter.rect_filled(rect, 2.0, t.input_bg);
+    painter.rect_stroke(rect, 2.0, Stroke::new(1.0, t.text_dim), StrokeKind::Inside);
+    painter.galley(rect.min + vec2(3.5, 1.5), text, t.text);
+}
+
 fn menu_items(app: &mut SheetApp, ui: &mut Ui, items: &[(&str, &str, serde_json::Value)]) {
     for (label, id, p) in items {
         if *label == "-" {
             ui.separator();
             continue;
         }
-        if ui.add(egui::Button::new(*label).frame(false).min_size(vec2(220.0, 22.0))).clicked() {
+        let response = ui.add(egui::Button::new(*label).frame(false).min_size(vec2(220.0, 22.0)));
+        let sequence = match (app.keytips.prefix(), *id) {
+            (Some("HV"), "dialog:pasteSpecial") => Some("HVS"),
+            (Some("E"), "dialog:pasteSpecial") => Some("ES"),
+            (Some("HO"), "home.autofitColumnWidth") => Some("HOI"),
+            (Some("OC"), "home.autofitColumnWidth") => Some("OCA"),
+            _ => None,
+        };
+        if let Some(sequence) = sequence {
+            keytip(app, ui, sequence, pos2(response.rect.right() - 10.0, response.rect.center().y));
+        }
+        if response.clicked() {
             if let Some(d) = id.strip_prefix("dialog:") {
                 app.open_dialog(d, p.clone());
             } else {
@@ -263,6 +289,9 @@ fn home(app: &mut SheetApp, ui: &mut Ui) {
     let st = active_style(app);
     // Clipboard
     let paste = big_button(ui, Icon::Paste, "Paste", "Paste (⌘V)", true);
+    if app.keytips.prefix() == Some("H") {
+        keytip(app, ui, "HV", paste.rect.center_bottom());
+    }
     if paste.clicked() {
         if let Some(text) = app.grid.system_clipboard.take() {
             act(app, "edit.paste", json!({"text": text}));
@@ -270,7 +299,29 @@ fn home(app: &mut SheetApp, ui: &mut Ui) {
             act(app, "edit.paste", json!({}));
         }
     }
-    egui::Popup::context_menu(&paste).show(|ui| {
+    let paste_keys = matches!(app.keytips.prefix(), Some("HV" | "E"));
+    // Keep a keyboard-opened menu anchored to the button when a pointer click
+    // cancels keytips, so its items remain in place and can still be clicked.
+    let anchor_id = paste.id.with("keytip_anchor");
+    let anchored = ui.ctx().data_mut(|data| {
+        let anchored = if paste_keys {
+            true
+        } else if paste.secondary_clicked() {
+            false
+        } else {
+            data.get_temp::<bool>(anchor_id).unwrap_or(false)
+        };
+        data.insert_temp(anchor_id, anchored);
+        anchored
+    });
+    let mut paste_popup = egui::Popup::context_menu(&paste);
+    if anchored {
+        paste_popup = paste_popup.anchor(&paste);
+    }
+    if paste_keys {
+        paste_popup = paste_popup.open_memory(egui::SetOpenCommand::Bool(true));
+    }
+    paste_popup.show(|ui| {
         menu_items(
             app,
             ui,
@@ -453,7 +504,16 @@ fn home(app: &mut SheetApp, ui: &mut Ui) {
                 (Icon::AlignCenter, HAlign::Center, "home.alignCenter", "Center"),
                 (Icon::AlignRight, HAlign::Right, "home.alignRight", "Align Right"),
             ] {
-                if toggle_button(ui, icon, st.align.h == h, tip).clicked() {
+                let response = toggle_button(ui, icon, st.align.h == h, tip);
+                if matches!(app.keytips.prefix(), Some("H" | "HA")) {
+                    let sequence = match h {
+                        HAlign::Left => "HAL",
+                        HAlign::Center => "HAC",
+                        _ => "HAR",
+                    };
+                    keytip(app, ui, sequence, response.rect.center_bottom());
+                }
+                if response.clicked() {
                     act(app, id, json!({}));
                 }
             }
@@ -569,7 +629,17 @@ fn home(app: &mut SheetApp, ui: &mut Ui) {
             );
         });
         let fmt = small_button(ui, Icon::Format, "Format", "Format", true);
-        egui::Popup::menu(&fmt).show(|ui| {
+        match app.keytips.prefix() {
+            Some("H") => keytip(app, ui, "HO", fmt.rect.center_bottom()),
+            Some("O") => keytip(app, ui, "OC", fmt.rect.center_bottom()),
+            _ => {}
+        }
+        let format_keys = matches!(app.keytips.prefix(), Some("HO" | "OC"));
+        let mut format_popup = egui::Popup::menu(&fmt);
+        if format_keys {
+            format_popup = format_popup.open_memory(egui::SetOpenCommand::Bool(true));
+        }
+        format_popup.show(|ui| {
             menu_items(
                 app,
                 ui,
