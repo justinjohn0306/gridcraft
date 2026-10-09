@@ -69,6 +69,9 @@ pub struct Services {
     pub pick_open: Option<Box<dyn Fn() -> Option<String>>>,
     pub pick_save: Option<Box<dyn Fn(&str) -> Option<String>>>,
     pub open_url: Option<Box<dyn Fn(&str)>>,
+    /// Publish HTML and its plain-text alternative together. `Ok` means the host owns the
+    /// write (including any asynchronous fallback); an immediate error uses egui's text path.
+    pub copy_html: Option<Box<dyn FnMut(&str, &str) -> Result<(), String>>>,
     /// Web: deliver a file to the user (name, bytes).
     pub download: Option<Box<dyn Fn(&str, &[u8])>>,
     /// Web: start an asynchronous file pick; the bytes arrive later in `inbox`.
@@ -154,6 +157,22 @@ impl SheetApp {
         let r = self.session.run(id, params);
         self.after_engine();
         r
+    }
+
+    /// Copy or cut the selected cells to the system clipboard. Engine-only commands keep
+    /// their existing internal clipboard behavior and do not write to the host clipboard.
+    pub fn copy_to_clipboard(&mut self, ctx: &egui::Context, command: &str) {
+        let Ok(result) = self.run(command, json!({})) else { return };
+        let Some(text) = result.get("text").and_then(Json::as_str) else { return };
+        if let Some(html) = result.get("html").and_then(Json::as_str)
+            && let Some(copy_html) = &mut self.services.copy_html
+        {
+            match copy_html(html, text) {
+                Ok(()) => return,
+                Err(error) => log::warn!("HTML clipboard unavailable; copying plain text: {error}"),
+            }
+        }
+        ctx.copy_text(text.to_string());
     }
 
     /// Runs a command and shows its error in a message box (for menu/ribbon clicks).

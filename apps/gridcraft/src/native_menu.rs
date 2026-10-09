@@ -243,11 +243,7 @@ impl NativeMenu {
                 let name = if name == "note" { "comment" } else { name };
                 app.open_dialog(name, params);
             } else if id == "edit.copy" || id == "edit.cut" {
-                if let Ok(r) = app.run(&id, json!({}))
-                    && let Some(t) = r.get("text").and_then(Value::as_str)
-                {
-                    ctx.copy_text(t.to_string());
-                }
+                app.copy_to_clipboard(ctx, &id);
             } else {
                 app.run_or_alert(&id, json!({}));
             }

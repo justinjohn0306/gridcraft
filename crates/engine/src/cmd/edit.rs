@@ -611,9 +611,14 @@ fn copy_impl(s: &mut Session, p: &Json, cut: bool) -> Result<Json> {
         range
     };
     let text = crate::display::range_text(&d.wb, sheet, range);
+    let html = crate::io::range_html(&d.wb, sheet, range, &text);
     let clip = Clipboard { wb: d.wb.clone(), sheet, range, cut, doc_uid: d.uid, text: text.clone() };
     s.clipboard = Some(clip);
-    Ok(json!({"range": range.a1(), "text": text}))
+    let mut result = json!({"range": range.a1(), "text": text});
+    if let Some(html) = html {
+        result["html"] = Json::String(html);
+    }
+    Ok(result)
 }
 
 fn copy(s: &mut Session, p: &Json) -> Result<Json> {
