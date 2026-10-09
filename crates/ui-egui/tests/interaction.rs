@@ -25,6 +25,38 @@ fn blank() -> Session {
     s
 }
 
+#[test]
+fn vertical_scrollbar_pages_and_drags_without_changing_selection() {
+    let mut h = harness(blank());
+    let grid = h.state().grid.rect.unwrap();
+    let cells = h.state().grid.cells_rect.unwrap();
+    let p = egui::pos2(grid.right() + 7.0, cells.bottom() - 20.0);
+    h.input_mut().events.push(Event::PointerMoved(p));
+    h.input_mut().events.push(Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
+    h.run_steps(2);
+    h.input_mut().events.push(Event::PointerButton { pos: p, button: egui::PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE });
+    h.run_steps(2);
+    assert!(h.state().view().scroll.y > 0.0, "clicking the scrollbar track scrolls down");
+    assert_eq!(h.state().session.active().unwrap().selection.active, CellRef::new(0, 0));
+
+    h.state_mut().view_mut().unwrap().scroll.y = 0.0;
+    h.run_steps(2);
+    let start = egui::pos2(grid.right() + 7.0, cells.top() + 8.0);
+    h.input_mut().events.push(Event::PointerMoved(start));
+    h.input_mut().events.push(Event::PointerButton { pos: start, button: egui::PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
+    h.run_steps(2);
+    let end = start + egui::vec2(0.0, 80.0);
+    h.input_mut().events.push(Event::PointerMoved(end));
+    h.run_steps(2);
+    let dragged = h.state().view().scroll.y;
+    assert!(dragged > 0.0, "dragging the thumb scrolls down");
+    h.run_steps(3);
+    assert_eq!(h.state().view().scroll.y, dragged, "holding the thumb still must not keep scrolling");
+    h.input_mut().events.push(Event::PointerButton { pos: end, button: egui::PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE });
+    h.run_steps(2);
+    assert_eq!(h.state().session.active().unwrap().selection.active, CellRef::new(0, 0));
+}
+
 fn key(h: &mut egui_kittest::Harness<'static, SheetApp>, k: Key, m: Modifiers) {
     h.input_mut().events.push(Event::Key { key: k, physical_key: None, pressed: true, repeat: false, modifiers: m });
     h.input_mut().events.push(Event::Key { key: k, physical_key: None, pressed: false, repeat: false, modifiers: m });

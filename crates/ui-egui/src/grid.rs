@@ -312,7 +312,8 @@ fn display_text(
 
 pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
     let t = Tokens::get(ui.ctx());
-    let rect = ui.available_rect_before_wrap();
+    let available = ui.available_rect_before_wrap();
+    let rect = Rect::from_min_max(available.min, pos2((available.right() - 14.0).max(available.left()), available.bottom()));
     let resp = ui.allocate_rect(rect, Sense::click_and_drag());
     app.grid.rect = Some(rect);
     let Some(d) = app.session.active() else { return };
@@ -424,9 +425,59 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
     list_picker(app, ui, &geo);
     header_menu(app, ui);
     context_menu(app, ui);
+    vertical_scrollbar(app, ui, sh, &geo, available.right(), max_y, &t);
     if app.session.clipboard.is_some() {
         app.grid.marching_phase = (app.grid.marching_phase + 0.5) % 8.0;
         ui.ctx().request_repaint_after(std::time::Duration::from_millis(60));
+    }
+}
+
+/// The worksheet is painted virtually, so it needs its own scrollbar rather than a
+/// ScrollArea containing all million rows. Keep the scroll extent stable during a drag.
+fn vertical_scrollbar(app: &mut SheetApp, ui: &mut egui::Ui, sh: &Sheet, geo: &Geo, right: f32, limit: f32, t: &Tokens) {
+    let track = Rect::from_min_max(pos2(geo.rect.right(), geo.cells.top() + geo.frozen_h), pos2(right, geo.cells.bottom()));
+    if track.height() <= 0.0 || track.width() <= 0.0 {
+        return;
+    }
+    let visible = track.height() / geo.z;
+    let scroll = app.view().scroll.y;
+    let last = sh.used_range().map(|r| r.end.row.saturating_add(10)).unwrap_or(100).clamp(100, MAX_ROWS - 1);
+    let content = (sh.row_top(last) - sh.row_top(geo.fr)) as f32;
+    let extent = (content - visible).max(scroll).max(0.0).min(limit);
+    let id = ui.id().with("vscroll");
+    let resp = ui.interact(track, id, Sense::click_and_drag());
+    let drag_id = id.with("extent");
+    if resp.drag_started() {
+        ui.ctx().data_mut(|d| d.insert_temp(drag_id, extent));
+    }
+    let extent = if resp.dragged() { ui.ctx().data(|d| d.get_temp::<f32>(drag_id)).unwrap_or(extent) } else { extent };
+    let thumb_h = (track.height() * visible / (extent + visible)).clamp(24.0_f32.min(track.height()), track.height());
+    let travel = track.height() - thumb_h;
+    let thumb_top = track.top() + if extent > 0.0 { travel * (scroll / extent).clamp(0.0, 1.0) } else { 0.0 };
+    let thumb = Rect::from_min_size(pos2(track.left() + 3.0, thumb_top), vec2((track.width() - 6.0).max(0.0), thumb_h));
+    ui.painter().rect_filled(track, 0.0, t.tab_bar);
+    ui.painter().rect_filled(thumb, 4.0, if resp.hovered() || resp.dragged() { t.text_dim } else { t.text_disabled });
+    let mut next = scroll;
+    if resp.dragged() && travel > 0.0 {
+        next += resp.drag_delta().y / travel * extent;
+    } else if resp.clicked()
+        && let Some(p) = resp.interact_pointer_pos()
+    {
+        if p.y < thumb.top() {
+            next -= visible;
+        } else if p.y > thumb.bottom() {
+            next += visible;
+        }
+    }
+    if resp.hovered() {
+        next -= ui.input(|i| i.smooth_scroll_delta.y) / geo.z;
+    }
+    next = next.clamp(0.0, limit);
+    if next != scroll {
+        if let Some(v) = app.view_mut() {
+            v.scroll.y = next;
+        }
+        ui.ctx().request_repaint();
     }
 }
 
