@@ -196,6 +196,15 @@ fn rewrite(wb: &mut gridcraft_model::Workbook, target: &str, e: &Edit) {
     }
 }
 
+/// Inserting or deleting cells moves the copied block away from the stored source range, so, like
+/// Excel, it cancels copy/cut mode for this workbook (a later paste would take the wrong cells).
+fn cancel_copy_mode(s: &mut Session) {
+    let uid = s.doc().map(|d| d.uid).ok();
+    if s.clipboard.as_ref().is_some_and(|c| Some(c.doc_uid) == uid) {
+        s.clipboard = None;
+    }
+}
+
 fn insert_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
     let (at, count) = lines(s, p, axis)?;
     let sheet = target_sheet(s, p)?;
@@ -207,7 +216,7 @@ fn insert_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
             return Err(EngineError::Other("To prevent possible loss of data, Excel cannot shift nonblank cells off of the worksheet.".into()));
         }
     }
-    edit(s, |cx| {
+    let out = edit(s, |cx| {
         let name = cx.wb.sheet(sheet).map(|s| s.name.clone()).unwrap_or_default();
         {
             let sh = cx.sheet_mut(sheet)?;
@@ -230,13 +239,15 @@ fn insert_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
         rewrite(&mut cx.wb, &name, &Edit::Insert { axis, at, count });
         cx.structural = true;
         Ok(Json::Null)
-    })
+    })?;
+    cancel_copy_mode(s);
+    Ok(out)
 }
 
 fn delete_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
     let (at, count) = lines(s, p, axis)?;
     let sheet = target_sheet(s, p)?;
-    edit(s, |cx| {
+    let out = edit(s, |cx| {
         let name = cx.wb.sheet(sheet).map(|s| s.name.clone()).unwrap_or_default();
         {
             let sh = cx.sheet_mut(sheet)?;
@@ -254,7 +265,9 @@ fn delete_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
         rewrite(&mut cx.wb, &name, &Edit::Delete { axis, at, count });
         cx.structural = true;
         Ok(Json::Null)
-    })
+    })?;
+    cancel_copy_mode(s);
+    Ok(out)
 }
 
 fn insert_cells(s: &mut Session, p: &Json) -> Result<Json> {
@@ -267,7 +280,7 @@ fn insert_cells(s: &mut Session, p: &Json) -> Result<Json> {
     }
     let sheet = target_sheet(s, p)?;
     let right = shift == "right";
-    edit(s, |cx| {
+    let out = edit(s, |cx| {
         let sh = cx.sheet_mut(sheet)?;
         if right {
             sh.cells.shift_cols_in_rows(r.start.row, r.end.row, r.start.col, r.width() as i64);
@@ -285,7 +298,9 @@ fn insert_cells(s: &mut Session, p: &Json) -> Result<Json> {
         super::edit::rewrite_all_formulas(&mut cx.wb, &name, &Edit::Move { from: moved, to_row: to.0, to_col: to.1 });
         cx.structural = true;
         Ok(Json::Null)
-    })
+    })?;
+    cancel_copy_mode(s);
+    Ok(out)
 }
 
 fn delete_cells(s: &mut Session, p: &Json) -> Result<Json> {
@@ -298,7 +313,7 @@ fn delete_cells(s: &mut Session, p: &Json) -> Result<Json> {
     }
     let sheet = target_sheet(s, p)?;
     let left = shift == "left";
-    edit(s, |cx| {
+    let out = edit(s, |cx| {
         let name = cx.wb.sheet(sheet).map(|s| s.name.clone()).unwrap_or_default();
         {
             let sh = cx.sheet_mut(sheet)?;
@@ -320,7 +335,9 @@ fn delete_cells(s: &mut Session, p: &Json) -> Result<Json> {
         super::edit::rewrite_all_formulas(&mut cx.wb, &name, &Edit::Move { from: moved_from, to_row: r.start.row, to_col: r.start.col });
         cx.structural = true;
         Ok(Json::Null)
-    })
+    })?;
+    cancel_copy_mode(s);
+    Ok(out)
 }
 
 fn insert_sheet(s: &mut Session, p: &Json) -> Result<Json> {

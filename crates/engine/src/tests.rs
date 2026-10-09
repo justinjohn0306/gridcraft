@@ -71,6 +71,27 @@ fn insert_delete_rows_adjust() {
 }
 
 #[test]
+fn inserting_or_deleting_cells_cancels_copy_mode() {
+    let mut s = s();
+    s.execute("range.setValues", json!({"range": "A1", "values": [[1], [2], [3]]})).unwrap();
+    s.execute("edit.cut", json!({"range": "3:3"})).unwrap();
+    s.execute("home.insertRows", json!({"rows": "3:3"})).unwrap();
+    assert!(s.clipboard.is_none());
+    // The cut data is now in row 4; a paste must not move the new blank row 3 instead.
+    assert!(s.execute("edit.paste", json!({"at": "A10"})).is_err());
+    assert_eq!(v(&s, "A4"), Value::Number(3.0));
+    s.execute("edit.copy", json!({"range": "A:A"})).unwrap();
+    s.execute("home.deleteColumns", json!({"cols": "B:B"})).unwrap();
+    assert!(s.clipboard.is_none());
+    s.execute("edit.copy", json!({"range": "A1"})).unwrap();
+    s.execute("home.insertCells", json!({"range": "A1", "shift": "down"})).unwrap();
+    assert!(s.clipboard.is_none());
+    s.execute("edit.copy", json!({"range": "A2"})).unwrap();
+    s.execute("home.deleteCells", json!({"range": "A1", "shift": "up"})).unwrap();
+    assert!(s.clipboard.is_none());
+}
+
+#[test]
 fn fill_series() {
     let mut s = s();
     s.execute("range.setValues", json!({"range": "A1", "values": [[1], [3]]})).unwrap();
