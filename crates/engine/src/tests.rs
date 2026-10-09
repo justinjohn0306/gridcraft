@@ -14,6 +14,77 @@ fn v(s: &Session, a: &str) -> Value {
 }
 
 #[test]
+fn entering_empty_cells_preserves_whole_sheet_formatting() {
+    let mut s = s();
+    s.execute("cell.set", json!({"cell": "A1", "input": "existing"})).unwrap();
+    s.execute("selection.set", json!({"range": "A1:XFD1048576"})).unwrap();
+    s.execute("home.alignCenter", json!({})).unwrap();
+    let border = gridcraft_model::BorderLine { style: gridcraft_model::BorderStyle::Thin, color: gridcraft_model::Color::Auto };
+    s.execute("home.formatCells", json!({"style": {"borders": {"top": border, "bottom": border, "left": border, "right": border}}})).unwrap();
+    let expected = {
+        let d = s.doc().unwrap();
+        d.wb.styles.get(d.wb.active().unwrap().style_id(CellRef::parse("B1").unwrap())).clone()
+    };
+    assert_eq!(expected.align.h, gridcraft_model::HAlign::Center);
+    for (cell, input) in [("A1", "edited"), ("B1", "new"), ("C1", "=1+2"), ("XFD1048576", "edge")] {
+        s.execute("cell.set", json!({"cell": cell, "input": input})).unwrap();
+        let d = s.doc().unwrap();
+        assert_eq!(d.wb.styles.get(d.wb.active().unwrap().style_id(CellRef::parse(cell).unwrap())), &expected, "{cell}");
+    }
+    s.execute("range.setValues", json!({"range": "D1", "values": [["text", 7, true]]})).unwrap();
+    for cell in ["D1", "E1", "F1"] {
+        let d = s.doc().unwrap();
+        assert_eq!(d.wb.styles.get(d.wb.active().unwrap().style_id(CellRef::parse(cell).unwrap())), &expected, "{cell}");
+    }
+    s.execute("edit.undo", json!({})).unwrap();
+    assert!(v(&s, "D1").is_empty());
+    s.execute("edit.redo", json!({})).unwrap();
+    let d = s.doc().unwrap();
+    assert_eq!(d.wb.styles.get(d.wb.active().unwrap().style_id(CellRef::parse("D1").unwrap())), &expected);
+    assert_eq!(d.wb.active().unwrap().cells.len(), 7);
+    let (reopened, _) = gridcraft_xlsx::read_xlsx(&gridcraft_xlsx::write_xlsx(&d.wb).unwrap()).unwrap();
+    for cell in ["A1", "B1", "C1", "D1", "E1", "F1", "G1", "XFD1048576"] {
+        assert_eq!(
+            reopened.styles.get(reopened.active().unwrap().style_id(CellRef::parse(cell).unwrap())),
+            &expected,
+            "{cell} after XLSX round trip"
+        );
+    }
+}
+
+#[test]
+fn entry_and_text_paste_use_inherited_formats_and_cell_overrides() {
+    let mut s = s();
+    s.execute("home.bold", json!({"range": "B:B", "on": true})).unwrap();
+    s.execute("home.formatCells", json!({"range": "3:3", "style": {"num_fmt": "@", "font": {"italic": true}}})).unwrap();
+    s.execute("home.fontColor", json!({"range": "B3", "color": "#FF0000"})).unwrap();
+    let expected = {
+        let d = s.doc().unwrap();
+        d.wb.styles.get(d.wb.active().unwrap().style_id(CellRef::parse("B3").unwrap())).clone()
+    };
+    s.execute("cell.set", json!({"cell": "B3", "input": "=1+2"})).unwrap();
+    s.execute("cell.set", json!({"cell": "C3", "input": "00123"})).unwrap();
+    s.execute("edit.paste", json!({"at": "D3", "text": "=2+3\t00456"})).unwrap();
+    assert_eq!(v(&s, "B3"), Value::text("=1+2"));
+    assert_eq!(v(&s, "C3"), Value::text("00123"));
+    assert_eq!(v(&s, "D3"), Value::text("=2+3"));
+    assert_eq!(v(&s, "E3"), Value::text("00456"));
+    s.execute("cell.set", json!({"cell": "B4", "input": "12%"})).unwrap();
+    let d = s.doc().unwrap();
+    let sh = d.wb.active().unwrap();
+    assert_eq!(d.wb.styles.get(sh.style_id(CellRef::parse("B3").unwrap())), &expected);
+    for cell in ["C3", "D3", "E3"] {
+        let st = d.wb.styles.get(sh.style_id(CellRef::parse(cell).unwrap()));
+        assert!(st.font.italic);
+        assert!(!st.font.bold, "row style takes precedence over column style");
+        assert_eq!(st.num_fmt.as_str(), "@");
+    }
+    let percent = d.wb.styles.get(sh.style_id(CellRef::parse("B4").unwrap()));
+    assert!(percent.font.bold);
+    assert_ne!(percent.num_fmt.as_str(), "General");
+}
+
+#[test]
 fn enter_values_and_formulas() {
     let mut s = s();
     s.execute("cell.set", json!({"cell": "A1", "input": "10"})).unwrap();
