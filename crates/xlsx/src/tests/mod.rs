@@ -5,6 +5,7 @@ mod fixtures;
 mod malformed;
 mod pivot_tests;
 mod roundtrip;
+mod smooth_roundtrip;
 
 use std::io::Write;
 

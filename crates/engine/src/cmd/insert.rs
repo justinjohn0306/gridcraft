@@ -508,6 +508,7 @@ pub fn series_from_range(sh: &Sheet, r: RangeRef, by_rows: bool) -> Vec<Series> 
                 color: None,
                 secondary: false,
                 kind: None,
+                smooth: false,
             });
         }
     } else {
@@ -521,6 +522,7 @@ pub fn series_from_range(sh: &Sheet, r: RangeRef, by_rows: bool) -> Vec<Series> 
                 color: None,
                 secondary: false,
                 kind: None,
+                smooth: false,
             });
         }
     }

@@ -194,6 +194,7 @@ fn sanitize(d: &ChartData) -> ChartData {
                 color: s.color,
                 kind: s.kind,
                 secondary: s.secondary,
+                smooth: s.smooth,
                 number_format: s.number_format.clone(),
             })
             .collect(),
@@ -545,15 +546,20 @@ fn decimate(pts: Vec<[f32; 2]>, max: usize) -> Vec<[f32; 2]> {
     out
 }
 
-/// Draws a polyline split at gaps (`None`), decimated when long.
-fn draw_runs(ctx: &mut Ctx, pts: &[Option<[f32; 2]>], color: Rgba, width: f32) {
+/// Draws a polyline split at gaps (`None`), decimated when long. When `smooth`, each run is
+/// interpolated with a Catmull-Rom spline so the line curves through the data points.
+fn draw_runs(ctx: &mut Ctx, pts: &[Option<[f32; 2]>], color: Rgba, width: f32, smooth: bool) {
     let mut run: Vec<[f32; 2]> = Vec::new();
     for p in pts.iter().chain(std::iter::once(&None)) {
         match p {
             Some(p) => run.push(*p),
             None => {
                 if run.len() >= 2 {
-                    let r = decimate(std::mem::take(&mut run), MAX_LINE_PTS);
+                    let r = if smooth {
+                        smooth_run(decimate(std::mem::take(&mut run), MAX_LINE_PTS))
+                    } else {
+                        decimate(std::mem::take(&mut run), MAX_LINE_PTS)
+                    };
                     ctx.line(r, color, width);
                 } else {
                     run.clear();
@@ -561,6 +567,46 @@ fn draw_runs(ctx: &mut Ctx, pts: &[Option<[f32; 2]>], color: Rgba, width: f32) {
             }
         }
     }
+}
+
+/// Catmull-Rom spline through `pts`, splitting each segment into `SPLINE_STEPS` sub-segments.
+/// Endpoints are duplicated so the curve passes through the first and last points.
+fn smooth_run(pts: Vec<[f32; 2]>) -> Vec<[f32; 2]> {
+    const SPLINE_STEPS: usize = 100;
+    let n = pts.len();
+    if n < 3 {
+        return pts;
+    }
+    let cap = n.saturating_mul(SPLINE_STEPS).min(MAX_LINE_PTS * 2);
+    let mut out: Vec<[f32; 2]> = Vec::with_capacity(cap);
+    let at = |i: isize| -> [f32; 2] {
+        let j = i.clamp(0, n as isize - 1) as usize;
+        pts.get(j).copied().unwrap_or([0.0, 0.0])
+    };
+    for i in 0..n.saturating_sub(1) {
+        let (p0, p1, p2, p3) = (at(i as isize - 1), at(i as isize), at(i as isize + 1), at(i as isize + 2));
+        for s in 0..SPLINE_STEPS {
+            let t = s as f32 / SPLINE_STEPS as f32;
+            out.push(catmull(p0, p1, p2, p3, t));
+            if out.len() >= cap {
+                break;
+            }
+        }
+    }
+    out.push(at(n as isize - 1));
+    out
+}
+
+/// One Catmull-Rom point between `p1` and `p2` (uniform parameterisation), tangent-scaled by 0.5.
+fn catmull(p0: [f32; 2], p1: [f32; 2], p2: [f32; 2], p3: [f32; 2], t: f32) -> [f32; 2] {
+    let t2 = t * t;
+    let t3 = t2 * t;
+    let mut o = [0.0f32; 2];
+    for k in 0..2 {
+        let (a0, a1, a2, a3) = (p0[k], p1[k], p2[k], p3[k]);
+        o[k] = 0.5 * ((2.0 * a1) + (-a0 + a2) * t + (2.0 * a0 - 5.0 * a1 + 4.0 * a2 - a3) * t2 + (-a0 + 3.0 * a1 - 3.0 * a2 + a3) * t3);
+    }
+    o
 }
 
 fn draw_markers(ctx: &mut Ctx, pts: impl Iterator<Item = [f32; 2]>, r: f32, color: Rgba) {
@@ -836,7 +882,7 @@ fn cartesian(ctx: &mut Ctx, chart: &Chart, data: &ChartData, area: Bx, horizonta
                 }
                 _ => {
                     let pts: Vec<Option<[f32; 2]>> = row.iter().enumerate().map(|(j, sp)| sp.map(|(_, t)| [center(j), vpos(t, &sc)])).collect();
-                    draw_runs(ctx, &pts, s.color, 2.25);
+                    draw_runs(ctx, &pts, s.color, 2.25, s.smooth);
                     let k = kinds.get(i).copied().unwrap_or(ChartKind::Line);
                     if k == ChartKind::LineMarkers && cw >= 3.0 {
                         draw_markers(ctx, pts.iter().flatten().copied(), 3.5, s.color);
@@ -914,7 +960,7 @@ fn scatter(ctx: &mut Ctx, chart: &Chart, data: &ChartData, area: Bx) {
         } else {
             let lines = chart.kind == ChartKind::ScatterLines || s.kind == ChartKind::ScatterLines;
             if lines {
-                draw_runs(ctx, &px, s.color, 2.0);
+                draw_runs(ctx, &px, s.color, 2.0, s.smooth);
             }
             if !lines || px.len() <= 500 {
                 draw_markers(ctx, px.iter().flatten().copied(), 3.5, s.color);

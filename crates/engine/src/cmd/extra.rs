@@ -291,6 +291,11 @@ fn add_element(s: &mut Session, p: &Json) -> Result<Json> {
                 c.x_title = on.then(|| c.x_title.clone().unwrap_or_else(|| "Axis Title".into()));
                 c.y_title = on.then(|| c.y_title.clone().unwrap_or_else(|| "Axis Title".into()));
             }
+            "smooth" => {
+                for s in &mut c.series {
+                    s.smooth = on;
+                }
+            }
             other => return Err(bad("chart.addElement", format!("unknown element `{other}`"))),
         }
         Ok(())
