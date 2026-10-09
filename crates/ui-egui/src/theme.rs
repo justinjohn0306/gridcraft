@@ -292,6 +292,9 @@ pub fn font_definitions() -> FontDefinitions {
     let mut fonts = FontDefinitions::default();
     let base_prop: Vec<String> = fonts.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
     let base_mono: Vec<String> = fonts.families.get(&FontFamily::Monospace).cloned().unwrap_or_default();
+    // CJK has to sit at the end of each chain: a Latin font owns Latin, and epaint picks the first
+    // face that has the glyph, so the CJK faces only ever catch Han/Kana/Hangul.
+    let cjk = load_cjk(&mut fonts);
     for role in [UI, UI_BOLD, CELL, CELL_BOLD, CELL_ITALIC, CELL_BOLD_ITALIC, SERIF, MONO] {
         let paths = candidates(role);
         let refs: Vec<(&str, u32)> = paths.iter().map(|(p, i)| (p.as_str(), *i)).collect();
@@ -306,6 +309,7 @@ pub fn font_definitions() -> FontDefinitions {
             chain.push(format!("sys-{CELL}"));
         }
         chain.extend(if role == MONO { base_mono.clone() } else { base_prop.clone() });
+        chain.extend(cjk.iter().cloned());
         chain.retain(|k| fonts.font_data.contains_key(k));
         fonts.families.insert(FontFamily::Name(role.into()), chain);
     }
@@ -314,6 +318,65 @@ pub fn font_definitions() -> FontDefinitions {
         fonts.families.insert(FontFamily::Proportional, ui);
     }
     fonts
+}
+
+/// Loads the system CJK faces (Han/Kana and Hangul, one file each) and returns their keys so every
+/// family can carry them as fallback. egui's bundled fonts have no CJK coverage, so without this a
+/// Japanese or Chinese workbook renders as tofu boxes even though the text was read correctly.
+#[cfg(not(target_arch = "wasm32"))]
+fn load_cjk(fonts: &mut FontDefinitions) -> Vec<String> {
+    let mut keys = Vec::new();
+    for (key, cands) in [("sys-cjk-han", cjk_han()), ("sys-cjk-hangul", cjk_hangul())] {
+        let refs: Vec<(&str, u32)> = cands.iter().map(|(p, i)| (p.as_str(), *i)).collect();
+        if let Some(fd) = try_load(&refs) {
+            fonts.font_data.insert(key.to_string(), Arc::new(fd));
+            keys.push(key.to_string());
+        }
+    }
+    keys
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_cjk(_fonts: &mut FontDefinitions) -> Vec<String> {
+    Vec::new()
+}
+
+/// Han + Kana faces, in fallback order. A Japanese face comes first (kana and JIS kanji render
+/// with Japanese glyph shapes); a Chinese face follows to widen coverage. Every CJK face carries
+/// kana, so any of them renders Japanese; the order only decides kanji glyph style.
+#[cfg(not(target_arch = "wasm32"))]
+fn cjk_han() -> Vec<(String, u32)> {
+    let mac = "/System/Library/Fonts";
+    let win = std::env::var("WINDIR").map(|w| format!("{w}\\Fonts")).unwrap_or_else(|_| "C:\\Windows\\Fonts".into());
+    let lin = ["/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype/noto", "/usr/share/fonts/truetype", "/usr/share/fonts"];
+    let mut v: Vec<(String, u32)> = Vec::new();
+    v.push((format!("{win}\\YuGothR.ttc"), 0)); // Yu Gothic (Japanese)
+    v.push((format!("{win}\\msgothic.ttc"), 0)); // MS Gothic (Japanese)
+    v.push((format!("{win}\\msyh.ttc"), 0)); // Microsoft YaHei (Chinese)
+    v.push((format!("{mac}/Hiragino Sans GB.ttc"), 0));
+    v.push((format!("{mac}/PingFang.ttc"), 0));
+    for d in lin {
+        v.push((format!("{d}/NotoSansCJK-Regular.ttc"), 0));
+        v.push((format!("{d}/NotoSansCJKjp-Regular.otf"), 0));
+        v.push((format!("{d}/wqy-microhei.ttc"), 0));
+    }
+    v
+}
+
+/// Hangul faces (Korean; not covered by the Han fonts).
+#[cfg(not(target_arch = "wasm32"))]
+fn cjk_hangul() -> Vec<(String, u32)> {
+    let mac = "/System/Library/Fonts";
+    let win = std::env::var("WINDIR").map(|w| format!("{w}\\Fonts")).unwrap_or_else(|_| "C:\\Windows\\Fonts".into());
+    let lin = ["/usr/share/fonts/truetype/noto", "/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype"];
+    let mut v: Vec<(String, u32)> = Vec::new();
+    v.push((format!("{win}\\malgun.ttf"), 0)); // Malgun Gothic
+    v.push((format!("{mac}/AppleSDGothicNeo.ttc"), 0));
+    for d in lin {
+        v.push((format!("{d}/NotoSansCJKkr-Regular.otf"), 0));
+        v.push((format!("{d}/NotoSansCJK-Regular.ttc"), 0));
+    }
+    v
 }
 
 pub fn apply(ctx: &egui::Context, dark: bool) {
@@ -350,4 +413,42 @@ pub fn apply(ctx: &egui::Context, dark: bool) {
 /// Model colour → egui colour.
 pub fn color32(rgb: [u8; 3]) -> Color32 {
     Color32::from_rgb(rgb[0], rgb[1], rgb[2])
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cjk_fallback_is_appended_to_every_family() {
+        // Structural: whatever loaded, the CJK keys must sit at the end of each chain (after the
+        // Latin/default fonts) so Latin still wins for Latin text.
+        let fonts = font_definitions();
+        let cjk_keys: Vec<String> =
+            ["sys-cjk-han", "sys-cjk-hangul"].into_iter().filter(|k| fonts.font_data.contains_key(*k)).map(str::to_string).collect();
+        if cjk_keys.is_empty() {
+            return; // no CJK face on this machine (minimal Linux)
+        }
+        for role in [UI, UI_BOLD, CELL, CELL_BOLD, CELL_ITALIC, CELL_BOLD_ITALIC, SERIF, MONO] {
+            let chain = fonts.families.get(&FontFamily::Name(role.into())).map(Vec::as_slice).unwrap_or_default();
+            assert!(chain.len() >= cjk_keys.len(), "{role} chain too short for its CJK fallback");
+            let tail = &chain[chain.len() - cjk_keys.len()..];
+            assert_eq!(tail, cjk_keys.as_slice(), "{role} must end its chain with the CJK faces");
+        }
+    }
+
+    #[test]
+    fn cjk_fallback_covers_japanese() {
+        // Real render check: the proportional family (what cells and the UI use) must resolve
+        // Japanese kana/kanji to a glyph, not the tofu replacement char.
+        if cjk_han().iter().all(|(p, _)| std::fs::read(p).is_err()) {
+            return; // no CJK face on this machine (minimal Linux); nothing to assert
+        }
+        let ctx = egui::Context::default();
+        ctx.set_fonts(font_definitions());
+        let mut out = ctx.run_ui(egui::RawInput::default(), |_ui| {});
+        out.textures_delta.clear(); // nothing consumes the atlas in a headless test
+        let covered = ctx.fonts_mut(|f| f.has_glyphs(&FontId::proportional(14.0), "カテゴリ"));
+        assert!(covered, "Japanese text must render with a real glyph, not tofu");
+    }
 }
