@@ -53,6 +53,22 @@ fn normalises() {
 }
 
 #[test]
+fn spill_operator() {
+    for f in ["A1#", "Sheet1!$D$1#", "SUM(B2#)", "'My Sheet'!A1#*2", "ROWS(A1#)+1", "IF(A1,#N/A,#REF!)"] {
+        assert_eq!(rt(f), f);
+    }
+    assert!(matches!(parse("A1#").unwrap(), Expr::Unary(UnOp::Spill, _)));
+    // Files spell it ANCHORARRAY.
+    assert_eq!(rt("_xlfn.ANCHORARRAY(Sheet1!$D$1)"), "Sheet1!$D$1#");
+    assert_eq!(rt("SUM(ANCHORARRAY(B2))"), "SUM(B2#)");
+    // Only a cell can spill.
+    assert!(parse("A1:B2#").is_err());
+    assert!(parse("Name#").is_err());
+    // Deleting the anchor's sheet leaves #REF!.
+    assert_eq!(print(&crate::adjust::delete_sheet(parse("SUM(Data!A1#)").unwrap(), "Data")), "SUM(#REF!)");
+}
+
+#[test]
 fn precedence() {
     let e = parse("1+2*3").unwrap();
     assert!(matches!(e, Expr::Binary(BinOp::Add, _, _)));
