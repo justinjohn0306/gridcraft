@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and package GridCraft for Linux (<arch> is x86_64 or aarch64):
+# Build and package GridCraft for Linux (<arch> is x86_64 or aarch64, or riscv64 when cross-compiling):
 #
 #   $DIST/gridcraft-<version>-linux-<arch>.AppImage  any distro with glibc >= the build host's
 #   $DIST/gridcraft-<version>-linux-<arch>.AppImage.zsync  delta updates (needs zsyncmake)
@@ -143,7 +143,7 @@ fi
 if [ -z "${CROSS_TARGET:-}" ]; then
   "$STAGE/usr/bin/gridcraft-cli" --version
 elif [ -n "${EMULATOR:-}" ]; then
-  $EMULATOR "$STAGE/usr/bin/gridcraft-cli" --version
+  "$EMULATOR" "$STAGE/usr/bin/gridcraft-cli" --version
 fi
 echo "==> done"
 ls -lh "$DIST"
