@@ -77,6 +77,9 @@ fn active_input(app: &SheetApp) -> String {
         if r.contains(a)
             && let Some(f) = sh.cell(*anchor).and_then(|c| c.formula.as_ref())
         {
+            if gridcraft_engine::display::formula_hidden(&d.wb, sh, *anchor) {
+                return String::new();
+            }
             return format!("={}", f.text);
         }
     }

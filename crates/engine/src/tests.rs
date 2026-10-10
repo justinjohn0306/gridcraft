@@ -166,6 +166,32 @@ fn protection_allows_permitted_row_and_column_edits() {
 }
 
 #[test]
+fn hidden_formulas_stay_hidden_on_protected_sheets() {
+    let mut s = s();
+    s.execute("cell.set", json!({"cell": "A1", "input": "=SEQUENCE(3)*7"})).unwrap();
+    s.execute("cell.set", json!({"cell": "B1", "input": "=1+1"})).unwrap();
+    s.execute("home.formatCells", json!({"range": "A1", "style": {"protection": {"locked": true, "hidden": true}}})).unwrap();
+    s.execute("formulas.showFormulas", json!({"on": true})).unwrap();
+    let text = |s: &Session, a: &str| {
+        let d = s.doc().unwrap();
+        let sh = d.wb.active().unwrap();
+        crate::display::cell_text(&d.wb, sh, CellRef::parse(a).unwrap())
+    };
+    assert_eq!(text(&s, "A1"), "=SEQUENCE(3)*7");
+    assert_eq!(s.execute("edit.find", json!({"what": "SEQUENCE", "all": true})).unwrap()["count"], 1);
+    s.execute("review.protectSheet", json!({})).unwrap();
+    assert_eq!(text(&s, "A1"), "7");
+    assert_eq!(text(&s, "B1"), "=1+1");
+    let d = s.doc().unwrap();
+    let sh = d.wb.active().unwrap();
+    assert!(crate::display::formula_hidden(&d.wb, sh, CellRef::parse("A2").unwrap()));
+    assert!(!crate::display::formula_hidden(&d.wb, sh, CellRef::parse("B1").unwrap()));
+    assert!(s.execute("edit.find", json!({"what": "SEQUENCE", "all": true})).is_err());
+    let r = s.execute("edit.find", json!({"what": "7", "all": true})).unwrap();
+    assert_eq!(r["results"][0]["value"], "7");
+}
+
+#[test]
 fn formatting_and_styles() {
     let mut s = s();
     s.execute("selection.set", json!({"range": "A1:B2"})).unwrap();
