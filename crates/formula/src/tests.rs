@@ -121,6 +121,24 @@ fn insert_delete() {
 }
 
 #[test]
+fn insert_delete_cells() {
+    let range = |a: &str| gridcraft_core::RangeRef::parse(a).unwrap();
+    let adj = |f: &str, e: &Edit| print(&adjust(parse(f).unwrap(), "S", "S", e));
+    // Insert A3:A4, shifting down: column A moves, other columns and wider ranges don't.
+    let ins = Edit::InsertCells { axis: Axis::Rows, range: range("A3:A4") };
+    assert_eq!(adj("SUM(A1:A5)+A2+A3+$A$9+B3+SUM(A1:B5)+SUM(A:A)", &ins), "SUM(A1:A7)+A2+A5+$A$11+B3+SUM(A1:B5)+SUM(A:A)");
+    // Insert B2 shifting right.
+    let ins = Edit::InsertCells { axis: Axis::Cols, range: range("B2") };
+    assert_eq!(adj("A2+B2+C2+B3+SUM(A2:C2)", &ins), "A2+C2+D2+B3+SUM(A2:D2)");
+    // Delete A3:A4 shifting up: references into it become #REF!, those below move up.
+    let del = Edit::DeleteCells { axis: Axis::Rows, range: range("A3:A4") };
+    assert_eq!(adj("A2+A3+A4+A5+B5+SUM(A1:A10)+SUM(A3:A4)+SUM(A1:B10)", &del), "A2+#REF!+#REF!+A3+B5+SUM(A1:A8)+SUM(#REF!)+SUM(A1:B10)");
+    // Delete B1:C2 shifting left.
+    let del = Edit::DeleteCells { axis: Axis::Cols, range: range("B1:C2") };
+    assert_eq!(adj("A1+B1+D1+D2+D3+SUM(A1:E1)", &del), "A1+#REF!+B1+B2+D3+SUM(A1:C1)");
+}
+
+#[test]
 fn moves_and_renames() {
     let mv = Edit::Move { from: gridcraft_core::RangeRef::parse("A1:B2").unwrap(), to_row: 9, to_col: 3 };
     let e = parse("A1+B2+C3+SUM(A1:B2)").unwrap();
