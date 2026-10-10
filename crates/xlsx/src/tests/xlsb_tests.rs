@@ -304,3 +304,23 @@ fn xlsb_declared_counts_and_decoded_text_are_bounded() {
     }
     assert!(read_xlsb(&file(&worksheet(&data, &[]))).unwrap_err().to_string().contains("64 MiB"));
 }
+
+#[test]
+fn xlsb_phonetic_runs_use_documented_size_and_tolerate_padding() {
+    // [MS-XLSB] 2.5.103: a PhRun is 10 bytes. Phonetic data is not imported, so
+    // padding after the documented runs (e.g. 12-byte runs) is ignored, while
+    // a run shorter than documented is still rejected.
+    let phonetic = |runs: u32, bytes: usize| {
+        let mut out = vec![2];
+        out.extend(wide("ruby"));
+        out.extend(wide("ルビ"));
+        out.extend(runs.to_le_bytes());
+        out.extend(vec![0; bytes]);
+        out
+    };
+    for padded in [phonetic(1, 10), phonetic(1, 12), phonetic(2, 24)] {
+        let (wb, _) = read_xlsb(&file(&worksheet(&[row(0), cell(62, 0, &padded)].concat(), &[]))).unwrap();
+        assert_eq!(wb.sheets[0].value(CellRef::new(0, 0)), text("ruby"));
+    }
+    assert!(read_xlsb(&file(&worksheet(&[row(0), cell(62, 0, &phonetic(2, 12))].concat(), &[]))).is_err());
+}

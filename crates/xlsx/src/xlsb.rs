@@ -470,7 +470,13 @@ fn rich_string(b: &mut Bytes<'_>) -> Result<String, IoError> {
         if count > 32767 {
             return Err(invalid("too many phonetic runs"));
         }
+        // [MS-XLSB] 2.5.103 PhRun: ichFirst, ichMom, cchMom, ifnt (u16 each)
+        // then phType/alcH/unused1 (16 bits) = 10 bytes. A RichStr is always
+        // the last field of its record (BrtSSTItem, BrtCellRichSt) and
+        // phonetic data is not imported, so tolerate writers that pad runs:
+        // require the documented size, then drop whatever follows.
         b.take(count as usize * 10)?;
+        b.rest = &[];
     }
     Ok(text)
 }
