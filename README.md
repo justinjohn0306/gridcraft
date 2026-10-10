@@ -117,6 +117,29 @@ cd apps/gridcraft-web && trunk serve --release     # http://127.0.0.1:8771  (?sa
 You need [trunk](https://trunkrs.dev) and the `wasm32-unknown-unknown` target. Open uses the
 browser's file picker (dropping files works too) and Save downloads the workbook.
 
+### Ribbon access keys
+
+Press and release **left Alt** on Windows/Linux/BSD, or press **F10** on any platform,
+then type a sequence below one key at a time. Keytips appear on the supported Home
+controls and menu items. On macOS, use F10 (Fn+F10 if required by your keyboard); Option
+remains available for entering accented characters.
+
+| Sequence after Alt/F10 | Action |
+|---|---|
+| `H A L` / `H A C` / `H A R` | Align left / center / right |
+| `H V S` or legacy `E S` | Open Paste Special |
+| `H O I` or legacy `O C A` | AutoFit selected columns |
+
+In Paste Special, **T/V/F/C** select formats/values/formulas/comments, and **E** toggles
+Transpose. **Enter** applies the selected options; **Escape** cancels the dialog.
+These letters also work with Alt held on Windows/Linux/BSD.
+
+Escape backs out one keytip level; Alt/F10 again exits keytips. Clicking, scrolling,
+or switching windows cancels navigation. Access keys do not start while editing text
+or using another dialog. This is initial support for these Home and legacy paths;
+other ribbon commands and full mouse-free navigation remain to be implemented.
+Browsers or desktop environments may reserve Alt/F10 for their own menus.
+
 ### Logs
 
 The desktop app writes its log to standard error and to `gridcraft.log` in the `logs` folder
