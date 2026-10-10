@@ -1008,6 +1008,9 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
             ctx.set_cursor_icon(CursorIcon::ResizeRow);
         } else if handle.contains(p) && app.editor.is_none() {
             ctx.set_cursor_icon(CursorIcon::Crosshair);
+            if app.grid.drag == Drag::None && !pointer.any_down() {
+                resp.clone().on_hover_text_at_pointer("Drag to fill cells. Drag from inside a cell to select a range.");
+            }
         } else if in_cells && app.editor.is_none() && on_border(cur_rect, p) {
             ctx.set_cursor_icon(CursorIcon::Move);
         } else if in_cells {
@@ -1142,6 +1145,11 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
             ed.point_cell = Some(c);
             app.grid.drag = Drag::Select;
             app.grid.drag_select = true;
+            if resp.drag_started()
+                && let Some(p) = pos
+            {
+                select_to_pointer(app, geo, sh, wb, p);
+            }
             return;
         }
         if app.editor.is_some() && !app.commit_edit(0, 0, false, false) {
@@ -1195,6 +1203,12 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         }
         app.grid.drag = Drag::Select;
         app.grid.drag_select = true;
+        if resp.drag_started()
+            && let Some(p) = pos
+        {
+            // The first recognised drag already includes movement away from the press.
+            select_to_pointer(app, geo, sh, wb, p);
+        }
         return;
     }
 
@@ -1223,26 +1237,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         );
         match app.grid.drag.clone() {
             Drag::Select => {
-                if let Some(ed) = app.editor.as_mut()
-                    && ed.point.is_some()
-                {
-                    if let Some(start) = ed.point_cell {
-                        let r = RangeRef::new(start, pc);
-                        let text = if r.is_single() { r.start.a1() } else { r.a1() };
-                        let keep = ed.point_cell;
-                        ed.insert_ref(&text);
-                        ed.point_cell = keep;
-                    }
-                } else {
-                    let anchor = sel.anchor;
-                    let mut ranges: Vec<String> = sel.ranges.iter().map(|r| r.a1()).collect();
-                    ranges.pop();
-                    ranges.push(RangeRef::new(anchor, pc).a1());
-                    let _ = app.session.run("selection.set", json!({"range": ranges.join(","), "active": sel.active.a1()}));
-                    if let Some(d) = app.session.active_mut() {
-                        d.selection.anchor = anchor;
-                    }
-                }
+                select_to_pointer(app, geo, sh, wb, p);
                 scroll_by(app, auto);
             }
             Drag::Rows(anchor) => {
@@ -1315,6 +1310,11 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
     // Release.
     if resp.drag_stopped() || (!pointer.any_down() && app.grid.drag != Drag::None && !resp.dragged()) {
         match std::mem::take(&mut app.grid.drag) {
+            Drag::Select if resp.drag_stopped() => {
+                if let Some(p) = pos {
+                    select_to_pointer(app, geo, sh, wb, p);
+                }
+            }
             Drag::Fill { target: Some(t) } => {
                 let src = sel.current();
                 if t != src {
@@ -1392,6 +1392,35 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         resp.request_focus();
     }
     keyboard(app, &ctx, resp, geo, sh);
+}
+
+fn select_to_pointer(app: &mut SheetApp, geo: &Geo, sh: &Sheet, wb: &Workbook, p: Pos2) {
+    let cell = CellRef::new(
+        geo.row_at(sh, p.y.clamp(geo.cells.top() + 1.0, geo.cells.bottom() - 1.0)),
+        geo.col_at(sh, p.x.clamp(geo.cells.left() + 1.0, geo.cells.right() - 1.0)),
+    );
+    if let Some(ed) = app.editor.as_mut()
+        && ed.point.is_some()
+    {
+        if let Some(start) = ed.point_cell {
+            let range = RangeRef::new(start, cell);
+            let text = if range.is_single() { range.start.a1() } else { range.a1() };
+            let text = if ed.sheet != wb.active_sheet { format!("{}!{text}", gridcraft_engine::formula::quote_sheet(&sh.name)) } else { text };
+            ed.insert_ref(&text);
+            ed.point_cell = Some(start);
+        }
+    } else if let Some(d) = app.session.active() {
+        // Read the current anchor: starting a drag may have just replaced the selection.
+        let anchor = d.selection.anchor;
+        let active = d.selection.active;
+        let mut ranges: Vec<String> = d.selection.ranges.iter().map(|r| r.a1()).collect();
+        ranges.pop();
+        ranges.push(RangeRef::new(anchor, cell).a1());
+        let _ = app.session.run("selection.set", json!({"range": ranges.join(","), "active": active.a1()}));
+        if let Some(d) = app.session.active_mut() {
+            d.selection.anchor = anchor;
+        }
+    }
 }
 
 fn coalesce_last_undo(app: &mut SheetApp) {
