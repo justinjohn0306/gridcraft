@@ -190,7 +190,8 @@ impl SheetApp {
     /// Copy or cut the selected cells to the system clipboard. Engine-only commands keep
     /// their existing internal clipboard behavior and do not write to the host clipboard.
     pub fn copy_to_clipboard(&mut self, ctx: &egui::Context, command: &str) {
-        let Ok(result) = self.run(command, json!({})) else { return };
+        // Only ask the engine for HTML when the host can publish it.
+        let Ok(result) = self.run(command, json!({"html": self.services.copy_html.is_some()})) else { return };
         let Some(text) = result.get("text").and_then(Json::as_str) else { return };
         if let Some(html) = result.get("html").and_then(Json::as_str)
             && let Some(copy_html) = &mut self.services.copy_html

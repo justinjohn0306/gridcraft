@@ -77,6 +77,8 @@ fn programmatic_copy_does_not_write_to_the_system_clipboard() {
         ..Default::default()
     });
     let copied = h.state_mut().run("edit.copy", json!({})).unwrap();
+    assert!(copied.get("html").is_none(), "HTML is only built when requested");
+    let copied = h.state_mut().run("edit.copy", json!({"html": true})).unwrap();
     assert!(copied["html"].is_string());
     assert_eq!(*calls.borrow(), 0);
     assert!(!h.output().platform_output.commands.iter().any(|c| matches!(c, OutputCommand::CopyText(_))));
