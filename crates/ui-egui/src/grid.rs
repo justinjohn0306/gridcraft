@@ -567,7 +567,9 @@ fn paint_quadrant(p: &Painter, geo: &Geo, wb: &Workbook, si: usize, sh: &Sheet, 
         };
         let indent = st.align.indent as f32 * 9.0 * z;
         let pad = 2.5 * z;
-        if st.align.wrap || st.align.h == HAlign::Justify || text.contains('\n') && st.align.wrap {
+        let rotated = st.align.rotation != 0 && st.align.rotation != 255;
+        // Rotated text wraps along its own direction (below), not across the column width.
+        if !rotated && (st.align.wrap || st.align.h == HAlign::Justify) {
             let wrap_w = (rect.width() - 2.0 * pad - indent).max(4.0);
             let mut job = egui::text::LayoutJob::simple(text.clone(), font.clone(), color, wrap_w);
             job.halign = match halign {
@@ -612,9 +614,9 @@ fn paint_quadrant(p: &Painter, geo: &Geo, wb: &Workbook, si: usize, sh: &Sheet, 
             galley = p.layout_no_wrap(s, font.clone(), color);
             w = galley.size().x;
         }
-        // Overflow into empty neighbours for text.
+        // Overflow into empty neighbours for text (not upright text, whose width is its line height).
         let mut clip = *rect;
-        if !numeric && !matches!(v, Value::Number(_)) && w > rect.width() - 2.0 * pad && in_merge(c).is_none() {
+        if !numeric && !matches!(v, Value::Number(_)) && st.align.rotation.abs() != 90 && w > rect.width() - 2.0 * pad && in_merge(c).is_none() {
             let mut right = rect.right();
             let mut left = rect.left();
             if matches!(halign, HAlign::Left | HAlign::Center | HAlign::Justify) {
@@ -657,9 +659,23 @@ fn paint_quadrant(p: &Painter, geo: &Geo, wb: &Workbook, si: usize, sh: &Sheet, 
             VAlign::Bottom => rect.bottom() - gh - 0.5 * z,
         };
         let cp = p.with_clip_rect(clip.intersect(p.clip_rect()));
-        if st.align.rotation != 0 && st.align.rotation != 255 {
+        if rotated {
             let angle = -(st.align.rotation as f32).to_radians();
-            let mut shape = egui::epaint::TextShape::new(pos2(rect.left() + pad, rect.bottom() - pad), galley.clone(), color);
+            // Upright (±90°) wrapped text wraps to the row height: lines then stack across the column.
+            let galley = if st.align.wrap && st.align.rotation.abs() == 90 {
+                let job = egui::text::LayoutJob::simple(text.clone(), font.clone(), color, (rect.height() - 2.0 * pad).max(4.0));
+                p.layout_job(job)
+            } else {
+                galley.clone()
+            };
+            // Upward text grows up and right from the bottom-left corner; downward text grows down
+            // and left from its anchor, so that anchor sits one block-height in from the top-left.
+            let pos = if angle > 0.0 {
+                pos2(rect.left() + pad + galley.size().y * angle.sin(), rect.top() + pad)
+            } else {
+                pos2(rect.left() + pad, rect.bottom() - pad)
+            };
+            let mut shape = egui::epaint::TextShape::new(pos, galley, color);
             shape.angle = angle;
             cp.add(shape);
         } else {
