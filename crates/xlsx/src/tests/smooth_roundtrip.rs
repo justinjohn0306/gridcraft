@@ -22,7 +22,7 @@ fn smooth_line_setting_round_trips() {
     s.charts.push(Chart {
         id: 1,
         kind: ChartKind::Line,
-        anchor: Anchor { cell: gridcraft_core::CellRef::new(0, 3), dx: 0.0, dy: 0.0, width: 480.0, height: 300.0 },
+        anchor: Anchor { cell: gridcraft_core::CellRef::new(0, 3), width: 480.0, height: 300.0, ..Anchor::default() },
         title: Some("Straight Line".into()),
         series: vec![base_series.clone()],
         legend: LegendPos::Bottom,
@@ -39,7 +39,7 @@ fn smooth_line_setting_round_trips() {
     s.charts.push(Chart {
         id: 2,
         kind: ChartKind::ScatterLines,
-        anchor: Anchor { cell: gridcraft_core::CellRef::new(15, 3), dx: 0.0, dy: 0.0, width: 480.0, height: 300.0 },
+        anchor: Anchor { cell: gridcraft_core::CellRef::new(15, 3), width: 480.0, height: 300.0, ..Anchor::default() },
         title: Some("Smooth Scatter".into()),
         series: vec![smooth_series],
         legend: LegendPos::Bottom,
