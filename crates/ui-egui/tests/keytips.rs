@@ -209,6 +209,20 @@ fn ribbon_and_legacy_autofit_sequences_resize_the_selected_column() {
 }
 
 #[test]
+fn legacy_prefix_switches_to_home_once_not_every_frame() {
+    let mut h = harness(blank());
+    h.state_mut().ui.ribbon_tab = "Insert".into();
+    sequence(&mut h, &[Key::E], false);
+    assert_eq!(h.state().keytips.prefix(), Some("E"));
+    assert_eq!(h.state().ui.ribbon_tab, "Home");
+    // While the prefix stays the same, later frames must not keep forcing the Home tab.
+    h.state_mut().ui.ribbon_tab = "Insert".into();
+    h.run_steps(3);
+    assert_eq!(h.state().keytips.prefix(), Some("E"));
+    assert_eq!(h.state().ui.ribbon_tab, "Insert");
+}
+
+#[test]
 fn escape_backs_out_without_clearing_copy_and_f10_toggles_off() {
     let mut h = harness(copied_row());
     sequence(&mut h, &[Key::H, Key::A], false);
