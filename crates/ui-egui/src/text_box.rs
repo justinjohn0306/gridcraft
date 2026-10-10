@@ -31,9 +31,15 @@ impl SheetApp {
             return false;
         }
         let Some(d) = self.session.active() else { return false };
-        let Some(shape) = d.wb.active().and_then(|sh| sh.shapes.iter().find(|s| s.id == id && s.kind == ShapeKind::TextBox)) else {
+        let Some(sh) = d.wb.active() else { return false };
+        let Some(shape) = sh.shapes.iter().find(|s| s.id == id && s.kind == ShapeKind::TextBox) else {
             return false;
         };
+        // shape.setText refuses edits on a protected sheet; don't open an editor that can't commit.
+        if sh.is_protected() {
+            self.message = Some(("Text Box".into(), "The cell or chart you're trying to change is on a protected sheet.".into()));
+            return false;
+        }
         self.text_box_editor = Some(EditState {
             id,
             text: shape.text.clone(),
@@ -150,6 +156,8 @@ pub(crate) fn show(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo, sh: &gridcr
                 .margin(egui::Margin::ZERO)
                 .desired_width(rect.width())
                 .desired_rows(1)
+                // shape.setText's limit (a cell's).
+                .char_limit(32_767)
                 .min_size(rect.size())
                 .lock_focus(true),
         );

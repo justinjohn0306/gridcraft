@@ -228,3 +228,14 @@ fn saving_and_switching_context_commit_to_the_original_text_box() {
     assert_eq!(shape_text(&docs[1].wb, 0, other_doc_id), "Other workbook");
     assert_eq!(docs[0].wb.sheet(0).unwrap().value(at("B2")), Value::text("cell stays"));
 }
+
+#[test]
+fn protected_sheet_refuses_to_open_the_text_box_editor() {
+    let (mut h, id) = fixture();
+    h.state_mut().session.execute("review.protectSheet", json!({})).unwrap();
+    edit_box(&mut h, id);
+    assert!(h.state().text_box_editor.is_none(), "a protected sheet's text box must not open an editor");
+    assert!(h.state().message.as_ref().is_some_and(|(_, m)| m.contains("protected sheet")));
+    assert_eq!(shape(&h, id).text, ORIGINAL);
+    assert_cell_unchanged(&h);
+}

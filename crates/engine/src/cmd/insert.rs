@@ -777,15 +777,26 @@ fn insert_shape(s: &mut Session, p: &Json) -> Result<Json> {
     })
 }
 
+/// A text box holds at most as many characters as a cell.
+const SHAPE_TEXT_MAX_CHARS: usize = 32_767;
+
 fn shape_set_text(s: &mut Session, p: &Json) -> Result<Json> {
     let id =
         p.get("id").and_then(Json::as_u64).and_then(|id| u32::try_from(id).ok()).ok_or_else(|| bad("shape.setText", "`id` must be a text box id"))?;
     let text = str_param(p, "text").ok_or_else(|| bad("shape.setText", "`text` must be a string"))?;
+    if text.chars().nth(SHAPE_TEXT_MAX_CHARS).is_some() {
+        return Err(bad("shape.setText", "`text` is longer than 32,767 characters"));
+    }
     let d = s.doc()?;
     let sheet = d.wb.active_sheet;
-    let shape = d.wb.active().and_then(|sh| sh.shapes.iter().find(|shape| shape.id == id)).ok_or_else(|| bad("shape.setText", "no such text box"))?;
+    let sh = d.wb.active().ok_or_else(|| bad("shape.setText", "no such text box"))?;
+    let shape = sh.shapes.iter().find(|shape| shape.id == id).ok_or_else(|| bad("shape.setText", "no such text box"))?;
     if shape.kind != ShapeKind::TextBox {
         return Err(bad("shape.setText", "the shape is not a text box"));
+    }
+    // Sheet protection locks drawing objects (there is no "edit objects" allowance yet).
+    if sh.is_protected() {
+        return Err(EngineError::Other(PROTECTED.into()));
     }
     if shape.text == text {
         return ok();

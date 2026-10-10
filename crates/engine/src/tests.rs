@@ -169,6 +169,36 @@ fn shape_text_rejects_invalid_targets_and_params() {
 }
 
 #[test]
+fn shape_text_respects_sheet_protection() {
+    let mut s = s();
+    let id = s.execute("insert.textBox", json!({"text": "Original"})).unwrap()["shape"].clone();
+    s.execute("review.protectSheet", json!({})).unwrap();
+    let before = s.doc().unwrap().wb.clone();
+    let undo_len = s.doc().unwrap().undo.len();
+    assert!(s.execute("shape.setText", json!({"id": id, "text": "Changed"})).is_err());
+    assert!(std::sync::Arc::ptr_eq(&s.doc().unwrap().wb, &before));
+    assert_eq!(s.doc().unwrap().undo.len(), undo_len);
+    s.execute("review.unprotectSheet", json!({})).unwrap();
+    s.execute("shape.setText", json!({"id": id, "text": "Changed"})).unwrap();
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0].text, "Changed");
+}
+
+#[test]
+fn shape_text_is_capped_like_a_cell() {
+    let mut s = s();
+    let id = s.execute("insert.textBox", json!({"text": "Original"})).unwrap()["shape"].clone();
+    // The cap counts characters, not bytes.
+    let longest = "é".repeat(32_767);
+    s.execute("shape.setText", json!({"id": id, "text": longest})).unwrap();
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0].text.chars().count(), 32_767);
+    let undo_len = s.doc().unwrap().undo.len();
+    let too_long = "x".repeat(32_768);
+    assert!(matches!(s.execute("shape.setText", json!({"id": id, "text": too_long})), Err(crate::EngineError::BadParams { .. })));
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0].text.chars().count(), 32_767);
+    assert_eq!(s.doc().unwrap().undo.len(), undo_len);
+}
+
+#[test]
 fn shape_text_edit_survives_xlsx_roundtrip() {
     let mut s = s();
     s.execute("insert.textBox", json!({"text": "Imported"})).unwrap();
