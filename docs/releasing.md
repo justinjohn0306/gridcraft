@@ -67,8 +67,10 @@ After the draft is published, the workflow refuses to touch that version again, 
 **Test runs:** *Actions → Release → Run workflow* runs the whole pipeline by hand. The optional
 `version` input (such as `0.2.0-rc.1`) overrides `Cargo.toml` for that run only; each job
 applies it with `cargo xtask version set` before building, so the binaries report it too. The
-run still needs the `release` environment, which only the `release` branch can use, so pick
-that branch in the dialog.
+signing jobs and the draft release need the `release` environment, which only the `release`
+branch can use. Run from any other branch, it's a dry run: Linux, Flatpak, FreeBSD and web build
+and upload their artifacts, the environment refuses macOS and Windows, and no release is drafted
+(`gh workflow run release.yml --ref <branch>`).
 
 ## What gets built
 
@@ -78,8 +80,10 @@ that branch in the dialog.
 | Windows 10+ x64 | `gridcraft-<v>-windows-x64.msi`, `gridcraft-<v>-windows-x64-portable.zip` | `windows-latest` |
 | Windows 10+ x86 (32-bit) | `gridcraft-<v>-windows-x86.msi`, `gridcraft-<v>-windows-x86-portable.zip` | `windows-latest` |
 | Windows 11 ARM64 | `gridcraft-<v>-windows-arm64.msi`, `…-portable.zip` (cross-compiled, signed like x64) | `windows-latest`; installed and run on `windows-11-arm` by `windows-arm64.yml` |
-| Linux x86_64 | `gridcraft-<v>-linux-x86_64.{AppImage,deb,rpm,tar.gz}` | `ubuntu-22.04` |
-| Linux aarch64 | `gridcraft-<v>-linux-aarch64.{AppImage,deb,rpm,tar.gz}` | `ubuntu-22.04-arm` |
+| Linux x86_64 | `gridcraft-<v>-linux-x86_64.{AppImage,AppImage.zsync,deb,rpm,tar.gz}` | `ubuntu-22.04` |
+| Linux aarch64 | `gridcraft-<v>-linux-aarch64.{AppImage,AppImage.zsync,deb,rpm,tar.gz}` | `ubuntu-22.04-arm` |
+| Linux riscv64 | `gridcraft-<v>-linux-riscv64.tar.gz` (cross-compiled, glibc >= 2.39; CLI smoke-tested under QEMU) | `ubuntu-24.04` |
+| Flatpak x86_64, aarch64 | `gridcraft-<v>-linux-<arch>.flatpak` (repackages the Linux tarball) | `ubuntu-24.04`, `ubuntu-24.04-arm` |
 | FreeBSD 14 x86_64 | `gridcraft-<v>-freebsd-x86_64.tar.gz` | FreeBSD 14.3 VM (`freebsd.yml`, called by `release.yml`) |
 | Web | `gridcraft-web-<v>.zip` (static site; see [`packaging/web/README.md`](../packaging/web/README.md)) | `ubuntu-latest` |
 
@@ -98,6 +102,9 @@ that branch in the dialog.
 - **Notarization:** the app is zipped and sent with `xcrun notarytool submit --wait`, then
   stapled. The DMG (with an `Applications` link) is signed, notarized and stapled too, and
   checked with `codesign --verify --strict`, `stapler validate` and `spctl -a -vvv`.
+  Its Finder window (background, icon size and positions) comes from
+  [`packaging/macos/dmg/`](../packaging/macos/dmg/README.md), and its volume is named `GridCraft`
+  without the version, which the window's background needs; the DMG file name keeps the version.
 - **CLI:** the universal `gridcraft-cli` is signed, zipped and notarized.
 
 Locally, without certificates, the script signs ad-hoc (`codesign -s -`) and skips notarization:
@@ -137,10 +144,19 @@ Locally on Windows: `dotnet tool install -g wix --version 5.0.2`, then
 binaries need glibc ≥ 2.35. X11/Wayland/xkbcommon/Vulkan/EGL are loaded at runtime; the
 packages declare them (see `nfpm.yaml`).
 
+Each AppImage embeds update information
+(`gh-releases-zsync|storytold|gridcraft|latest|gridcraft-*-linux-<arch>.AppImage.zsync`), and the
+matching `.zsync` is published beside it, so AppImageUpdate and AppImageLauncher fetch only the
+changed blocks of the newest published release. appimagetool writes the `.zsync` when
+`zsyncmake` (the `zsync` package) is installed; without it the script warns and skips it.
+
 Flatpak: `packaging/linux/flatpak/ai.storyteller.gridcraft.yml` builds from source and is ready
 for a Flathub submission (freedesktop 25.08; Wayland + X11 fallback, `dri`, IPC; Documents and
-Downloads; everything else through portals). CI validates it but doesn't build it; build by hand
-with the commands in its header.
+Downloads; everything else through portals); build it by hand with the commands in its header.
+The single-file `.flatpak` on each release comes from `packaging/linux/flatpak-bundle.sh` and
+`ai.storyteller.gridcraft.bundle.yml`, which repackage the release's Linux tarball (no Rust
+build) and smoke-test the result in the sandbox. packaging-lint checks that both manifests
+agree on runtime and finish-args.
 
 Locally (on Linux): install [nfpm](https://nfpm.goreleaser.com/install/), then
 `packaging/linux/package.sh` (or `--formats "deb tar"`).
