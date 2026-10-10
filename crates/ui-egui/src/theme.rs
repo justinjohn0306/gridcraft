@@ -322,17 +322,27 @@ pub fn font_definitions() -> FontDefinitions {
 
 /// Loads the system non-Latin fallback faces (one file per script family) and returns their keys so
 /// every family can carry them as fallback. egui's bundled fonts have no coverage beyond Latin, so
-/// without this a Thai, Hebrew, Japanese or Chinese workbook renders as tofu boxes even though the
-/// text was read correctly. epaint shapes the complex scripts itself (via `harfrust`); it only needs
-/// a face that has the glyphs.
+/// without this a Thai, Hebrew, Japanese or Chinese workbook shows tofu boxes even though the text
+/// was read correctly. With a face installed those scripts get real glyphs instead of tofu; nothing
+/// is bundled, and a machine without the face keeps the old behaviour.
 #[cfg(not(target_arch = "wasm32"))]
 fn load_fallback(fonts: &mut FontDefinitions) -> Vec<String> {
     let mut keys = Vec::new();
+    // Files already loaded as a fallback face. A file serves at most one key: the region-merged
+    // Noto Sans CJK .ttc found for Han also carries Hangul (and Tahoma carries both Thai and
+    // Hebrew), so loading it again for a later script would only duplicate tens of MB in memory.
+    let mut loaded: Vec<String> = Vec::new();
     for (key, cands) in fallback_faces() {
-        let refs: Vec<(&str, u32)> = cands.iter().map(|(p, i)| (p.as_str(), *i)).collect();
-        if let Some(fd) = try_load(&refs) {
-            fonts.font_data.insert(key.to_string(), Arc::new(fd));
-            keys.push(key.to_string());
+        for (path, index) in &cands {
+            if loaded.contains(path) {
+                break; // a face loaded for an earlier script already covers this one
+            }
+            if let Some(fd) = try_load(&[(path.as_str(), *index)]) {
+                fonts.font_data.insert(key.to_string(), Arc::new(fd));
+                keys.push(key.to_string());
+                loaded.push(path.clone());
+                break;
+            }
         }
     }
     keys
@@ -351,40 +361,66 @@ fn fallback_faces() -> Vec<(&'static str, Vec<(String, u32)>)> {
     vec![("sys-cjk-han", cjk_han()), ("sys-cjk-hangul", cjk_hangul()), ("sys-thai", thai()), ("sys-hebrew", hebrew())]
 }
 
+/// Linux directories that hold CJK fonts across distributions: Debian/Ubuntu (`opentype/noto`,
+/// `truetype/wqy`), Fedora (`google-noto-cjk`), Arch (`noto-cjk`, `wenquanyi`), plus local and
+/// flat layouts.
+#[cfg(not(target_arch = "wasm32"))]
+const LINUX_CJK_DIRS: [&str; 10] = [
+    "/usr/share/fonts/opentype/noto",
+    "/usr/share/fonts/google-noto-cjk",
+    "/usr/share/fonts/noto-cjk",
+    "/usr/share/fonts/truetype/noto",
+    "/usr/share/fonts/noto",
+    "/usr/share/fonts/truetype",
+    "/usr/share/fonts/TTF",
+    "/usr/share/fonts",
+    "/usr/local/share/fonts",
+    "/usr/local/share/fonts/noto-cjk",
+];
+
 /// Han + Kana faces, in fallback order. A Japanese face comes first (kana and JIS kanji render
 /// with Japanese glyph shapes); a Chinese face follows to widen coverage. Every CJK face carries
 /// kana, so any of them renders Japanese; the order only decides kanji glyph style.
+///
+/// The region-merged `NotoSansCJK-Regular.ttc` holds one face per locale (JP 0, KR 1, SC 2, TC 3,
+/// HK 4) with the same glyph coverage; index 0 picks the Japanese glyph shapes.
 #[cfg(not(target_arch = "wasm32"))]
 fn cjk_han() -> Vec<(String, u32)> {
     let mac = "/System/Library/Fonts";
     let win = std::env::var("WINDIR").map(|w| format!("{w}\\Fonts")).unwrap_or_else(|_| "C:\\Windows\\Fonts".into());
-    let lin = ["/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype/noto", "/usr/share/fonts/truetype", "/usr/share/fonts"];
     let mut v: Vec<(String, u32)> = Vec::new();
     v.push((format!("{win}\\YuGothR.ttc"), 0)); // Yu Gothic (Japanese)
     v.push((format!("{win}\\msgothic.ttc"), 0)); // MS Gothic (Japanese)
     v.push((format!("{win}\\msyh.ttc"), 0)); // Microsoft YaHei (Chinese)
-    v.push((format!("{mac}/Hiragino Sans GB.ttc"), 0));
-    v.push((format!("{mac}/PingFang.ttc"), 0));
-    for d in lin {
+    v.push((format!("{win}\\simsun.ttc"), 0)); // SimSun (Chinese, older installs)
+    v.push((format!("{mac}/ヒラギノ角ゴシック W3.ttc"), 0)); // Hiragino Sans (Japanese)
+    v.push((format!("{mac}/Hiragino Sans GB.ttc"), 0)); // ships on every recent macOS
+    v.push((format!("{mac}/PingFang.ttc"), 0)); // older macOS only; now a downloadable asset
+    for d in LINUX_CJK_DIRS {
         v.push((format!("{d}/NotoSansCJK-Regular.ttc"), 0));
         v.push((format!("{d}/NotoSansCJKjp-Regular.otf"), 0));
+        v.push((format!("{d}/NotoSansCJKsc-Regular.otf"), 0));
+    }
+    for d in LINUX_CJK_DIRS {
+        v.push((format!("{d}/wqy/wqy-microhei.ttc"), 0));
+        v.push((format!("{d}/wenquanyi/wqy-microhei.ttc"), 0));
         v.push((format!("{d}/wqy-microhei.ttc"), 0));
     }
     v
 }
 
-/// Hangul faces (Korean; not covered by the Han fonts).
+/// Hangul faces (Korean). The Han faces above that come from the region-merged Noto Sans CJK file
+/// already carry Hangul; [`load_fallback`] then skips this list rather than load the file twice.
 #[cfg(not(target_arch = "wasm32"))]
 fn cjk_hangul() -> Vec<(String, u32)> {
     let mac = "/System/Library/Fonts";
     let win = std::env::var("WINDIR").map(|w| format!("{w}\\Fonts")).unwrap_or_else(|_| "C:\\Windows\\Fonts".into());
-    let lin = ["/usr/share/fonts/truetype/noto", "/usr/share/fonts/opentype/noto", "/usr/share/fonts/truetype"];
     let mut v: Vec<(String, u32)> = Vec::new();
     v.push((format!("{win}\\malgun.ttf"), 0)); // Malgun Gothic
     v.push((format!("{mac}/AppleSDGothicNeo.ttc"), 0));
-    for d in lin {
+    for d in LINUX_CJK_DIRS {
         v.push((format!("{d}/NotoSansCJKkr-Regular.otf"), 0));
-        v.push((format!("{d}/NotoSansCJK-Regular.ttc"), 0));
+        v.push((format!("{d}/NotoSansCJK-Regular.ttc"), 1)); // KR face
     }
     v
 }
@@ -498,6 +534,19 @@ mod tests {
     }
 
     #[test]
+    fn fallback_faces_load_each_file_once() {
+        // The region-merged Noto Sans CJK .ttc serves Han and Hangul; it must be loaded once, not
+        // once per script (tens of MB each).
+        let fonts = font_definitions();
+        let present: Vec<&Arc<FontData>> = fallback_faces().into_iter().filter_map(|(k, _)| fonts.font_data.get(k)).collect();
+        for (i, a) in present.iter().enumerate() {
+            for b in present.iter().skip(i + 1) {
+                assert!(a.font != b.font, "the same font file is loaded for two fallback scripts");
+            }
+        }
+    }
+
+    #[test]
     fn fallback_covers_its_script() {
         // Real render check, per script: the proportional family (what cells and the UI use) must
         // resolve a sample string to a real glyph, not the tofu replacement char. Skips a script
@@ -512,12 +561,21 @@ mod tests {
         ctx.set_fonts(font_definitions());
         let mut out = ctx.run_ui(egui::RawInput::default(), |_ui| {});
         out.textures_delta.clear(); // nothing consumes the atlas in a headless test
+        // `has_glyphs` is a false negative when the face that owns the script is also the face that
+        // draws the replacement glyph (DejaVu Sans as the UI font owns Hebrew), so compare the laid
+        // out glyphs with the tofu glyph itself instead.
+        let font = FontId::proportional(14.0);
+        let glyphs = |text: &str| {
+            let galley = ctx.fonts_mut(|f| f.layout_no_wrap(text.to_owned(), font.clone(), Color32::BLACK));
+            galley.rows.iter().flat_map(|r| r.glyphs.iter().map(|g| g.uv_rect)).collect::<Vec<_>>()
+        };
+        let tofu = glyphs("\u{25FB}");
         for (key, cands, sample) in cases {
-            if cands.iter().all(|(p, _)| std::fs::read(p).is_err()) {
+            if !cands.iter().any(|(p, _)| std::path::Path::new(p).exists()) {
                 continue; // no face for this script on this machine; nothing to assert
             }
-            let covered = ctx.fonts_mut(|f| f.has_glyphs(&FontId::proportional(14.0), sample));
-            assert!(covered, "{key} is present but {sample:?} still renders as tofu");
+            let drawn = glyphs(sample);
+            assert!(!drawn.is_empty() && drawn.iter().all(|g| !tofu.contains(g)), "{key} is present but {sample:?} still renders as tofu");
         }
     }
 }
