@@ -424,6 +424,13 @@ fn delete_sheet(s: &mut Session, p: &Json) -> Result<Json> {
             {
                 *sc -= 1;
             }
+            // Names referring to the sheet become #REF!.
+            if let Ok(e) = gridcraft_formula::parse(&n.formula) {
+                let ne = gridcraft_formula::adjust::delete_sheet(e.clone(), &name);
+                if ne != e {
+                    n.formula = gridcraft_formula::print(&ne);
+                }
+            }
         }
         if cx.wb.active_sheet >= cx.wb.sheets.len() || cx.wb.active_sheet > i {
             cx.wb.active_sheet = cx.wb.active_sheet.saturating_sub(1).min(cx.wb.sheets.len().saturating_sub(1));
@@ -493,10 +500,31 @@ fn move_sheet(s: &mut Session, p: &Json) -> Result<Json> {
         if copy {
             let mut sh = (*src).clone();
             let base = sh.name.clone();
-            let name = (2..).map(|k| format!("{base} ({k})")).find(|nm| cx.wb.sheet_index(nm).is_none()).unwrap_or(base);
+            let name = (2..).map(|k| format!("{base} ({k})")).find(|nm| cx.wb.sheet_index(nm).is_none()).unwrap_or(base.clone());
             sh.name = name.chars().take(31).collect();
             sh.tables.clear(); // table names must be unique
             let at = to.min(n);
+            // The copy gets its own copies of the sheet's names, referring to the copy.
+            let copies: Vec<gridcraft_model::DefinedName> = cx
+                .wb
+                .names
+                .iter()
+                .filter(|nm| nm.scope == Some(i))
+                .map(|nm| {
+                    let formula = gridcraft_formula::parse(&nm.formula)
+                        .map(|e| gridcraft_formula::print(&gridcraft_formula::adjust::rename_sheet(e, &base, &sh.name)))
+                        .unwrap_or_else(|_| nm.formula.clone());
+                    gridcraft_model::DefinedName { scope: Some(at), formula, ..nm.clone() }
+                })
+                .collect();
+            for nm in cx.wb.names.iter_mut() {
+                if let Some(sc) = nm.scope.as_mut()
+                    && *sc >= at
+                {
+                    *sc += 1;
+                }
+            }
+            cx.wb.names.extend(copies);
             cx.wb.sheets.insert(at, Arc::new(sh));
             cx.wb.active_sheet = at;
         } else {
@@ -504,6 +532,17 @@ fn move_sheet(s: &mut Session, p: &Json) -> Result<Json> {
             let at = to.min(n - 1);
             cx.wb.sheets.insert(at, sh);
             cx.wb.active_sheet = at;
+            // Sheet-level names follow their sheet.
+            for nm in cx.wb.names.iter_mut() {
+                if let Some(sc) = nm.scope.as_mut() {
+                    *sc = match *sc {
+                        x if x == i => at,
+                        x if i < x && x <= at => x - 1,
+                        x if at <= x && x < i => x + 1,
+                        x => x,
+                    };
+                }
+            }
         }
         cx.structural = true;
         Ok(Json::Null)
