@@ -334,11 +334,18 @@ fn do_sort(s: &mut Session, r: RangeRef, header: bool, keys: Vec<SortKey>, by_co
         }
         // Re-anchor floating objects now that the row heights are final. `objs` was collected as
         // images ++ charts ++ shapes, so the same index maps straight onto each vec.
+        // Only objects anchored inside the sorted block move: within its lines on the sort axis
+        // and within its span on the other axis (a picture beside the block stays put).
         let (b0, b1) = if by_cols { (body.start.col, body.end.col) } else { (body.start.row, body.end.row) };
+        let (o0, o1) = if by_cols { (body.start.row, body.end.row) } else { (body.start.col, body.end.col) };
         let ni = shm.images.len();
         let nch = shm.charts.len();
-        for (i, a) in objs.into_iter().enumerate() {
-            let na = sorted_anchor(shm, a, descs[i], by_cols, b0, b1, &dst_of);
+        for (i, (a, desc)) in objs.into_iter().zip(descs).enumerate() {
+            let other = if by_cols { a.cell.row } else { a.cell.col };
+            if other < o0 || other > o1 {
+                continue;
+            }
+            let na = sorted_anchor(shm, a, desc, by_cols, b0, b1, &dst_of);
             if na != a {
                 if i < ni {
                     if let Some(o) = shm.images.get_mut(i) {

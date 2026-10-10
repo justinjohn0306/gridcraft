@@ -709,3 +709,48 @@ fn set_anchor_mode_changes_following() {
     // A bad mode is rejected, not silently ignored.
     assert!(s.execute("object.setAnchorMode", json!({"kind": "image", "id": id, "mode": "sideways"})).is_err());
 }
+
+/// A sort moves only objects anchored inside the sorted block on both axes: a picture beside
+/// the block (same rows, other columns) stays where it is.
+#[test]
+fn sort_leaves_objects_outside_the_block_alone() {
+    use gridcraft_model::AnchorMode;
+    let mut s = s();
+    s.execute("range.setValues", json!({"range": "A1", "values": [["Name", "Score"], ["b", 2], ["c", 3], ["a", 1]]})).unwrap();
+    let beside = add_image(&mut s, "Z3", AnchorMode::MoveAndSize);
+    let inside = add_image(&mut s, "B3", AnchorMode::MoveAndSize);
+    s.execute("selection.set", json!({"range": "A1:B4"})).unwrap();
+    s.execute("data.sortAscending", json!({"header": true, "column": "A"})).unwrap();
+    assert_eq!(image_cell(&s, beside), Some(CellRef::parse("Z3").unwrap()));
+    // "c" moved from row 3 to row 4, taking the picture in B3 with it.
+    assert_eq!(image_cell(&s, inside), Some(CellRef::parse("B4").unwrap()));
+}
+
+/// Inserted pictures default to Excel's "Move but don't size with cells".
+#[test]
+fn inserted_pictures_move_but_do_not_size() {
+    let mut s = s();
+    let b64 = crate::io::base64_encode(&tiny_png());
+    let id = s.execute("insert.picture", json!({"base64": b64, "at": "C3"})).unwrap()["image"].as_u64().unwrap() as u32;
+    let mode = |s: &Session| s.doc().unwrap().wb.active().unwrap().images.iter().find(|i| i.id == id).unwrap().anchor.mode;
+    assert_eq!(mode(&s), gridcraft_model::AnchorMode::MoveOnly);
+    let b64 = crate::io::base64_encode(&tiny_png());
+    let id2 = s.execute("insert.picture", json!({"base64": b64, "mode": "absolute"})).unwrap()["image"].as_u64().unwrap() as u32;
+    let m2 = s.doc().unwrap().wb.active().unwrap().images.iter().find(|i| i.id == id2).unwrap().anchor.mode;
+    assert_eq!(m2, gridcraft_model::AnchorMode::Absolute);
+}
+
+/// `object.setAnchorMode` needs a real object kind.
+#[test]
+fn set_anchor_mode_rejects_unknown_kind() {
+    use gridcraft_model::AnchorMode;
+    let mut s = s();
+    let id = add_image(&mut s, "A2", AnchorMode::MoveAndSize);
+    for kind in [json!(""), json!("widget"), serde_json::Value::Null] {
+        assert!(s.execute("object.setAnchorMode", json!({"kind": kind, "id": id, "mode": "absolute"})).is_err());
+    }
+    let mode = |s: &Session| s.doc().unwrap().wb.active().unwrap().images[0].anchor.mode;
+    assert_eq!(mode(&s), AnchorMode::MoveAndSize);
+    s.execute("object.setAnchorMode", json!({"kind": "image", "id": id, "mode": "moveOnly"})).unwrap();
+    assert_eq!(mode(&s), AnchorMode::MoveOnly);
+}

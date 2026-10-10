@@ -96,7 +96,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Picture",
             ["Insert", "Illustrations"],
             None,
-            "{path? | base64?: \"...\", mime?, at?: \"B2\", width?, height?, alt?}",
+            "{path? | base64?: \"...\", mime?, at?: \"B2\", width?, height?, alt?, mode?: moveOnly|moveAndSize|absolute}",
             has_doc,
             insert_picture
         ),
@@ -733,7 +733,8 @@ fn insert_picture(s: &mut Session, p: &Json) -> Result<Json> {
             dy: 0.0,
             width: f64_param(p, "width").map(|v| v as f32).unwrap_or(w as f32 * scale),
             height: f64_param(p, "height").map(|v| v as f32).unwrap_or(h as f32 * scale),
-            mode: anchor_mode_param(p).unwrap_or_default(),
+            // Excel inserts pictures as "Move but don't size with cells" (`editAs="oneCell"`).
+            mode: anchor_mode_param(p).unwrap_or(gridcraft_model::AnchorMode::MoveOnly),
         },
         data,
         mime,
@@ -812,7 +813,8 @@ fn move_object(s: &mut Session, p: &Json) -> Result<Json> {
         let anchor = match kind.as_str() {
             "chart" => sh.charts.iter_mut().find(|c| c.id == id).map(|c| &mut c.anchor),
             "image" => sh.images.iter_mut().find(|c| c.id == id).map(|c| &mut c.anchor),
-            _ => sh.shapes.iter_mut().find(|c| c.id == id).map(|c| &mut c.anchor),
+            "shape" => sh.shapes.iter_mut().find(|c| c.id == id).map(|c| &mut c.anchor),
+            _ => None,
         };
         let Some(a) = anchor else { return Err(bad("object.move", "no such object")) };
         if let Some(at) = cell_param(p, "at") {
@@ -840,6 +842,9 @@ fn move_object(s: &mut Session, p: &Json) -> Result<Json> {
 fn set_anchor_mode(s: &mut Session, p: &Json) -> Result<Json> {
     let id = u32_param(p, "id").ok_or_else(|| bad("object.setAnchorMode", "missing `id`"))?;
     let kind = str_param(p, "kind").unwrap_or("").to_string();
+    if !matches!(kind.as_str(), "chart" | "image" | "shape") {
+        return Err(bad("object.setAnchorMode", "kind must be chart, image or shape"));
+    }
     let mode = anchor_mode_param(p).ok_or_else(|| bad("object.setAnchorMode", "mode must be moveAndSize, moveOnly or absolute"))?;
     let sheet = s.doc()?.wb.active_sheet;
     edit(s, |cx| {
