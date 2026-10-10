@@ -218,13 +218,24 @@ fn valid_name(n: &str) -> bool {
     if !(first.is_alphabetic() || first == '_' || first == '\\') {
         return false;
     }
-    if n.len() > 255 || n.eq_ignore_ascii_case("R") || n.eq_ignore_ascii_case("C") {
-        return false;
-    }
-    if CellRef::parse(n).is_some() {
+    if n.len() > 255 || CellRef::parse(n).is_some() || is_r1c1(n) {
         return false;
     }
     n.chars().all(|c| c.is_alphanumeric() || matches!(c, '_' | '.' | '\\' | '?'))
+}
+
+/// Looks like an R1C1 reference (`R`, `C`, `RC`, `R2`, `C3`, `R1C1`), which Excel doesn't
+/// accept as a name.
+fn is_r1c1(n: &str) -> bool {
+    let digits = |s: &str| s.bytes().take_while(u8::is_ascii_digit).count();
+    let mut rest = n;
+    if let Some(r) = rest.strip_prefix(['R', 'r']) {
+        rest = r.get(digits(r)..).unwrap_or("");
+    }
+    if let Some(c) = rest.strip_prefix(['C', 'c']) {
+        rest = c.get(digits(c)..).unwrap_or("");
+    }
+    rest.is_empty() && !n.is_empty()
 }
 
 fn define_name(s: &mut Session, p: &Json) -> Result<Json> {
