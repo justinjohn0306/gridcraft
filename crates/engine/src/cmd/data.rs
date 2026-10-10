@@ -683,9 +683,15 @@ fn split_delimited(text: &str, delims: &[char], consecutive: bool, quote: char) 
     let mut cur = String::new();
     let mut in_q = false;
     let mut last_delim = false;
-    for c in text.chars() {
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
         if c == quote {
-            in_q = !in_q;
+            if in_q && chars.peek() == Some(&quote) {
+                cur.push(quote);
+                chars.next();
+            } else {
+                in_q = !in_q;
+            }
             continue;
         }
         if !in_q && delims.contains(&c) {
