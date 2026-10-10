@@ -983,6 +983,8 @@ fn paint_headers(p: &Painter, geo: &Geo, sh: &Sheet, sel: &gridcraft_engine::Sel
 
 fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &Geo, sh: &Sheet, wb: &Workbook) {
     let ctx = ui.ctx().clone();
+    // Enter/Space synthesize egui clicks; only real pointer clicks use sheet coordinates.
+    let primary_clicked = resp.clicked_by(egui::PointerButton::Primary);
     let pointer = ctx.input(|i| i.pointer.clone());
     let mods = ctx.input(|i| i.modifiers);
     let pos = pointer.interact_pos().or(pointer.hover_pos());
@@ -1048,7 +1050,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
             }
             return;
         }
-        if app.session.draw_tool == "eraser" && (resp.clicked() || resp.dragged()) {
+        if app.session.draw_tool == "eraser" && (primary_clicked || resp.dragged()) {
             if let Some(p) = pos
                 && let Some(("shape", id, _)) = crate::chartview::hit(app, geo, sh, p)
                 && sh.shapes.iter().any(|s| s.id == id && s.kind == gridcraft_engine::model::ShapeKind::Ink)
@@ -1059,7 +1061,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         }
     }
     // Objects (charts, pictures, shapes) take clicks first.
-    if resp.drag_started() || resp.clicked() {
+    if resp.drag_started() || primary_clicked {
         if let Some(p) = pos
             && let Some((kind, id, rect)) = crate::chartview::hit(app, geo, sh, p)
         {
@@ -1075,13 +1077,13 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
                 }
             }
             return;
-        } else if resp.clicked() || resp.drag_started() {
+        } else if primary_clicked || resp.drag_started() {
             app.selected_chart = None;
         }
     }
 
     // Press: decide the drag mode.
-    if resp.drag_started() || (resp.clicked() && app.grid.drag == Drag::None) {
+    if resp.drag_started() || (primary_clicked && app.grid.drag == Drag::None) {
         // Where the press began (a drag is only recognised after the pointer has moved).
         let Some(p) = pointer.press_origin().or(pos) else { return };
         if in_corner {
@@ -1177,12 +1179,12 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
             let _ = app.session.run("selection.set", json!({"range": ranges.join(","), "active": c.a1()}));
         } else {
             let _ = app.session.run("selection.set", json!({"cell": c.a1()}));
-            if resp.clicked() && wb.styles.get(sh.style_id(c)).num_fmt.as_str() == "checkbox" {
+            if primary_clicked && wb.styles.get(sh.style_id(c)).num_fmt.as_str() == "checkbox" {
                 let _ = app.run("cell.toggleCheckbox", json!({"cell": c.a1()}));
             }
             // A click on a hyperlink's text follows it (like Excel); elsewhere in the cell selects.
             if let Some(h) = sh.hyperlinks.get(&c).cloned()
-                && resp.clicked()
+                && primary_clicked
                 && !mods.any()
             {
                 let r = geo.cell_rect(sh, c);
@@ -1386,7 +1388,7 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         }
     }
 
-    if resp.clicked() || resp.drag_started() {
+    if primary_clicked || resp.drag_started() {
         resp.request_focus();
     }
     keyboard(app, &ctx, resp, geo, sh);
