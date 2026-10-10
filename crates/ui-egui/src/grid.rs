@@ -1143,6 +1143,32 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         }
     }
 
+    // A double-click is also a click: handle header AutoFit before resize setup returns.
+    if resp.double_clicked()
+        && let Some(p) = pos
+    {
+        let autofit = if in_col_header {
+            col_edge(geo, sh, p.x).map(|(col, _)| {
+                let selected = sel.ranges.iter().any(|r| r.is_full_cols() && col >= r.start.col && col <= r.end.col);
+                ("home.autofitColumnWidth", if selected { json!({}) } else { json!({"cols": RangeRef::cols(col, col).a1()}) })
+            })
+        } else if in_row_header {
+            row_edge(geo, sh, p.y).map(|(row, _)| {
+                let selected = sel.ranges.iter().any(|r| r.is_full_rows() && row >= r.start.row && row <= r.end.row);
+                ("home.autofitRowHeight", if selected { json!({}) } else { json!({"rows": RangeRef::rows(row, row).a1()}) })
+            })
+        } else {
+            None
+        };
+        if let Some((command, params)) = autofit {
+            app.grid.drag = Drag::None;
+            app.grid.drag_select = false;
+            app.run_or_alert(command, params);
+            resp.request_focus();
+            return;
+        }
+    }
+
     // Press: decide the drag mode.
     if resp.drag_started() || (primary_clicked && app.grid.drag == Drag::None) {
         // Where the press began (a drag is only recognised after the pointer has moved).
@@ -1394,29 +1420,22 @@ fn interact(app: &mut SheetApp, ui: &mut egui::Ui, resp: &egui::Response, geo: &
         app.grid.drag_select = false;
     }
 
-    // Double-click on header edges autofits.
+    // Double-click the fill handle.
     if resp.double_clicked()
         && let Some(p) = pos
+        && handle.contains(p)
     {
-        if in_col_header && let Some((c, _)) = col_edge(geo, sh, p.x) {
-            let _ = app.run("home.autofitColumnWidth", json!({"cols": RangeRef::cols(c, c).a1()}));
-        } else if in_row_header && let Some((r, _)) = row_edge(geo, sh, p.y) {
-            let _ = app.run("home.autofitRowHeight", json!({"rows": format!("{}:{}", r + 1, r + 1)}));
-        } else if handle.contains(p) {
-            // Double-click the fill handle: fill down as far as the neighbouring column goes.
-            let src = sel.current();
-            let neighbour = if src.start.col > 0 { src.start.col - 1 } else { src.end.col + 1 };
-            let mut last = src.end.row;
-            while last + 1 < MAX_ROWS
-                && sh.value_ref(CellRef::new(last + 1, neighbour)).is_some_and(|v| !v.is_empty())
-                && last - src.end.row < 1_000_000
-            {
-                last += 1;
-            }
-            if last > src.end.row {
-                let target = RangeRef::new(src.start, CellRef::new(last, src.end.col));
-                let _ = app.run("edit.autoFill", json!({"source": src.a1(), "target": target.a1()}));
-            }
+        // Fill down as far as the neighbouring column goes.
+        let src = sel.current();
+        let neighbour = if src.start.col > 0 { src.start.col - 1 } else { src.end.col + 1 };
+        let mut last = src.end.row;
+        while last + 1 < MAX_ROWS && sh.value_ref(CellRef::new(last + 1, neighbour)).is_some_and(|v| !v.is_empty()) && last - src.end.row < 1_000_000
+        {
+            last += 1;
+        }
+        if last > src.end.row {
+            let target = RangeRef::new(src.start, CellRef::new(last, src.end.col));
+            let _ = app.run("edit.autoFill", json!({"source": src.a1(), "target": target.a1()}));
         }
     }
 
