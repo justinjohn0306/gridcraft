@@ -953,6 +953,7 @@ mod tests {
     }
 
     /// Opening (full recalc), changing every value of a column, and re-entering every formula.
+    #[allow(clippy::disallowed_methods)] // a native-only timing test: the clock is read off wasm
     fn open_and_bulk_edit(rows: u32) -> Duration {
         let mut wb = sum_rows(rows);
         let mut calc = Calc::new();
@@ -975,6 +976,14 @@ mod tests {
     }
 
     #[test]
+    fn range_formulas_recalc_and_bulk_edit_correctly() {
+        // The values behind the timing test below, checked on every run.
+        open_and_bulk_edit(500);
+    }
+
+    #[test]
+    #[ignore = "timing-sensitive; run with --ignored in release"]
+    #[allow(clippy::disallowed_methods)]
     fn recalc_with_range_formulas_scales_linearly() {
         // Each row's SUM reads a range in the same columns. Recalculating on open used to walk
         // every row per range read (the used range), and finding a cell's dependents scanned
