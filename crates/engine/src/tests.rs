@@ -111,6 +111,110 @@ fn undo_redo() {
 }
 
 #[test]
+fn shape_text_edit_undo_redo_and_noop() {
+    let mut s = s();
+    let id = s.execute("insert.textBox", json!({"at": "C4", "width": 210, "height": 90, "text": "Original"})).unwrap()["shape"].clone();
+    let original = s.doc().unwrap().wb.active().unwrap().shapes[0].clone();
+    let mut changed = original.clone();
+    changed.text = "First line\n\nSecond line & <text>".into();
+    let undo_len = s.doc().unwrap().undo.len();
+    s.execute("shape.setText", json!({"id": id, "text": changed.text})).unwrap();
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0], changed);
+    assert_eq!(s.doc().unwrap().undo.len(), undo_len + 1);
+    s.execute("edit.undo", json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0], original);
+
+    let before_noop = s.doc().unwrap().wb.clone();
+    let revision = s.doc().unwrap().revision;
+    s.execute("shape.setText", json!({"id": id, "text": "Original"})).unwrap();
+    assert!(std::sync::Arc::ptr_eq(&s.doc().unwrap().wb, &before_noop));
+    assert_eq!(s.doc().unwrap().revision, revision);
+    assert_eq!(s.doc().unwrap().undo.len(), undo_len);
+    assert_eq!(s.doc().unwrap().redo.len(), 1);
+    s.execute("edit.redo", json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0], changed);
+
+    s.execute("shape.setText", json!({"id": id, "text": ""})).unwrap();
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0].text, "");
+    s.execute("edit.undo", json!({})).unwrap();
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0], changed);
+}
+
+#[test]
+fn shape_text_rejects_invalid_targets_and_params() {
+    let mut s = s();
+    let id = s.execute("insert.textBox", json!({"text": "Original"})).unwrap()["shape"].clone();
+    let rectangle = s.execute("insert.shape", json!({"kind": "rectangle", "text": "Rectangle"})).unwrap()["shape"].clone();
+    let before = s.doc().unwrap().wb.clone();
+    let undo_len = s.doc().unwrap().undo.len();
+    for params in [
+        json!({}),
+        json!({"id": id}),
+        json!({"id": id, "text": 12}),
+        json!({"id": "1", "text": "bad id"}),
+        json!({"id": -1, "text": "bad id"}),
+        json!({"id": 1.5, "text": "bad id"}),
+        json!({"id": u64::from(u32::MAX) + 1, "text": "bad id"}),
+        json!({"id": 999, "text": "unknown"}),
+        json!({"id": rectangle, "text": "not a text box"}),
+    ] {
+        assert!(matches!(s.execute("shape.setText", params), Err(crate::EngineError::BadParams { .. })));
+        assert!(std::sync::Arc::ptr_eq(&s.doc().unwrap().wb, &before));
+        assert_eq!(s.doc().unwrap().undo.len(), undo_len);
+    }
+    s.execute("home.insertSheet", json!({})).unwrap();
+    assert!(matches!(s.execute("shape.setText", json!({"id": id, "text": "wrong sheet"})), Err(crate::EngineError::BadParams { .. })));
+    assert_eq!(s.doc().unwrap().wb.sheet(0).unwrap().shapes[0].text, "Original");
+    assert!(s.doc().unwrap().wb.active().unwrap().shapes.is_empty());
+}
+
+#[test]
+fn shape_text_respects_sheet_protection() {
+    let mut s = s();
+    let id = s.execute("insert.textBox", json!({"text": "Original"})).unwrap()["shape"].clone();
+    s.execute("review.protectSheet", json!({})).unwrap();
+    let before = s.doc().unwrap().wb.clone();
+    let undo_len = s.doc().unwrap().undo.len();
+    assert!(s.execute("shape.setText", json!({"id": id, "text": "Changed"})).is_err());
+    assert!(std::sync::Arc::ptr_eq(&s.doc().unwrap().wb, &before));
+    assert_eq!(s.doc().unwrap().undo.len(), undo_len);
+    s.execute("review.unprotectSheet", json!({})).unwrap();
+    s.execute("shape.setText", json!({"id": id, "text": "Changed"})).unwrap();
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0].text, "Changed");
+}
+
+#[test]
+fn shape_text_is_capped_like_a_cell() {
+    let mut s = s();
+    let id = s.execute("insert.textBox", json!({"text": "Original"})).unwrap()["shape"].clone();
+    // The cap counts characters, not bytes.
+    let longest = "é".repeat(32_767);
+    s.execute("shape.setText", json!({"id": id, "text": longest})).unwrap();
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0].text.chars().count(), 32_767);
+    let undo_len = s.doc().unwrap().undo.len();
+    let too_long = "x".repeat(32_768);
+    assert!(matches!(s.execute("shape.setText", json!({"id": id, "text": too_long})), Err(crate::EngineError::BadParams { .. })));
+    assert_eq!(s.doc().unwrap().wb.active().unwrap().shapes[0].text.chars().count(), 32_767);
+    assert_eq!(s.doc().unwrap().undo.len(), undo_len);
+}
+
+#[test]
+fn shape_text_edit_survives_xlsx_roundtrip() {
+    let mut s = s();
+    s.execute("insert.textBox", json!({"text": "Imported"})).unwrap();
+    let saved = s.execute("file.saveBytes", json!({"format": "xlsx"})).unwrap();
+    s.execute("file.open", json!({"name": "text-box.xlsx", "base64": saved["base64"]})).unwrap();
+    let id = s.doc().unwrap().wb.active().unwrap().shapes[0].id;
+    let text = "Edited & <escaped>\n\nLast line\n";
+    s.execute("shape.setText", json!({"id": id, "text": text})).unwrap();
+    let saved = s.execute("file.saveBytes", json!({"format": "xlsx"})).unwrap();
+    s.execute("file.open", json!({"name": "edited.xlsx", "base64": saved["base64"]})).unwrap();
+    let shape = &s.doc().unwrap().wb.active().unwrap().shapes[0];
+    assert_eq!(shape.kind, gridcraft_model::ShapeKind::TextBox);
+    assert_eq!(shape.text, text);
+}
+
+#[test]
 fn no_border_clears_only_shared_edges_and_undo_restores_them() {
     use gridcraft_core::RangeRef;
     use gridcraft_model::{BorderLine, Borders};
