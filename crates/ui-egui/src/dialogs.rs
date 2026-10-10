@@ -1368,7 +1368,7 @@ fn name_manager(app: &mut SheetApp, ui: &mut egui::Ui) {
             ui.horizontal(|ui| {
                 ui.label(n["scope"].as_str().unwrap_or(""));
                 if ui.small_button("Delete").clicked() {
-                    app.run_or_alert("formulas.deleteName", json!({"name": n["name"]}));
+                    app.run_or_alert("formulas.deleteName", json!({"name": n["name"], "scope": n["scope"]}));
                 }
             });
             ui.end_row();

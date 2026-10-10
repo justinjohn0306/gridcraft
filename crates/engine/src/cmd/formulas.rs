@@ -36,7 +36,7 @@ pub fn specs() -> Vec<CommandSpec> {
             has_doc,
             define_name
         ),
-        cmd!("formulas.deleteName", "Delete Name", [], None, "{name, scope?}", has_doc, delete_name),
+        cmd!("formulas.deleteName", "Delete Name", [], None, "{name, scope?: \"Workbook\"|sheet name (default: every scope)}", has_doc, delete_name),
         cmd!(query "formulas.nameManager", "Name Manager", ["Formulas", "Defined Names"], Some("Cmd+F3"), "{} → names with values", has_doc, name_manager),
         cmd!(
             "formulas.createFromSelection",
@@ -264,9 +264,14 @@ fn define_name(s: &mut Session, p: &Json) -> Result<Json> {
 
 fn delete_name(s: &mut Session, p: &Json) -> Result<Json> {
     let name = str_param(p, "name").ok_or_else(|| bad("formulas.deleteName", "missing `name`"))?.to_string();
+    let scope = match str_param(p, "scope") {
+        None => None,
+        Some("Workbook") => Some(None),
+        Some(sh) => Some(Some(s.doc()?.wb.sheet_index(sh).ok_or_else(|| bad("formulas.deleteName", "no such sheet"))?)),
+    };
     edit(s, |cx| {
         let before = cx.wb.names.len();
-        cx.wb.names.retain(|n| !n.name.eq_ignore_ascii_case(&name));
+        cx.wb.names.retain(|n| !(n.name.eq_ignore_ascii_case(&name) && scope.is_none_or(|sc| n.scope == sc)));
         if cx.wb.names.len() == before {
             return Err(bad("formulas.deleteName", "no such name"));
         }
