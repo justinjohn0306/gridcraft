@@ -1,4 +1,4 @@
-//! Opening and saving files: XLSX (the native format), CSV/TSV, JSON (debug), HTML export.
+//! Opening and saving files: XLSX, XLSB data import, CSV/TSV, JSON (debug), HTML export.
 
 use std::fmt::Write as _;
 
@@ -11,6 +11,7 @@ use crate::{EngineError, Result};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileKind {
     Xlsx,
+    Xlsb,
     Csv,
     Tsv,
     Json,
@@ -22,6 +23,7 @@ impl FileKind {
         let ext = std::path::Path::new(path).extension()?.to_str()?.to_ascii_lowercase();
         Some(match ext.as_str() {
             "xlsx" | "xlsm" | "xltx" | "xltm" => FileKind::Xlsx,
+            "xlsb" => FileKind::Xlsb,
             "csv" => FileKind::Csv,
             "tsv" | "tab" | "txt" => FileKind::Tsv,
             "json" | "scjson" => FileKind::Json,
@@ -36,6 +38,10 @@ impl FileKind {
 pub fn open_bytes(name: &str, bytes: &[u8]) -> Result<(Workbook, Vec<String>)> {
     let kind = FileKind::from_path(name);
     let sniffed = gridcraft_xlsx::sniff(bytes);
+    if sniffed == gridcraft_xlsx::Format::Xlsb || kind == Some(FileKind::Xlsb) {
+        let (wb, report) = gridcraft_xlsx::read_xlsb(bytes).map_err(|e| EngineError::Other(format!("We can't import '{name}': {e}")))?;
+        return Ok((wb, report.warnings));
+    }
     if sniffed == gridcraft_xlsx::Format::Xlsx || kind == Some(FileKind::Xlsx) {
         let (wb, report) = gridcraft_xlsx::read_xlsx(bytes).map_err(|e| EngineError::Other(format!("We can't open '{name}': {e}")))?;
         return Ok((wb, report.warnings));
@@ -81,6 +87,7 @@ pub fn save_bytes(wb: &Workbook, path: &str) -> Result<Vec<u8>> {
     let sheet = wb.active_sheet;
     match FileKind::from_path(path).unwrap_or(FileKind::Xlsx) {
         FileKind::Xlsx => gridcraft_xlsx::write_xlsx(wb).map_err(|e| EngineError::Other(e.to_string())),
+        FileKind::Xlsb => Err(EngineError::Other("XLSB is supported for data import only. Save as .xlsx or another supported export format.".into())),
         FileKind::Csv => Ok(wb.sheet(sheet).map(|sh| gridcraft_xlsx::write_csv(sh, wb, b',')).unwrap_or_default()),
         FileKind::Tsv => Ok(wb.sheet(sheet).map(|sh| gridcraft_xlsx::write_csv(sh, wb, b'\t')).unwrap_or_default()),
         FileKind::Json => serde_json::to_vec_pretty(wb).map_err(|e| EngineError::Other(e.to_string())),
