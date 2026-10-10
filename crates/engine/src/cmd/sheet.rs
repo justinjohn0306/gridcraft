@@ -198,6 +198,7 @@ fn rewrite(wb: &mut gridcraft_model::Workbook, target: &str, e: &Edit) {
 
 fn insert_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
     let (at, count) = lines(s, p, axis)?;
+    check_lines_protection(s, p, axis, at, count, true)?;
     let sheet = target_sheet(s, p)?;
     // Refuse to push data off the sheet.
     let limit = if axis == Axis::Rows { MAX_ROWS } else { MAX_COLS };
@@ -209,6 +210,7 @@ fn insert_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
     }
     edit(s, |cx| {
         let name = cx.wb.sheet(sheet).map(|s| s.name.clone()).unwrap_or_default();
+        cx.protection_checked = true;
         {
             let sh = cx.sheet_mut(sheet)?;
             match axis {
@@ -235,9 +237,11 @@ fn insert_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
 
 fn delete_lines(s: &mut Session, p: &Json, axis: Axis) -> Result<Json> {
     let (at, count) = lines(s, p, axis)?;
+    check_lines_protection(s, p, axis, at, count, false)?;
     let sheet = target_sheet(s, p)?;
     edit(s, |cx| {
         let name = cx.wb.sheet(sheet).map(|s| s.name.clone()).unwrap_or_default();
+        cx.protection_checked = true;
         {
             let sh = cx.sheet_mut(sheet)?;
             let block = match axis {
@@ -357,6 +361,39 @@ fn insert_sheet(s: &mut Session, p: &Json) -> Result<Json> {
 
 fn edit_doc<R>(d: &mut crate::DocState, f: impl FnOnce(&mut Ctx) -> Result<R>) -> Result<R> {
     super::commit(d, f)
+}
+
+/// Sheet protection for inserting or deleting rows/columns: the protection must allow it, and
+/// deleted lines must not hold locked cells.
+fn check_lines_protection(s: &Session, p: &Json, axis: Axis, at: u32, count: u32, insert: bool) -> Result<()> {
+    let sheet = target_sheet(s, p)?;
+    let wb = &s.doc()?.wb;
+    let Some(sh) = wb.sheet(sheet) else { return Ok(()) };
+    let Some(pr) = &sh.protection else { return Ok(()) };
+    let allowed = match (axis, insert) {
+        (Axis::Rows, true) => pr.insert_rows,
+        (Axis::Rows, false) => pr.delete_rows,
+        (Axis::Cols, true) => pr.insert_columns,
+        (Axis::Cols, false) => pr.delete_columns,
+    };
+    let locked = |st: gridcraft_model::StyleId| wb.styles.get(st).protection.locked;
+    let refuse = || EngineError::Other(PROTECTED.into());
+    if !allowed {
+        return Err(refuse());
+    }
+    if insert {
+        return Ok(());
+    }
+    let end = at.saturating_add(count - 1).min(if axis == Axis::Rows { MAX_ROWS - 1 } else { MAX_COLS - 1 });
+    let infos = if axis == Axis::Rows { &sh.rows } else { &sh.cols };
+    if (at..=end).any(|i| locked(infos.get(&i).and_then(|x| x.style).unwrap_or_default())) {
+        return Err(refuse());
+    }
+    let block = if axis == Axis::Rows { RangeRef::rows(at, end) } else { RangeRef::cols(at, end) };
+    if sh.cells.iter_range(block).any(|(_, cell)| locked(cell.style)) {
+        return Err(refuse());
+    }
+    Ok(())
 }
 
 fn delete_sheet(s: &mut Session, p: &Json) -> Result<Json> {
