@@ -1175,7 +1175,11 @@ fn find(s: &mut Session, p: &Json) -> Result<Json> {
             .cells
             .iter()
             .filter_map(|(c, cell)| {
-                let text = if values || cell.formula.is_none() { crate::display::cell_text(&d.wb, sh, c) } else { cell.input_text() };
+                let text = if values || cell.formula.is_none() || crate::display::formula_hidden(&d.wb, sh, c) {
+                    crate::display::cell_text(&d.wb, sh, c)
+                } else {
+                    cell.input_text()
+                };
                 matches(&text, &what, case, whole).then_some((c, text))
             })
             .collect();

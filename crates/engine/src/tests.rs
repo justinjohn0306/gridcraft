@@ -165,6 +165,100 @@ fn sort_and_filter() {
     assert_eq!(r["hiddenRows"], 1);
 }
 
+/// A sheet with locked data in A1:B3, unlocked cells in D1:D3 and row 10, then protected.
+fn protected(extra: serde_json::Value) -> Session {
+    let mut s = s();
+    s.execute("range.setValues", json!({"range": "A1", "values": [[1], [2], [3]]})).unwrap();
+    s.execute("cell.set", json!({"cell": "B1", "input": "=A1+D1"})).unwrap();
+    s.execute("range.setValues", json!({"range": "D1", "values": [[10], [20], [30]]})).unwrap();
+    s.execute("home.lockCell", json!({"range": "D1:D3", "on": false})).unwrap();
+    s.execute("home.lockCell", json!({"range": "10:10", "on": false})).unwrap();
+    s.execute("review.protectSheet", extra).unwrap();
+    s
+}
+
+#[test]
+fn protection_refuses_edits_of_locked_cells() {
+    let refused = |s: &mut Session, id: &str, p: serde_json::Value| {
+        let before = s.doc().unwrap().wb.clone();
+        let e = s.execute(id, p).expect_err(id).to_string();
+        assert!(e.contains("protected sheet"), "{id}: {e}");
+        assert_eq!(*s.doc().unwrap().wb, *before, "{id} changed the workbook");
+    };
+    let mut s = protected(json!({}));
+    refused(&mut s, "cell.set", json!({"cell": "A1", "input": "9"}));
+    refused(&mut s, "edit.clearContents", json!({"range": "A1:A3"}));
+    refused(&mut s, "edit.clearAll", json!({"range": "A1"}));
+    refused(&mut s, "range.setValues", json!({"range": "A2", "values": [[9]]}));
+    refused(&mut s, "range.fill", json!({"range": "A5:A6", "input": "x"}));
+    refused(&mut s, "edit.fillDown", json!({"range": "A1:A3"}));
+    refused(&mut s, "edit.fillRight", json!({"range": "A1:B1"}));
+    refused(&mut s, "edit.fillUp", json!({"range": "A1:A3"}));
+    refused(&mut s, "edit.fillLeft", json!({"range": "A1:B1"}));
+    refused(&mut s, "edit.autoFill", json!({"source": "A1", "target": "A1:A5"}));
+    s.execute("edit.copy", json!({"range": "D1"})).unwrap();
+    refused(&mut s, "edit.paste", json!({"at": "A2"}));
+    refused(&mut s, "edit.paste", json!({"at": "A2", "text": "x\ty"}));
+    refused(&mut s, "home.deleteRows", json!({"rows": "2:2"}));
+    refused(&mut s, "home.deleteColumns", json!({"cols": "A:A"}));
+    refused(&mut s, "home.insertRows", json!({"rows": "1:1"}));
+    refused(&mut s, "home.deleteCells", json!({"range": "A1", "shift": "up"}));
+    refused(&mut s, "home.insertCells", json!({"range": "A1", "shift": "down"}));
+    refused(&mut s, "edit.replace", json!({"what": "2", "with": "5"}));
+    refused(&mut s, "data.goalSeek", json!({"set": "B1", "to": 50, "changing": "A1"}));
+    // Unlocked cells stay editable.
+    s.execute("edit.paste", json!({"at": "D2"})).unwrap();
+    assert_eq!(v(&s, "D2"), Value::Number(10.0));
+    s.execute("range.setValues", json!({"range": "D2", "values": [[5]]})).unwrap();
+    s.execute("edit.fillDown", json!({"range": "D1:D3"})).unwrap();
+    assert_eq!(v(&s, "D3"), Value::Number(10.0));
+    s.execute("edit.clearContents", json!({"range": "D3"})).unwrap();
+    assert_eq!(v(&s, "D3"), Value::Empty);
+    s.execute("data.goalSeek", json!({"set": "B1", "to": 50, "changing": "D1"})).unwrap();
+    assert!((v(&s, "B1").as_f64().unwrap() - 50.0).abs() < 0.001);
+    s.execute("edit.replace", json!({"what": "49", "with": "48", "wholeCell": true})).unwrap();
+    assert_eq!(v(&s, "A1"), Value::Number(1.0));
+}
+
+#[test]
+fn protection_allows_permitted_row_and_column_edits() {
+    let mut s = protected(json!({"insertRows": true, "deleteRows": true, "insertColumns": true}));
+    // Inserting shifts locked cells, which the protection allows.
+    s.execute("home.insertRows", json!({"rows": "1:1"})).unwrap();
+    assert_eq!(v(&s, "A2"), Value::Number(1.0));
+    s.execute("home.insertColumns", json!({"cols": "A:A"})).unwrap();
+    // Deleting a row with locked cells isn't; deleting an unlocked row is.
+    assert!(s.execute("home.deleteRows", json!({"rows": "2:2"})).is_err());
+    s.execute("home.deleteRows", json!({"rows": "11:11"})).unwrap();
+    assert!(s.execute("home.deleteColumns", json!({"cols": "Z:Z"})).is_err());
+}
+
+#[test]
+fn hidden_formulas_stay_hidden_on_protected_sheets() {
+    let mut s = s();
+    s.execute("cell.set", json!({"cell": "A1", "input": "=SEQUENCE(3)*7"})).unwrap();
+    s.execute("cell.set", json!({"cell": "B1", "input": "=1+1"})).unwrap();
+    s.execute("home.formatCells", json!({"range": "A1", "style": {"protection": {"locked": true, "hidden": true}}})).unwrap();
+    s.execute("formulas.showFormulas", json!({"on": true})).unwrap();
+    let text = |s: &Session, a: &str| {
+        let d = s.doc().unwrap();
+        let sh = d.wb.active().unwrap();
+        crate::display::cell_text(&d.wb, sh, CellRef::parse(a).unwrap())
+    };
+    assert_eq!(text(&s, "A1"), "=SEQUENCE(3)*7");
+    assert_eq!(s.execute("edit.find", json!({"what": "SEQUENCE", "all": true})).unwrap()["count"], 1);
+    s.execute("review.protectSheet", json!({})).unwrap();
+    assert_eq!(text(&s, "A1"), "7");
+    assert_eq!(text(&s, "B1"), "=1+1");
+    let d = s.doc().unwrap();
+    let sh = d.wb.active().unwrap();
+    assert!(crate::display::formula_hidden(&d.wb, sh, CellRef::parse("A2").unwrap()));
+    assert!(!crate::display::formula_hidden(&d.wb, sh, CellRef::parse("B1").unwrap()));
+    assert!(s.execute("edit.find", json!({"what": "SEQUENCE", "all": true})).is_err());
+    let r = s.execute("edit.find", json!({"what": "7", "all": true})).unwrap();
+    assert_eq!(r["results"][0]["value"], "7");
+}
+
 #[test]
 fn formatting_and_styles() {
     let mut s = s();
