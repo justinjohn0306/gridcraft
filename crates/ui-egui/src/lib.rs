@@ -45,8 +45,11 @@ pub struct UiState {
     pub formula_bar_expanded: bool,
     pub status_bar: bool,
     pub recent: Vec<String>,
-    /// Interface language. Absent in older `ui.json` → the system's language (English fallback).
-    #[serde(default = "i18n::Language::system")]
+    /// Interface language. English by default (so tests and headless renders never depend on the
+    /// host's locale); the desktop app starts from [`i18n::Language::system`] when `ui.json` has
+    /// no usable language (see [`i18n::saved_language`]). An unknown saved value reads as English
+    /// rather than failing the whole `UiState`.
+    #[serde(deserialize_with = "i18n::lenient")]
     pub language: i18n::Language,
 }
 
@@ -61,7 +64,7 @@ impl Default for UiState {
             formula_bar_expanded: false,
             status_bar: true,
             recent: vec![],
-            language: i18n::Language::system(),
+            language: i18n::Language::En,
         }
     }
 }
@@ -234,13 +237,14 @@ impl SheetApp {
             }
             "view.zoom100" => return Some(self.session.run("view.zoom", json!({"percent": 100})).inspect(|_| self.after_engine())),
             "app.language.set" => {
-                let code = p.get("language").and_then(Json::as_str).and_then(i18n::Language::parse);
-                match code {
+                // `{"language": "ja"}`; `code` is accepted as an alias.
+                let code = p.get("language").or_else(|| p.get("code")).and_then(Json::as_str).unwrap_or("");
+                match i18n::Language::parse(code) {
                     Some(l) => {
                         self.ui.language = l;
                         Ok(json!({"language": l}))
                     }
-                    None => Err(format!("unknown language {:?} (use \"en\" or \"ja\")", p.get("language").and_then(Json::as_str).unwrap_or(""))),
+                    None => Err(format!("unknown language {code:?} (use \"en\" or \"ja\")")),
                 }
             }
             "app.language.english" => {

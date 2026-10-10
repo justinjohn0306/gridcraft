@@ -1246,7 +1246,7 @@ fn page_layout(app: &mut SheetApp, ui: &mut Ui) {
             ],
         );
     });
-    let o = big_button(ui, Icon::Orient, "Orientation", "Orientation", true);
+    let o = big_button(ui, Icon::Orient, "Page Layout|Orientation", "Page Layout|Orientation", true);
     egui::Popup::menu(&o).show(|ui| {
         menu_items(
             app,
@@ -1626,8 +1626,7 @@ fn view(app: &mut SheetApp, ui: &mut Ui) {
             |ui| {
                 for l in crate::i18n::Language::ALL {
                     if ui.selectable_label(l == lang, l.name()).clicked() {
-                        let code = if l == crate::i18n::Language::Ja { "app.language.japanese" } else { "app.language.english" };
-                        act(app, code, json!({}));
+                        act(app, "app.language.set", json!({"language": l.code()}));
                     }
                 }
             },
