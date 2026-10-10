@@ -34,6 +34,40 @@ impl T {
 }
 
 #[test]
+fn spill_range_operator() {
+    let mut t = T::new();
+    t.set("A1", "3");
+    t.set("B1", "=SEQUENCE(A1)");
+    t.set("C1", "=SUM(B1#)");
+    t.set("C2", "=ROWS(B1#)");
+    assert_eq!((t.num("C1"), t.num("C2")), (6.0, 3.0));
+    // Growing and shrinking the spill recalculates its users.
+    t.set("A1", "5");
+    assert_eq!((t.num("C1"), t.num("C2")), (15.0, 5.0));
+    t.set("A1", "2");
+    assert_eq!((t.num("C1"), t.num("C2")), (3.0, 2.0));
+    // A blocked spill, or a cell that doesn't spill, gives #REF!.
+    t.set("B2", "x");
+    assert_eq!(t.get("C1"), Value::Error(CellError::Ref));
+    t.set("B2", "");
+    assert_eq!(t.num("C1"), 3.0);
+    t.set("D1", "=SUM(A1#)");
+    assert_eq!(t.get("D1"), Value::Error(CellError::Ref));
+    // Through a defined name.
+    t.wb.names.push(gridcraft_model::DefinedName {
+        name: "Seq".into(),
+        scope: None,
+        formula: "Sheet1!$B$1#".into(),
+        comment: String::new(),
+        hidden: false,
+    });
+    t.set("E1", "=SUM(Seq)*10");
+    assert_eq!(t.num("E1"), 30.0);
+    t.set("A1", "4");
+    assert_eq!(t.num("E1"), 100.0);
+}
+
+#[test]
 fn arithmetic_and_dependencies() {
     let mut t = T::new();
     t.set("A1", "2");

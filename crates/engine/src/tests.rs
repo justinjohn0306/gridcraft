@@ -111,6 +111,23 @@ fn formatting_and_styles() {
 }
 
 #[test]
+fn spill_references_roundtrip_through_xlsx() {
+    let mut s = s();
+    s.execute("cell.set", json!({"cell": "B1", "input": "=SEQUENCE(4)"})).unwrap();
+    s.execute("cell.set", json!({"cell": "C1", "input": "=sum(b1#)"})).unwrap();
+    s.execute("formulas.defineName", json!({"name": "Seq", "refersTo": "=Sheet1!$B$1#"})).unwrap();
+    s.execute("cell.set", json!({"cell": "C2", "input": "=MAX(Seq)"})).unwrap();
+    assert_eq!(s.execute("cell.get", json!({"cell": "C1"})).unwrap()["formula"], "=SUM(B1#)");
+    assert_eq!((v(&s, "C1"), v(&s, "C2")), (Value::Number(10.0), Value::Number(4.0)));
+    let r = s.execute("file.saveBytes", json!({"format": "xlsx"})).unwrap();
+    let b64 = r["base64"].as_str().unwrap().to_string();
+    s.execute("file.open", json!({"name": "x.xlsx", "base64": b64})).unwrap();
+    assert_eq!(s.execute("cell.get", json!({"cell": "C1"})).unwrap()["formula"], "=SUM(B1#)");
+    assert_eq!(s.doc().unwrap().wb.names[0].formula, "Sheet1!$B$1#");
+    assert_eq!((v(&s, "C1"), v(&s, "C2")), (Value::Number(10.0), Value::Number(4.0)));
+}
+
+#[test]
 fn tables_and_structured_refs() {
     let mut s = s();
     s.execute("range.setValues", json!({"range": "A1", "values": [["Item", "Qty"], ["x", 2], ["y", 5]]})).unwrap();

@@ -54,6 +54,10 @@ pub trait Host {
     fn random(&mut self) -> f64;
     /// Called when a volatile or dynamic-reference function is used.
     fn note_volatile(&mut self) {}
+    /// The spill range of the dynamic array anchored at `anchor` (`None`: it doesn't spill).
+    fn spill_range(&mut self, sheet: usize, anchor: CellRef) -> Option<RangeRef> {
+        self.workbook().sheet(sheet)?.spill_ranges.get(&anchor).copied()
+    }
     /// Values of a block, row-major. Hosts can override with a sparse fast path.
     fn range_values(&mut self, sheet: usize, range: RangeRef) -> Vec<Value> {
         range.iter().map(|c| self.cell_value(sheet, c)).collect()
@@ -322,6 +326,19 @@ impl<'h> Evaluator<'h> {
     }
 
     fn unary(&mut self, op: UnOp, x: &Expr) -> Ev {
+        if op == UnOp::Spill {
+            return match self.eval(x) {
+                Ev::R(areas) => match areas.as_slice() {
+                    [a] if a.range.is_single() => match self.host.spill_range(a.sheet, a.range.start) {
+                        Some(range) => Ev::R(vec![Area { sheet: a.sheet, range }]),
+                        None => err(CellError::Ref),
+                    },
+                    _ => err(CellError::Ref),
+                },
+                Ev::V(Value::Error(e)) => err(e),
+                _ => err(CellError::Ref),
+            };
+        }
         if op == UnOp::At {
             let ev = self.eval(x);
             return match ev {
@@ -343,7 +360,7 @@ impl<'h> Evaluator<'h> {
                 UnOp::Neg => Value::number(-n),
                 UnOp::Plus => Value::number(n),
                 UnOp::Percent => Value::number(n / 100.0),
-                UnOp::At => Value::number(n),
+                UnOp::At | UnOp::Spill => Value::number(n),
             },
             op == UnOp::Plus,
         ))
