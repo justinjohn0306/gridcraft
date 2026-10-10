@@ -573,6 +573,7 @@ impl Calc {
 }
 
 /// Local date-time as a serial (1900 system). Wasm without a clock returns a fixed date.
+#[allow(clippy::disallowed_methods)] // the clock is read only off wasm
 pub fn now_serial() -> f64 {
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -612,6 +613,7 @@ pub fn evaluate_expr(wb: &Workbook, sheet: usize, at: CellRef, expr: &Expr) -> V
     ev.value(expr)
 }
 
+#[allow(clippy::disallowed_methods)] // the clock is read only off wasm
 fn prof_now() -> f64 {
     #[cfg(not(target_arch = "wasm32"))]
     {

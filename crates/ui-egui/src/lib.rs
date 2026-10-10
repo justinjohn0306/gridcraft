@@ -530,6 +530,7 @@ pub fn clean_error(e: &str) -> String {
     e.to_string()
 }
 
+#[allow(clippy::disallowed_methods)] // the clock is read only off wasm
 pub fn now_ms() -> f64 {
     #[cfg(not(target_arch = "wasm32"))]
     {
