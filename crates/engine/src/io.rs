@@ -1,4 +1,4 @@
-//! Opening and saving files: XLSX, ODS data import, CSV/TSV, JSON (debug), HTML export.
+//! Opening and saving files: XLSX, XLSB and ODS data import, CSV/TSV, JSON (debug), HTML export.
 
 use std::fmt::Write as _;
 
@@ -11,6 +11,7 @@ use crate::{EngineError, Result};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileKind {
     Xlsx,
+    Xlsb,
     Ods,
     Csv,
     Tsv,
@@ -23,6 +24,7 @@ impl FileKind {
         let ext = std::path::Path::new(path).extension()?.to_str()?.to_ascii_lowercase();
         Some(match ext.as_str() {
             "xlsx" | "xlsm" | "xltx" | "xltm" => FileKind::Xlsx,
+            "xlsb" => FileKind::Xlsb,
             "ods" => FileKind::Ods,
             "csv" => FileKind::Csv,
             "tsv" | "tab" | "txt" => FileKind::Tsv,
@@ -38,8 +40,16 @@ impl FileKind {
 pub fn open_bytes(name: &str, bytes: &[u8]) -> Result<(Workbook, Vec<String>)> {
     let kind = FileKind::from_path(name);
     let sniffed = gridcraft_xlsx::sniff(bytes);
-    if sniffed == gridcraft_xlsx::Format::Ods || kind == Some(FileKind::Ods) {
-        let (wb, report) = gridcraft_xlsx::read_ods(bytes).map_err(|e| EngineError::Other(format!("We can't import '{name}': {e}")))?;
+    // Content wins over the extension: an ODS or XLSB package is imported as what it is,
+    // whatever it is called; the extension only decides when the bytes don't say.
+    let import = match sniffed {
+        gridcraft_xlsx::Format::Ods => Some(FileKind::Ods),
+        gridcraft_xlsx::Format::Xlsb => Some(FileKind::Xlsb),
+        _ => kind.filter(|k| matches!(k, FileKind::Ods | FileKind::Xlsb)),
+    };
+    if let Some(import) = import {
+        let read = if import == FileKind::Ods { gridcraft_xlsx::read_ods } else { gridcraft_xlsx::read_xlsb };
+        let (wb, report) = read(bytes).map_err(|e| EngineError::Other(format!("We can't import '{name}': {e}")))?;
         return Ok((wb, report.warnings));
     }
     if sniffed == gridcraft_xlsx::Format::Xlsx || kind == Some(FileKind::Xlsx) {
@@ -87,6 +97,7 @@ pub fn save_bytes(wb: &Workbook, path: &str) -> Result<Vec<u8>> {
     let sheet = wb.active_sheet;
     match FileKind::from_path(path).unwrap_or(FileKind::Xlsx) {
         FileKind::Xlsx => gridcraft_xlsx::write_xlsx(wb).map_err(|e| EngineError::Other(e.to_string())),
+        FileKind::Xlsb => Err(EngineError::Other("XLSB is supported for data import only. Save as .xlsx or another supported export format.".into())),
         FileKind::Ods => Err(EngineError::Other("ODS is supported for data import only. Save as .xlsx or another supported export format.".into())),
         FileKind::Csv => Ok(wb.sheet(sheet).map(|sh| gridcraft_xlsx::write_csv(sh, wb, b',')).unwrap_or_default()),
         FileKind::Tsv => Ok(wb.sheet(sheet).map(|sh| gridcraft_xlsx::write_csv(sh, wb, b'\t')).unwrap_or_default()),
