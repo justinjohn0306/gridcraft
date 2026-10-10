@@ -352,6 +352,7 @@ fn home(app: &mut SheetApp, ui: &mut Ui) {
             if b {
                 act(app, "home.borders", json!({"preset": app.grid.last_border.clone()}));
             }
+            ba.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), "Border presets"));
             egui::Popup::menu(&ba).show(|ui| {
                 for (label, preset) in [
                     ("Bottom Border", "bottom"),
@@ -369,7 +370,7 @@ fn home(app: &mut SheetApp, ui: &mut Ui) {
                     ("Top and Double Bottom Border", "topDoubleBottom"),
                     ("Inside Borders", "inside"),
                 ] {
-                    if ui.add(egui::Button::new(label).frame(false).min_size(vec2(220.0, 20.0))).clicked() {
+                    if crate::border_preview::preset_button(ui, label, preset).clicked() {
                         app.grid.last_border = preset.to_string();
                         act(app, "home.borders", json!({"preset": preset}));
                     }
