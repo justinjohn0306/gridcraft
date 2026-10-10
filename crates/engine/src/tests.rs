@@ -164,6 +164,23 @@ fn names_that_look_like_references_are_refused() {
 }
 
 #[test]
+fn lambda_names_keep_their_case_in_calls() {
+    let mut s = s();
+    s.execute("formulas.defineName", json!({"name": "Double", "refersTo": "=LAMBDA(x,x*2)"})).unwrap();
+    s.execute("formulas.defineName", json!({"name": "Quad", "refersTo": "=LAMBDA(x,Double(Double(x)))"})).unwrap();
+    s.execute("cell.set", json!({"cell": "A1", "input": "=double(4)+Quad(1)+sum(1)"})).unwrap();
+    assert_eq!(s.execute("cell.get", json!({"cell": "A1"})).unwrap()["formula"], "=Double(4)+Quad(1)+SUM(1)");
+    assert_eq!(v(&s, "A1"), Value::Number(13.0));
+    let r = s.execute("file.saveBytes", json!({"format": "xlsx"})).unwrap();
+    let b64 = r["base64"].as_str().unwrap().to_string();
+    s.execute("file.open", json!({"name": "x.xlsx", "base64": b64})).unwrap();
+    assert_eq!(s.execute("cell.get", json!({"cell": "A1"})).unwrap()["formula"], "=Double(4)+Quad(1)+SUM(1)");
+    let quad = s.doc().unwrap().wb.names.iter().find(|n| n.name == "Quad").unwrap().formula.clone();
+    assert_eq!(quad, "LAMBDA(x,Double(Double(x)))");
+    assert_eq!(v(&s, "A1"), Value::Number(13.0));
+}
+
+#[test]
 fn sheets() {
     let mut s = s();
     s.execute("home.insertSheet", json!({})).unwrap();
