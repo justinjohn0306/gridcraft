@@ -4,7 +4,7 @@
 //!
 //! `--control <port>` (or `GRIDCRAFT_CONTROL_PORT`) starts a localhost JSON-lines control
 //! server: `{"id":1,"method":"ui.inspect","params":{}}` → `{"id":1,"ok":true,"result":…}`.
-//! See `gridcraft_ui_egui::control` and `docs/control-protocol.md` for the methods.
+//! See `gridcraft_ui_egui::control` and `docs/control-protocol.md` for the methxlsb.
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
@@ -96,8 +96,9 @@ fn services() -> Services {
     Services {
         pick_open: Some(Box::new(|| {
             rfd::FileDialog::new()
-                .add_filter("Spreadsheets", &["xlsx", "xlsm", "csv", "tsv", "txt", "json"])
+                .add_filter("Spreadsheets", &["xlsx", "xlsm", "xlsb", "csv", "tsv", "txt", "json"])
                 .add_filter("Excel Workbook", &["xlsx", "xlsm"])
+                .add_filter("Excel Binary Workbook (data import)", &["xlsb"])
                 .add_filter("CSV", &["csv"])
                 .pick_file()
                 .and_then(|p| p.to_str().map(str::to_string))
@@ -172,6 +173,7 @@ fn main() -> eframe::Result<()> {
         session.new_workbook();
     }
     let mut app = SheetApp::new(session, services());
+    app.after_engine(); // Show warnings from files opened on the command line.
     let control_port = control_port;
     load_prefs(&mut app);
     let mut viewport = egui::ViewportBuilder::default()
