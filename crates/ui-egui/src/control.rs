@@ -403,7 +403,7 @@ pub fn collect_screenshots(app: &mut SheetApp, ctx: &egui::Context) {
         if now < *deadline {
             return true;
         }
-        let _ = reply.send(json!({"ok": false, "error": "no frame was presented (screen locked or window hidden); use `gridcraft-cli snapshot`"}));
+        let _ = reply.send(json!({"ok": false, "error": "no frame was presented before the screenshot timeout; make the window visible, use `ui.focus`, then retry `ui.screenshot`"}));
         false
     });
 }
