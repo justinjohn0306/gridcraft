@@ -373,7 +373,6 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
     let painter = ui.painter_at(rect);
     painter.rect_filled(rect, 0.0, t.grid_bg);
     let mut cf = CfCache::new();
-    let char_w = ui.fonts_mut(|f| f.glyph_width(&FontId::new(11.0 * 96.0 / 72.0 * geo.z, egui::FontFamily::Name(theme::CELL.into())), '0')).max(1.0);
     // Quadrants: (rows, cols, clip).
     let (sr0, sr1) = geo.scroll_rows(sh);
     let (sc0, sc1) = geo.scroll_cols(sh);
@@ -395,7 +394,7 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
             continue;
         }
         let p = painter.with_clip_rect(*clip);
-        paint_quadrant(&p, &geo, &wb, si, sh, *rows, *cols, char_w, &mut cf, &t);
+        paint_quadrant(&p, &geo, &wb, si, sh, *rows, *cols, &mut cf, &t);
         paint_selection(&p, &geo, sh, &sel, &t, app);
     }
     // Freeze lines.
@@ -431,18 +430,7 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn paint_quadrant(
-    p: &Painter,
-    geo: &Geo,
-    wb: &Workbook,
-    si: usize,
-    sh: &Sheet,
-    rows: (u32, u32),
-    cols: (u32, u32),
-    char_w: f32,
-    cf: &mut CfCache,
-    t: &Tokens,
-) {
+fn paint_quadrant(p: &Painter, geo: &Geo, wb: &Workbook, si: usize, sh: &Sheet, rows: (u32, u32), cols: (u32, u32), cf: &mut CfCache, t: &Tokens) {
     let z = geo.z;
     let (r0, r1) = rows;
     let (c0, c1) = cols;
@@ -560,6 +548,8 @@ fn paint_quadrant(
         let size = st.font.size * 96.0 / 72.0 * z;
         let fam = theme::cell_family(&st.font.name, st.font.bold, st.font.italic);
         let font = FontId::new(size, fam);
+        // Digits fit by the cell's own font and size, not the default 11pt (9pt marks in narrow columns).
+        let char_w = p.layout_no_wrap("0".to_string(), font.clone(), Color32::PLACEHOLDER).size().x.max(1.0);
         let avail_w = rect.right() - text_left;
         let (text, ncolor, numeric, fill_char) = display_text(wb, sh, c, &v, st, avail_w / z.max(0.1) * z, char_w);
         if text.is_empty() {
