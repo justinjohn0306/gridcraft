@@ -327,7 +327,7 @@ impl Import {
             }
             Tag::Row if self.sheet.as_ref().is_some_and(|s| self.stack.get(s.depth + 1..).is_some_and(|p| p.iter().all(|t| *t == Tag::Rows))) => {
                 self.row =
-                    Some(RowDraft { depth, repeat: positive(attr(reader, e, TABLE, b"number-rows-repeated")?, 1, MAX_ROWS)?, col: 0, cells: vec![] });
+                    Some(RowDraft { depth, repeat: positive(attr(reader, e, TABLE, b"number-rows-repeated")?, 1, u32::MAX)?, col: 0, cells: vec![] });
             }
             Tag::Cell | Tag::Covered if self.row.as_ref().is_some_and(|r| depth == r.depth + 1) => {
                 let kind = if attr(reader, e, CALC_EXT, b"value-type")?.as_deref() == Some("error") {
@@ -344,7 +344,7 @@ impl Import {
                 };
                 self.cell = Some(CellDraft {
                     depth,
-                    repeat: positive(attr(reader, e, TABLE, b"number-columns-repeated")?, 1, MAX_COLS)?,
+                    repeat: positive(attr(reader, e, TABLE, b"number-columns-repeated")?, 1, u32::MAX)?,
                     width: positive(attr(reader, e, TABLE, b"number-columns-spanned")?, 1, MAX_COLS)?,
                     height: positive(attr(reader, e, TABLE, b"number-rows-spanned")?, 1, MAX_ROWS)?,
                     covered: t == Tag::Covered,
@@ -460,12 +460,15 @@ impl Import {
         let cell = self.convert(&draft);
         let (width, height) = if draft.covered { (1, 1) } else { (draft.width, draft.height) };
         let Some(row) = self.row.as_mut() else { return Ok(()) };
-        let end = row
-            .col
-            .checked_add(draft.repeat)
-            .filter(|n| *n <= MAX_COLS)
-            .ok_or_else(|| IoError::TooLarge("ODS row exceeds worksheet width".into()))?;
-        if !cell.is_blank() || width > 1 || height > 1 {
+        let kept = !cell.is_blank() || width > 1 || height > 1;
+        // Writers pad rows with blank repeats up to their own (possibly wider) sheet edge;
+        // blank cells past ours carry no data, so clip them instead of rejecting the file.
+        let end = match row.col.checked_add(draft.repeat).filter(|n| *n <= MAX_COLS) {
+            Some(end) => end,
+            None if !kept => MAX_COLS,
+            None => return Err(IoError::TooLarge("ODS row exceeds worksheet width".into())),
+        };
+        if kept {
             row.cells.push(RepeatedCell { col: row.col, repeat: draft.repeat, width, height, cell });
         }
         row.col = end;
@@ -516,14 +519,18 @@ impl Import {
             },
             None => StyleId::DEFAULT,
         };
-        Cell { value, formula: None, style }
+        Cell { style, ..Cell::value(value) }
     }
 
     fn finish_row(&mut self) -> Result<(), IoError> {
         let Some(row) = self.row.take() else { return Ok(()) };
         let Some(sheet) = self.sheet.as_mut() else { return Ok(()) };
-        let end =
-            sheet.row.checked_add(row.repeat).filter(|n| *n <= MAX_ROWS).ok_or_else(|| IoError::TooLarge("ODS exceeds worksheet height".into()))?;
+        // Blank trailing row repeats past the sheet edge (e.g. from larger-sheet writers) are clipped.
+        let end = match sheet.row.checked_add(row.repeat).filter(|n| *n <= MAX_ROWS) {
+            Some(end) => end,
+            None if row.cells.is_empty() => MAX_ROWS,
+            None => return Err(IoError::TooLarge("ODS exceeds worksheet height".into())),
+        };
         for entry in row.cells {
             let count = u64::from(entry.repeat) * u64::from(row.repeat);
             if !entry.cell.is_blank() {

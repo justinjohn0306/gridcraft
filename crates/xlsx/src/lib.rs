@@ -34,8 +34,8 @@ use gridcraft_core::DateSystem;
 use gridcraft_model::Workbook;
 
 pub use csv::{read_csv, write_csv};
-pub use xlsb::read_xlsb;
 pub use ods::read_ods;
+pub use xlsb::read_xlsb;
 
 /// Errors from reading or writing files.
 #[derive(Debug, thiserror::Error)]

@@ -165,9 +165,11 @@ fn ods_rejects_bad_packages_encryption_and_truncated_xml() {
 #[test]
 fn ods_expansion_bounds_stop_small_repeat_bombs() {
     for cells in [
-        r#"<table:table-cell table:number-columns-repeated="4294967295"/>"#,
+        r#"<table:table-cell table:number-columns-repeated="4294967296"/>"#,
+        r#"<table:table-cell table:number-columns-repeated="4294967295" office:value-type="float" office:value="1"/>"#,
         r#"<table:table-cell table:number-columns-repeated="0"/>"#,
-        r#"<table:table-cell table:number-columns-repeated="16384"/><table:table-cell/>"#,
+        r#"<table:table-cell table:number-columns-repeated="16384"/><table:table-cell office:value-type="float" office:value="1"/>"#,
+        r#"<table:table-cell table:number-columns-repeated="16384"/><table:table-cell table:number-columns-spanned="2"/>"#,
         r#"<table:table-cell table:number-columns-repeated="16384" table:number-columns-spanned="2" office:value-type="float" office:value="1"/>"#,
         r#"<table:table-cell office:value-type="string"><text:p><text:s text:c="4294967295"/></text:p></table:table-cell>"#,
     ] {
@@ -215,4 +217,22 @@ fn ods_extension_error_cache_never_imports_its_placeholder_zero() {
     let (wb, report) = read_ods(&bytes).unwrap();
     assert_eq!(wb.sheets[0].value(CellRef::new(0, 0)), text("#DIV/0!"));
     assert!(report.warnings.iter().any(|w| w.contains("unsupported or missing")));
+}
+
+#[test]
+fn ods_blank_repeats_past_the_sheet_edge_are_clipped() {
+    // Writers with larger sheets pad to their own edge; blank padding past ours carries no data.
+    let bytes = ods(r#"<table:table table:name="Data">
+        <table:table-row><table:table-cell office:value-type="float" office:value="1"/><table:table-cell table:number-columns-repeated="4294967295"/><table:table-cell/></table:table-row>
+        <table:table-row table:number-rows-repeated="16777215"><table:table-cell table:number-columns-repeated="16777216"/></table:table-row>
+        <table:table-row table:number-rows-repeated="5"><table:table-cell/></table:table-row>
+      </table:table>"#);
+    let (wb, _) = read_ods(&bytes).unwrap();
+    assert_eq!(wb.sheets[0].cells.len(), 1);
+    assert_eq!(wb.sheets[0].value(CellRef::new(0, 0)), Value::Number(1.0));
+    // Data after the clipped edge is still an error, never silently dropped.
+    let late = ods(
+        r#"<table:table table:name="Data"><table:table-row table:number-rows-repeated="1048576"><table:table-cell/></table:table-row><table:table-row><table:table-cell office:value-type="float" office:value="1"/></table:table-row></table:table>"#,
+    );
+    assert!(matches!(read_ods(&late), Err(IoError::TooLarge(_))));
 }
