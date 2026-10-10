@@ -107,7 +107,15 @@ fn save_prefs(app: &SheetApp) {
 }
 
 fn services() -> Services {
+    // Keep the owner alive: X11/Wayland serve clipboard data from this handle.
+    let mut clipboard: Option<arboard::Clipboard> = None;
     Services {
+        copy_html: Some(Box::new(move |html, text| {
+            if clipboard.is_none() {
+                clipboard = Some(arboard::Clipboard::new().map_err(|e| e.to_string())?);
+            }
+            clipboard.as_mut().ok_or("clipboard unavailable")?.set_html(html, Some(text)).map_err(|e| e.to_string())
+        })),
         pick_open: Some(Box::new(|| {
             rfd::FileDialog::new()
                 .add_filter("Spreadsheets", &["xlsx", "xlsm", "xlsb", "ods", "csv", "tsv", "txt", "json"])

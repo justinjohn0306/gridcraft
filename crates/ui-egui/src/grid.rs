@@ -1644,18 +1644,10 @@ fn keyboard(app: &mut SheetApp, ctx: &egui::Context, resp: &egui::Response, geo:
     for ev in events {
         match ev {
             egui::Event::Copy => {
-                if let Ok(r) = app.run("edit.copy", json!({}))
-                    && let Some(t) = r.get("text").and_then(|t| t.as_str())
-                {
-                    ctx.copy_text(t.to_string());
-                }
+                app.copy_to_clipboard(ctx, "edit.copy");
             }
             egui::Event::Cut => {
-                if let Ok(r) = app.run("edit.cut", json!({}))
-                    && let Some(t) = r.get("text").and_then(|t| t.as_str())
-                {
-                    ctx.copy_text(t.to_string());
-                }
+                app.copy_to_clipboard(ctx, "edit.cut");
             }
             egui::Event::Paste(text) => app.run_or_alert("edit.paste", json!({"text": text})),
             egui::Event::Text(text) => {
@@ -1916,11 +1908,7 @@ fn context_menu(app: &mut SheetApp, ui: &mut egui::Ui) {
                             }
                         }
                         "edit.copy" | "edit.cut" => {
-                            if let Ok(r) = app.run(id, json!({}))
-                                && let Some(t) = r.get("text").and_then(|t| t.as_str())
-                            {
-                                ui.ctx().copy_text(t.to_string());
-                            }
+                            app.copy_to_clipboard(ui.ctx(), id);
                         }
                         other => app.run_or_alert(other, json!({})),
                     }
@@ -2147,11 +2135,7 @@ fn header_menu(app: &mut SheetApp, ui: &mut egui::Ui, was_open: bool) {
                         "ui:rowHeight" => app.open_dialog("rowHeight", json!({})),
                         "ui:columnWidth" => app.open_dialog("columnWidth", json!({})),
                         "edit.copy" | "edit.cut" => {
-                            if let Ok(r) = app.run(id, json!({}))
-                                && let Some(t) = r.get("text").and_then(|t| t.as_str())
-                            {
-                                ui.ctx().copy_text(t.to_string());
-                            }
+                            app.copy_to_clipboard(ui.ctx(), id);
                         }
                         other => app.run_or_alert(other, json!({})),
                     }

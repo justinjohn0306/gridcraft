@@ -365,17 +365,11 @@ fn home(app: &mut SheetApp, ui: &mut Ui) {
         );
     });
     ui.vertical(|ui| {
-        if icon_button(ui, Icon::Cut, t.text, "Cut (⌘X)", vec2(26.0, 23.0)).clicked()
-            && let Ok(r) = app.run("edit.cut", json!({}))
-            && let Some(s) = r.get("text").and_then(|x| x.as_str())
-        {
-            ui.ctx().copy_text(s.to_string());
+        if icon_button(ui, Icon::Cut, t.text, "Cut (⌘X)", vec2(26.0, 23.0)).clicked() {
+            app.copy_to_clipboard(ui.ctx(), "edit.cut");
         }
-        if icon_button(ui, Icon::Copy, t.text, "Copy (⌘C)", vec2(26.0, 23.0)).clicked()
-            && let Ok(r) = app.run("edit.copy", json!({}))
-            && let Some(s) = r.get("text").and_then(|x| x.as_str())
-        {
-            ui.ctx().copy_text(s.to_string());
+        if icon_button(ui, Icon::Copy, t.text, "Copy (⌘C)", vec2(26.0, 23.0)).clicked() {
+            app.copy_to_clipboard(ui.ctx(), "edit.copy");
         }
         let fp_on = app.session.format_painter.is_some();
         let fp = toggle_button(ui, Icon::Brush, fp_on, "Format Painter (double-click to keep it on)");

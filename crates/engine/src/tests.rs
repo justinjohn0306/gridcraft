@@ -307,6 +307,103 @@ fn copy_paste_shifts_formulas() {
 }
 
 #[test]
+fn rich_clipboard_copies_selected_displayed_cells_and_styles() {
+    let mut s = s();
+    s.execute("cell.set", json!({"cell": "A1", "input": "outside selection"})).unwrap();
+    s.execute("range.setValues", json!({"range": "B2", "values": [[0.125, "<tag>&\"\nnext"], [0.25, "last"]]})).unwrap();
+    s.execute("home.numberFormat", json!({"range": "B2:B3", "code": "0.0%"})).unwrap();
+    s.execute("home.bold", json!({"range": "B2", "on": true})).unwrap();
+    s.execute("home.italic", json!({"range": "B2", "on": true})).unwrap();
+    s.execute("home.fontColor", json!({"range": "B2", "color": "#123456"})).unwrap();
+    s.execute("home.fillColor", json!({"range": "B2", "color": "#FEDCBA"})).unwrap();
+    let copied = s.execute("edit.copy", json!({"range": "B2:C3", "html": true})).unwrap();
+    let html = copied["html"].as_str().expect("copy publishes HTML as well as plain text");
+    assert_eq!(copied["text"], "12.5%\t\"<tag>&\"\"\nnext\"\n25.0%\tlast\n");
+    assert!(html.starts_with("<table "));
+    assert!(html.ends_with("</table>"));
+    assert_eq!(html.matches("<tr>").count(), 2);
+    assert_eq!(html.matches("<td ").count(), 4);
+    assert!(html.contains("&lt;tag&gt;&amp;&quot;<br>next"));
+    for content in ["12.5%", "25.0%", "font-weight:bold;", "font-style:italic;", "color:#123456;", "background:#FEDCBA;", "text-align:right;"] {
+        assert!(html.contains(content), "missing {content}");
+    }
+    assert!(!html.contains("outside selection"));
+    assert!(!html.contains("<html"));
+
+    let cut = s.execute("edit.cut", json!({"range": "B2:C3", "html": true})).unwrap();
+    assert_eq!(cut["html"], copied["html"]);
+    assert_eq!(cut["text"], copied["text"]);
+    s.execute("edit.paste", json!({"at": "E5", "text": cut["text"]})).unwrap();
+    assert_eq!(v(&s, "E5"), Value::Number(0.125));
+    assert_eq!(v(&s, "B2"), Value::Empty);
+}
+
+#[test]
+fn copy_and_cut_return_html_only_when_requested() {
+    let mut s = s();
+    s.execute("cell.set", json!({"cell": "A1", "input": "x"})).unwrap();
+    for cmd in ["edit.copy", "edit.cut"] {
+        for params in [json!({"range": "A1"}), json!({"range": "A1", "html": false})] {
+            let r = s.execute(cmd, params).unwrap();
+            assert_eq!(r["text"], "x\n");
+            assert!(r.get("html").is_none(), "{cmd} must not bloat programmatic responses with HTML");
+        }
+        let r = s.execute(cmd, json!({"range": "A1", "html": true})).unwrap();
+        assert!(r["html"].as_str().is_some_and(|h| h.contains(">x</td>")));
+    }
+}
+
+#[test]
+fn rich_clipboard_clips_merges_and_skips_hidden_rows() {
+    let mut s = s();
+    s.execute("cell.set", json!({"cell": "B2", "input": "merged"})).unwrap();
+    s.execute("home.mergeCenter", json!({"range": "B2:D5"})).unwrap();
+    s.execute("home.hideRows", json!({"rows": "3:3"})).unwrap();
+    s.execute("cell.set", json!({"cell": "E4", "input": "side"})).unwrap();
+    let copied = s.execute("edit.copy", json!({"range": "B2:C4", "html": true})).unwrap();
+    let html = copied["html"].as_str().expect("merged copy publishes HTML");
+    assert_eq!(copied["text"], "merged\t\n\t\n");
+    assert_eq!(html.matches("<tr>").count(), 2);
+    assert_eq!(html.matches("<td ").count(), 1);
+    assert!(html.contains("rowspan=\"2\" colspan=\"2\""));
+    assert!(html.contains(">merged</td>"));
+
+    // A selection beginning inside a merge must keep its shape without copying
+    // the original anchor's value from outside the selected rectangle.
+    let copied = s.execute("edit.copy", json!({"range": "C3:E5", "html": true})).unwrap();
+    let html = copied["html"].as_str().expect("partially selected merge publishes HTML");
+    assert_eq!(html.matches("<tr>").count(), 2);
+    assert_eq!(html.matches("<td ").count(), 3);
+    assert!(html.contains("rowspan=\"2\" colspan=\"2\""));
+    assert!(!html.contains("merged"));
+    assert!(html.contains(">side</td>"));
+}
+
+#[test]
+fn rich_clipboard_omits_html_for_large_ranges_without_truncating_text() {
+    let mut s = s();
+    s.execute("cell.set", json!({"cell": "A10001", "input": "last cell"})).unwrap();
+    let copied = s.execute("edit.copy", json!({"range": "A1:A10001", "html": true})).unwrap();
+    assert!(copied.get("html").is_none(), "oversized HTML must be omitted, not partially copied");
+    let text = copied["text"].as_str().unwrap();
+    assert_eq!(text.lines().count(), 10_001);
+    assert!(text.ends_with("last cell\n"));
+    let copied = s.execute("edit.copy", json!({"range": "A10001", "html": true})).unwrap();
+    assert!(copied["html"].as_str().is_some_and(|html| html.contains("last cell")));
+}
+
+#[test]
+fn rich_clipboard_omits_html_when_escaping_exceeds_byte_budget() {
+    let mut s = s();
+    let text = "&".repeat(1_000_000);
+    s.execute("range.setValues", json!({"range": "A1", "values": [[text]]})).unwrap();
+    let copied = s.execute("edit.copy", json!({"range": "A1", "html": true})).unwrap();
+    assert!(copied.get("html").is_none(), "an oversized escaped value must not produce partial HTML");
+    assert_eq!(copied["text"].as_str().unwrap().len(), 1_000_001);
+    assert!(copied["text"].as_str().unwrap().ends_with("&\n"));
+}
+
+#[test]
 fn insert_delete_rows_adjust() {
     let mut s = s();
     s.execute("range.setValues", json!({"range": "A1", "values": [[1], [2], [3]]})).unwrap();
