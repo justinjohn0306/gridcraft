@@ -20,10 +20,14 @@ concurrency:
 jobs:
   build:
     name: Build Flatpak repository
+    # Pre-releases (rc builds) never reach the stable branch: a published pre-release is skipped
+    # here, and the validation step below refuses a manual tag with a pre-release suffix.
+    if: github.event_name != 'release' || !github.event.release.prerelease
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      pages: write
+      # configure-pages only reads the Pages configuration (base_url); deploy needs write.
+      pages: read
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
@@ -47,10 +51,17 @@ jobs:
             echo "::error::Release tag '$tag' is not strict SemVer prefixed with v"
             exit 1
           fi
+          # A pre-release has a "-" before any "+build" metadata (v1.2.3-rc.1).
+          case "${tag%%+*}" in
+            *-*)
+              echo "::error::$tag is a pre-release; only stable releases are published to the Flatpak repository"
+              exit 1
+              ;;
+          esac
           published_tag="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq \
-            'select(.draft == false and .published_at != null) | .tag_name')"
+            'select(.draft == false and .prerelease == false and .published_at != null) | .tag_name')"
           if [[ "$published_tag" != "$tag" ]]; then
-            echo "::error::$tag is not a published release in $GITHUB_REPOSITORY"
+            echo "::error::$tag is not a published stable (non-pre-release) release in $GITHUB_REPOSITORY"
             exit 1
           fi
 
@@ -108,7 +119,10 @@ jobs:
             flatpak build-import-bundle "$repo_dir" \
               "bundles/gridcraft-$version-linux-$arch.flatpak"
           done
+          # Prune unreachable objects and keep at most 3 commits per ref, so the Pages repository
+          # (re-mirrored and re-deployed on every release) does not grow without bound.
           flatpak build-update-repo \
+            --prune --prune-depth=3 \
             --title="GridCraft" \
             --comment='Official GridCraft releases' \
             --description='Official Flatpak repository for GridCraft' \
