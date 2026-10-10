@@ -96,8 +96,9 @@ fn services() -> Services {
     Services {
         pick_open: Some(Box::new(|| {
             rfd::FileDialog::new()
-                .add_filter("Spreadsheets", &["xlsx", "xlsm", "csv", "tsv", "txt", "json"])
+                .add_filter("Spreadsheets", &["xlsx", "xlsm", "ods", "csv", "tsv", "txt", "json"])
                 .add_filter("Excel Workbook", &["xlsx", "xlsm"])
+                .add_filter("OpenDocument Spreadsheet (data import)", &["ods"])
                 .add_filter("CSV", &["csv"])
                 .pick_file()
                 .and_then(|p| p.to_str().map(str::to_string))
@@ -172,6 +173,7 @@ fn main() -> eframe::Result<()> {
         session.new_workbook();
     }
     let mut app = SheetApp::new(session, services());
+    app.after_engine(); // Show warnings from files opened on the command line.
     let control_port = control_port;
     load_prefs(&mut app);
     let mut viewport = egui::ViewportBuilder::default()

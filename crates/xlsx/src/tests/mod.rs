@@ -3,6 +3,7 @@
 mod csv_tests;
 mod fixtures;
 mod malformed;
+mod ods_tests;
 mod pivot_tests;
 mod roundtrip;
 

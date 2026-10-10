@@ -145,6 +145,76 @@ fn xlsx_roundtrip_through_engine() {
     assert_eq!(v(&s, "B3"), Value::Number(3.0));
 }
 
+fn ods_fixture() -> Vec<u8> {
+    use std::io::{Cursor, Write};
+    let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    for (name, data) in [
+        ("mimetype", "application/vnd.oasis.opendocument.spreadsheet"),
+        (
+            "META-INF/manifest.xml",
+            r#"<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3"><manifest:file-entry manifest:full-path="/" manifest:media-type="application/vnd.oasis.opendocument.spreadsheet"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/></manifest:manifest>"#,
+        ),
+        (
+            "content.xml",
+            r#"<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" office:version="1.3"><office:body><office:spreadsheet><table:table table:name="Data"><table:table-row><table:table-cell office:value-type="float" office:value="42" table:formula="of:=SUM([.B1:.B2])"/><table:table-cell office:value-type="string"><text:p>Original data</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet></office:body></office:document-content>"#,
+        ),
+    ] {
+        zip.start_file(name, options).unwrap();
+        zip.write_all(data.as_bytes()).unwrap();
+    }
+    zip.finish().unwrap().into_inner()
+}
+
+#[test]
+fn ods_import_keeps_cached_values_and_reports_limits() {
+    let bytes = ods_fixture();
+    assert_eq!(gridcraft_xlsx::sniff(&bytes), gridcraft_xlsx::Format::Ods);
+    for name in ["source.ods", "source.xlsx"] {
+        let mut s = s();
+        let r = s.execute("file.open", json!({"name": name, "base64": crate::io::base64_encode(&bytes)})).unwrap();
+        assert!(!r["warnings"].as_array().unwrap().is_empty());
+        assert!(s.take_ui_requests().iter().any(|r| matches!(r, crate::UiRequest::Message(_))));
+        assert!(s.doc().unwrap().path.is_none());
+        assert!(s.doc().unwrap().display_title().ends_with(".xlsx"));
+        assert_eq!(v(&s, "A1"), Value::Number(42.0));
+        assert_eq!(v(&s, "B1"), Value::from("Original data"));
+        assert!(s.doc().unwrap().wb.active().unwrap().cell(CellRef::parse("A1").unwrap()).unwrap().formula.is_none());
+        let saved = s.execute("file.saveBytes", json!({"format": "xlsx"})).unwrap();
+        s.execute("file.open", json!({"name": "imported.xlsx", "base64": saved["base64"]})).unwrap();
+        assert_eq!(v(&s, "A1"), Value::Number(42.0));
+    }
+}
+
+#[test]
+#[cfg(not(target_arch = "wasm32"))]
+fn ods_import_never_reuses_source_as_save_target() {
+    let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+    let dir = std::env::temp_dir().join(format!("gridcraft-ods-{}-{nonce}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    let bytes = ods_fixture();
+    for name in ["source.ods", "disguised.xlsx"] {
+        let path = dir.join(name);
+        std::fs::write(&path, &bytes).unwrap();
+        let mut s = s();
+        s.execute("file.open", json!({"path": path})).unwrap();
+        s.take_ui_requests();
+        s.execute("cell.set", json!({"cell": "A1", "input": "43"})).unwrap();
+        s.execute("file.save", json!({})).unwrap();
+        assert!(s.take_ui_requests().iter().any(|r| matches!(r, crate::UiRequest::Dialog(name, _) if name == "saveAs")));
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert!(s.execute("file.saveAs", json!({"path": dir.join("source.ods")})).is_err());
+        assert!(s.execute("file.saveBytes", json!({"format": "ods"})).is_err());
+        let output = dir.join("converted.xlsx");
+        s.execute("file.saveAs", json!({"path": output})).unwrap();
+        assert!(!s.doc().unwrap().is_dirty());
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        s.execute("file.open", json!({"name": "converted.xlsx", "base64": crate::io::base64_encode(&std::fs::read(output).unwrap())})).unwrap();
+        assert_eq!(v(&s, "A1"), Value::Number(43.0));
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 #[test]
 fn samples_build() {
     for (name, _) in crate::sample::SAMPLES {
