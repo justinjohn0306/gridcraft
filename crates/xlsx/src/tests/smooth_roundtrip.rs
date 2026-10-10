@@ -10,9 +10,9 @@ fn smooth_line_setting_round_trips() {
     let mut wb = Workbook::default();
     let mut s = Sheet::new("Data");
     let base_series = Series {
-        name: Some("Sheet1!$A$1".into()),
-        categories: Some("Sheet1!$A$2:$A$5".into()),
-        values: "Sheet1!$B$2:$B$5".into(),
+        name: Some("Data!$A$1".into()),
+        categories: Some("Data!$A$2:$A$5".into()),
+        values: "Data!$B$2:$B$5".into(),
         bubble_sizes: None,
         color: Some(Color::Rgb(0x4472C4)),
         secondary: false,
