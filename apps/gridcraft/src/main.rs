@@ -110,9 +110,10 @@ fn services() -> Services {
     Services {
         pick_open: Some(Box::new(|| {
             rfd::FileDialog::new()
-                .add_filter("Spreadsheets", &["xlsx", "xlsm", "xlsb", "csv", "tsv", "txt", "json"])
+                .add_filter("Spreadsheets", &["xlsx", "xlsm", "xlsb", "ods", "csv", "tsv", "txt", "json"])
                 .add_filter("Excel Workbook", &["xlsx", "xlsm"])
                 .add_filter("Excel Binary Workbook (data import)", &["xlsb"])
+                .add_filter("OpenDocument Spreadsheet (data import)", &["ods"])
                 .add_filter("CSV", &["csv"])
                 .pick_file()
                 .and_then(|p| p.to_str().map(str::to_string))

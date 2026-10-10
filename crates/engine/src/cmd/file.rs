@@ -8,7 +8,7 @@ use crate::DocState;
 pub fn specs() -> Vec<CommandSpec> {
     vec![
         cmd!(noundo "file.new", "New Workbook", ["File"], Some("Cmd+N"), "{sample?: \"budget\"|\"sales\"|\"grades\"}", always, new_workbook),
-        cmd!(noundo "file.open", "Open…", ["File"], Some("Cmd+O"), "{path} | {name, base64} (xlsx, xlsm, xlsb data import, csv, tsv, txt, json)", always, open),
+        cmd!(noundo "file.open", "Open…", ["File"], Some("Cmd+O"), "{path} | {name, base64} (xlsx, xlsm, xlsb and ods data import, csv, tsv, txt, json)", always, open),
         cmd!(noundo "file.save", "Save", ["File"], Some("Cmd+S"), "{path?} (xlsx by default; .csv/.tsv/.json/.html by extension)", has_doc, save),
         cmd!(noundo "file.saveAs", "Save As…", ["File"], Some("Cmd+Shift+S"), "{path}", has_doc, save_as),
         cmd!(query "file.saveBytes", "Encode Workbook", [], None, "{format?: xlsx|csv|tsv|json|html} → {base64}", has_doc, save_bytes),
@@ -47,8 +47,8 @@ fn open(s: &mut Session, p: &Json) -> Result<Json> {
         return ok();
     };
     let (wb, warnings) = crate::io::open_bytes(&name, &bytes)?;
-    let imported =
-        crate::io::FileKind::from_path(&name) == Some(crate::io::FileKind::Xlsb) || gridcraft_xlsx::sniff(&bytes) == gridcraft_xlsx::Format::Xlsb;
+    let imported = matches!(crate::io::FileKind::from_path(&name), Some(crate::io::FileKind::Ods | crate::io::FileKind::Xlsb))
+        || matches!(gridcraft_xlsx::sniff(&bytes), gridcraft_xlsx::Format::Ods | gridcraft_xlsx::Format::Xlsb);
     let title = if imported {
         format!("{} (imported).xlsx", std::path::Path::new(&name).file_stem().and_then(|n| n.to_str()).unwrap_or("Book"))
     } else {
