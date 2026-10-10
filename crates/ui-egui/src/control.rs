@@ -160,6 +160,7 @@ pub fn handle(app: &mut SheetApp, ctx: &egui::Context, method: &str, p: &Json) -
                 ("view.formulaBar", "Formula Bar"),
                 ("view.collapseRibbon", "Collapse Ribbon"),
                 ("view.darkMode", "Dark Mode"),
+                ("view.theme", "Display Theme"),
                 ("view.zoom100", "100%"),
                 ("ui.dialog", "Open Dialog"),
             ] {
@@ -178,6 +179,7 @@ pub fn handle(app: &mut SheetApp, ctx: &egui::Context, method: &str, p: &Json) -
         "ui.set" => {
             if let Some(v) = p.get("dark").and_then(Json::as_bool) {
                 app.ui.dark = v;
+                app.ui.system_theme = false;
             }
             if let Some(v) = p.get("formulaBar").and_then(Json::as_bool) {
                 app.ui.formula_bar = v;

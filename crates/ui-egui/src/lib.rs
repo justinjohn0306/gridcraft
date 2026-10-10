@@ -35,7 +35,9 @@ pub use control::{ControlRequest, ControlResponse};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct UiState {
+    /// The manual preference, retained when following the system appearance.
     pub dark: bool,
+    pub system_theme: bool,
     pub ribbon_tab: String,
     pub ribbon_collapsed: bool,
     pub formula_bar: bool,
@@ -48,12 +50,35 @@ impl Default for UiState {
     fn default() -> Self {
         UiState {
             dark: false,
+            system_theme: false,
             ribbon_tab: "Home".into(),
             ribbon_collapsed: false,
             formula_bar: true,
             formula_bar_expanded: false,
             status_bar: true,
             recent: vec![],
+        }
+    }
+}
+
+impl UiState {
+    pub fn theme_preference(&self) -> egui::ThemePreference {
+        if self.system_theme {
+            egui::ThemePreference::System
+        } else if self.dark {
+            egui::ThemePreference::Dark
+        } else {
+            egui::ThemePreference::Light
+        }
+    }
+
+    pub fn theme_mode(&self) -> &'static str {
+        if self.system_theme {
+            "system"
+        } else if self.dark {
+            "dark"
+        } else {
+            "light"
         }
     }
 }
@@ -105,6 +130,7 @@ pub struct SheetApp {
     pub perf: Perf,
     pub fonts_ready: bool,
     fonts_set: bool,
+    effective_dark: bool,
     pub name_box: Option<String>,
     pub(crate) shots: control::Shots,
     /// Chart selected on the sheet (id).
@@ -134,6 +160,7 @@ impl SheetApp {
             perf: Perf::default(),
             fonts_ready: false,
             fonts_set: false,
+            effective_dark: false,
             name_box: None,
             shots: control::Shots::default(),
             selected_chart: None,
@@ -184,8 +211,21 @@ impl SheetApp {
                 Ok(Json::Null)
             }
             "view.darkMode" => {
-                self.ui.dark = p.get("on").and_then(Json::as_bool).unwrap_or(!self.ui.dark);
+                let current = if self.ui.system_theme { self.effective_dark } else { self.ui.dark };
+                self.ui.dark = p.get("on").and_then(Json::as_bool).unwrap_or(!current);
+                self.ui.system_theme = false;
                 Ok(json!({"on": self.ui.dark}))
+            }
+            "view.theme" => {
+                match p.get("mode").and_then(Json::as_str) {
+                    Some("system") => self.ui.system_theme = true,
+                    Some(mode @ ("light" | "dark")) => {
+                        self.ui.dark = mode == "dark";
+                        self.ui.system_theme = false;
+                    }
+                    _ => return Some(Err("theme mode must be system, light, or dark".into())),
+                }
+                Ok(json!({"mode": self.ui.theme_mode()}))
             }
             "view.zoom100" => return Some(self.session.run("view.zoom", json!({"percent": 100})).inspect(|_| self.after_engine())),
             "ui.dialog" => {
@@ -363,9 +403,12 @@ impl SheetApp {
                 ctx.request_repaint();
             }
         }
-        if ctx.global_style().visuals.dark_mode != self.ui.dark {
-            theme::apply(ctx, self.ui.dark);
+        let preference = self.ui.theme_preference();
+        if ctx.options(|o| o.theme_preference) != preference {
+            ctx.set_theme(preference);
+            ctx.request_repaint();
         }
+        self.effective_dark = ctx.theme() == egui::Theme::Dark;
         control::poll(self, ctx);
         // Files read asynchronously (web file picker, dropped files).
         let arrived: Vec<(String, Vec<u8>)> = self

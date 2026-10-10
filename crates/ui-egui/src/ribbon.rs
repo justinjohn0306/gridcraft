@@ -1593,11 +1593,21 @@ fn view(app: &mut SheetApp, ui: &mut Ui) {
             ],
         );
     });
-    let mut dark = app.ui.dark;
     ui.vertical(|ui| {
-        if ui.checkbox(&mut dark, "Dark Mode").changed() {
-            app.ui.dark = dark;
-        }
+        ui.label("Display theme");
+        let mode = app.ui.theme_mode();
+        let label = match mode {
+            "system" => "System",
+            "dark" => "Dark",
+            _ => "Light",
+        };
+        egui::ComboBox::from_id_salt("display_theme").selected_text(label).width(88.0).show_ui(ui, |ui| {
+            for (value, label) in [("system", "System"), ("light", "Light"), ("dark", "Dark")] {
+                if ui.selectable_label(mode == value, label).clicked() {
+                    act(app, "view.theme", json!({"mode": value}));
+                }
+            }
+        });
     });
 }
 
