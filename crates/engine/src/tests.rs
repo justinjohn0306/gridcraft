@@ -284,6 +284,65 @@ fn tables_and_structured_refs() {
 }
 
 #[test]
+fn create_names_from_selection() {
+    let names = |s: &Session| -> Vec<(String, String)> {
+        let mut v: Vec<_> = s.doc().unwrap().wb.names.iter().map(|n| (n.name.clone(), n.formula.clone())).collect();
+        v.sort();
+        v
+    };
+    let named = |n: &str, f: &str| (n.to_string(), f.to_string());
+    let mut s = s();
+    s.execute(
+        "range.setValues",
+        json!({"range": "A1", "values": [["", "Jan", "Feb", ""], ["North", 1, 2, "N"], ["South", 3, 4, "S"], ["", "First", "Second", ""]]}),
+    )
+    .unwrap();
+    s.execute("formulas.createFromSelection", json!({"range": "A1:D4", "top": false, "bottom": true, "right": true})).unwrap();
+    assert_eq!(
+        names(&s),
+        [named("First", "Sheet1!$B$1:$B$3"), named("N", "Sheet1!$A$2:$C$2"), named("S", "Sheet1!$A$3:$C$3"), named("Second", "Sheet1!$C$1:$C$3")]
+    );
+    // Existing names are kept unless replacing is asked for.
+    let r = s.execute("formulas.createFromSelection", json!({"range": "A1:C3", "top": true, "left": true})).unwrap();
+    assert_eq!(r["created"], 4);
+    let r = s.execute("formulas.createFromSelection", json!({"range": "B1:C3", "top": true})).unwrap();
+    assert_eq!((r["created"].clone(), r["skipped"].clone()), (json!(0), json!(["Jan", "Feb"])));
+    s.execute("cell.set", json!({"cell": "B1", "input": "N"})).unwrap();
+    let r = s.execute("formulas.createFromSelection", json!({"range": "B1:B3", "replace": true})).unwrap();
+    assert_eq!(r["created"], 1);
+    assert!(names(&s).contains(&named("N", "Sheet1!$B$2:$B$3")));
+    assert!(names(&s).contains(&named("North", "Sheet1!$B$2:$C$2")));
+}
+
+#[test]
+fn names_that_look_like_references_are_refused() {
+    let mut s = s();
+    for bad in ["R1C1", "r2", "C3", "RC", "R", "c", "rc12", "A1", "XFD1048576", "1st"] {
+        assert!(s.execute("formulas.defineName", json!({"name": bad, "refersTo": "=1"})).is_err(), "{bad}");
+    }
+    for good in ["R1C1X", "Rate", "RCx", "Rx", "_R1", "Cost"] {
+        s.execute("formulas.defineName", json!({"name": good, "refersTo": "=1"})).unwrap();
+    }
+}
+
+#[test]
+fn lambda_names_keep_their_case_in_calls() {
+    let mut s = s();
+    s.execute("formulas.defineName", json!({"name": "Double", "refersTo": "=LAMBDA(x,x*2)"})).unwrap();
+    s.execute("formulas.defineName", json!({"name": "Quad", "refersTo": "=LAMBDA(x,Double(Double(x)))"})).unwrap();
+    s.execute("cell.set", json!({"cell": "A1", "input": "=double(4)+Quad(1)+sum(1)"})).unwrap();
+    assert_eq!(s.execute("cell.get", json!({"cell": "A1"})).unwrap()["formula"], "=Double(4)+Quad(1)+SUM(1)");
+    assert_eq!(v(&s, "A1"), Value::Number(13.0));
+    let r = s.execute("file.saveBytes", json!({"format": "xlsx"})).unwrap();
+    let b64 = r["base64"].as_str().unwrap().to_string();
+    s.execute("file.open", json!({"name": "x.xlsx", "base64": b64})).unwrap();
+    assert_eq!(s.execute("cell.get", json!({"cell": "A1"})).unwrap()["formula"], "=Double(4)+Quad(1)+SUM(1)");
+    let quad = s.doc().unwrap().wb.names.iter().find(|n| n.name == "Quad").unwrap().formula.clone();
+    assert_eq!(quad, "LAMBDA(x,Double(Double(x)))");
+    assert_eq!(v(&s, "A1"), Value::Number(13.0));
+}
+
+#[test]
 fn sheets() {
     let mut s = s();
     s.execute("home.insertSheet", json!({})).unwrap();
