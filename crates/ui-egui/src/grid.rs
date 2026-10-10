@@ -775,7 +775,7 @@ pub fn filter_button_rect(geo: &Geo, sh: &Sheet, c: CellRef) -> Rect {
     Rect::from_min_size(pos2(rect.right() - s - 2.0, rect.bottom() - s - 2.0), vec2(s, s))
 }
 
-fn paint_border(p: &Painter, pts: [Pos2; 2], style: BorderStyle, col: Color32) {
+pub(crate) fn paint_border(p: &Painter, pts: [Pos2; 2], style: BorderStyle, col: Color32) {
     let w = style.width();
     let (a, b) = (pts[0], pts[1]);
     match style {

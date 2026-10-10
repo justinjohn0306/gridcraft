@@ -40,6 +40,81 @@ fn undo_redo() {
 }
 
 #[test]
+fn no_border_clears_only_shared_edges_and_undo_restores_them() {
+    use gridcraft_core::RangeRef;
+    use gridcraft_model::{BorderLine, Borders};
+
+    for (range, neighbors) in [
+        ("B2", &[("B1", "bottom"), ("B3", "top"), ("A2", "right"), ("C2", "left")][..]),
+        (
+            "B2:C3",
+            &[("B1", "bottom"), ("C1", "bottom"), ("B4", "top"), ("C4", "top"), ("A2", "right"), ("A3", "right"), ("D2", "left"), ("D3", "left")][..],
+        ),
+    ] {
+        let mut s = s();
+        s.execute("range.setValues", json!({"range": "A1", "values": [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]})).unwrap();
+        s.execute("cell.set", json!({"cell": "D4", "input": "=SUM(A1:C1)"})).unwrap();
+        s.execute("home.bold", json!({"range": "A1:D4", "on": true})).unwrap();
+        for preset in ["all", "diagonalDown"] {
+            s.execute("home.borders", json!({"range": "A1:D4", "preset": preset, "style": "double", "color": "#CC3344"})).unwrap();
+        }
+        let before: Vec<_> = RangeRef::parse("A1:D4").unwrap().iter().map(|c| s.execute("cell.get", json!({"cell": c.a1()})).unwrap()).collect();
+        s.execute("home.borders", json!({"range": range, "preset": "none"})).unwrap();
+        let selected = RangeRef::parse(range).unwrap();
+        for original in &before {
+            let address = original["cell"].as_str().unwrap();
+            let mut expected = original.clone();
+            if selected.contains(CellRef::parse(address).unwrap()) {
+                expected["style"]["borders"] = json!(Borders::default());
+            } else if let Some((_, edge)) = neighbors.iter().find(|(cell, _)| *cell == address) {
+                expected["style"]["borders"][*edge] = json!(BorderLine::default());
+            }
+            assert_eq!(s.execute("cell.get", json!({"cell": address})).unwrap(), expected, "clearing {range}, cell {address}");
+        }
+        s.execute("edit.undo", json!({})).unwrap();
+        for original in before {
+            assert_eq!(s.execute("cell.get", json!({"cell": original["cell"]})).unwrap(), original);
+        }
+    }
+}
+
+#[test]
+fn no_border_handles_sheet_corners_without_creating_out_of_bounds_cells() {
+    for (range, corner, neighbors) in [
+        ("A1:B2", "A1", [("B1", "left"), ("A2", "top")]),
+        ("XFC1048575:XFD1048576", "XFD1048576", [("XFC1048576", "right"), ("XFD1048575", "bottom")]),
+    ] {
+        let mut s = s();
+        s.execute("home.borders", json!({"range": range, "preset": "all"})).unwrap();
+        s.execute("home.borders", json!({"range": corner, "preset": "none"})).unwrap();
+        for (neighbor, edge) in neighbors {
+            assert_eq!(s.execute("cell.get", json!({"cell": neighbor})).unwrap()["style"]["borders"][edge]["style"], "None");
+        }
+        let sh = s.doc().unwrap().wb.active().unwrap();
+        assert!(sh.cells.iter().all(|(c, _)| c.is_valid()));
+        assert!(sh.cells.iter().count() <= 4);
+    }
+}
+
+#[test]
+fn borders_respect_sheet_formatting_protection() {
+    let mut s = s();
+    s.execute("home.borders", json!({"range": "A1:B2", "preset": "all"})).unwrap();
+    s.execute("review.protectSheet", json!({})).unwrap();
+    let before = s.doc().unwrap().wb.clone();
+    let undo_count = s.doc().unwrap().undo.len();
+    for preset in ["none", "left"] {
+        assert!(s.execute("home.borders", json!({"range": "A1", "preset": preset})).is_err());
+        assert_eq!(s.doc().unwrap().wb.styles, before.styles);
+        assert_eq!(s.doc().unwrap().wb.active().unwrap().cells, before.active().unwrap().cells);
+        assert_eq!(s.doc().unwrap().undo.len(), undo_count);
+    }
+    s.execute("review.protectSheet", json!({"formatCells": true})).unwrap();
+    s.execute("home.borders", json!({"range": "A1", "preset": "none"})).unwrap();
+    assert_eq!(s.execute("cell.get", json!({"cell": "B1"})).unwrap()["style"]["borders"]["left"]["style"], "None");
+}
+
+#[test]
 fn copy_paste_shifts_formulas() {
     let mut s = s();
     s.execute("range.setValues", json!({"range": "A1", "values": [[1, 2], [3, 4]]})).unwrap();
