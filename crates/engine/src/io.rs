@@ -41,6 +41,11 @@ pub fn open_bytes(name: &str, bytes: &[u8]) -> Result<(Workbook, Vec<String>)> {
             "'{name}' is password-protected. GridCraft can't open encrypted workbooks yet; remove the password in Excel and try again."
         )));
     }
+    if sniffed == gridcraft_xlsx::Format::LegacyBinary {
+        return Err(EngineError::Other(format!(
+            "'{name}' is an Excel 97-2003 (.xls) workbook or another legacy binary file. GridCraft doesn't open these yet; save it as .xlsx in Excel and try again."
+        )));
+    }
     if sniffed == gridcraft_xlsx::Format::Xlsx || kind == Some(FileKind::Xlsx) {
         let (wb, report) = gridcraft_xlsx::read_xlsx(bytes).map_err(|e| EngineError::Other(format!("We can't open '{name}': {e}")))?;
         return Ok((wb, report.warnings));
@@ -254,13 +259,42 @@ pub fn image_size(data: &[u8]) -> Option<(u32, u32)> {
 mod tests {
     use super::*;
 
+    /// A minimal compound (CFB/OLE2) file — FAT in sector 0, directory in sector 1 — holding a
+    /// root entry and the given stream names.
+    fn cfb(streams: &[&str]) -> Vec<u8> {
+        let mut b = vec![0u8; 512 * 3];
+        let mut put = |at: usize, v: &[u8]| b[at..at + v.len()].copy_from_slice(v);
+        put(0, &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+        put(30, &9u16.to_le_bytes());
+        put(44, &1u32.to_le_bytes());
+        put(48, &1u32.to_le_bytes());
+        put(68, &0xFFFF_FFFEu32.to_le_bytes());
+        for i in 1..109 {
+            put(76 + i * 4, &0xFFFF_FFFFu32.to_le_bytes());
+        }
+        put(512, &0xFFFF_FFFDu32.to_le_bytes());
+        put(516, &0xFFFF_FFFEu32.to_le_bytes());
+        for (k, name) in std::iter::once("Root Entry").chain(streams.iter().copied()).enumerate() {
+            let units: Vec<u8> = name.encode_utf16().flat_map(u16::to_le_bytes).collect();
+            put(1024 + k * 128, &units);
+            put(1024 + k * 128 + 64, &(units.len() as u16 + 2).to_le_bytes());
+        }
+        b
+    }
+
     #[test]
     fn encrypted_workbook_is_reported_not_misread() {
-        // A CFB/OLE2 header: Excel's password-protected container.
-        let cfb = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0, 0, 0, 0];
-        let err = open_bytes("secret.xlsx", &cfb).unwrap_err();
+        let err = open_bytes("secret.xlsx", &cfb(&["EncryptionInfo", "EncryptedPackage"])).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("password-protected"), "got: {msg}");
         assert!(!msg.contains("zip"), "must not surface the zip error: {msg}");
+    }
+
+    #[test]
+    fn legacy_xls_is_not_called_encrypted() {
+        let err = open_bytes("old.xls", &cfb(&["Workbook", "\u{5}SummaryInformation"])).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("97-2003") && msg.contains(".xlsx"), "got: {msg}");
+        assert!(!msg.contains("password"), "got: {msg}");
     }
 }

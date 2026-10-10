@@ -10,6 +10,7 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+mod cfb;
 mod chart;
 mod csv;
 mod drawing;
@@ -93,7 +94,10 @@ impl Default for CsvOptions {
 pub enum Format {
     Xlsx,
     Csv,
+    /// A password-protected (encrypted) workbook: a compound file with an `EncryptedPackage`.
     Encrypted,
+    /// Another compound (CFB/OLE2) file: an Excel 97-2003 `.xls` or other legacy Office binary.
+    LegacyBinary,
     Unknown,
 }
 
@@ -102,9 +106,10 @@ pub fn sniff(bytes: &[u8]) -> Format {
     if bytes.starts_with(b"PK\x03\x04") || bytes.starts_with(b"PK\x05\x06") || bytes.starts_with(b"PK\x07\x08") {
         return Format::Xlsx;
     }
-    // CFB/OLE2 compound file: Excel password-protected files.
-    if bytes.starts_with(&[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]) {
-        return Format::Encrypted;
+    // CFB/OLE2 compound file: a password-protected workbook when it holds an encryption
+    // stream, otherwise a legacy binary (.xls, .doc…).
+    if bytes.starts_with(&cfb::SIGNATURE) {
+        return if cfb::is_encrypted(bytes) { Format::Encrypted } else { Format::LegacyBinary };
     }
     if bytes.starts_with(&[0xFF, 0xFE]) || bytes.starts_with(&[0xFE, 0xFF]) || bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
         return Format::Csv;
