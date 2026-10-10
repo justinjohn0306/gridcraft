@@ -122,6 +122,37 @@ fn tables_and_structured_refs() {
 }
 
 #[test]
+fn create_names_from_selection() {
+    let names = |s: &Session| -> Vec<(String, String)> {
+        let mut v: Vec<_> = s.doc().unwrap().wb.names.iter().map(|n| (n.name.clone(), n.formula.clone())).collect();
+        v.sort();
+        v
+    };
+    let named = |n: &str, f: &str| (n.to_string(), f.to_string());
+    let mut s = s();
+    s.execute(
+        "range.setValues",
+        json!({"range": "A1", "values": [["", "Jan", "Feb", ""], ["North", 1, 2, "N"], ["South", 3, 4, "S"], ["", "First", "Second", ""]]}),
+    )
+    .unwrap();
+    s.execute("formulas.createFromSelection", json!({"range": "A1:D4", "top": false, "bottom": true, "right": true})).unwrap();
+    assert_eq!(
+        names(&s),
+        [named("First", "Sheet1!$B$1:$B$3"), named("N", "Sheet1!$A$2:$C$2"), named("S", "Sheet1!$A$3:$C$3"), named("Second", "Sheet1!$C$1:$C$3")]
+    );
+    // Existing names are kept unless replacing is asked for.
+    let r = s.execute("formulas.createFromSelection", json!({"range": "A1:C3", "top": true, "left": true})).unwrap();
+    assert_eq!(r["created"], 4);
+    let r = s.execute("formulas.createFromSelection", json!({"range": "B1:C3", "top": true})).unwrap();
+    assert_eq!((r["created"].clone(), r["skipped"].clone()), (json!(0), json!(["Jan", "Feb"])));
+    s.execute("cell.set", json!({"cell": "B1", "input": "N"})).unwrap();
+    let r = s.execute("formulas.createFromSelection", json!({"range": "B1:B3", "replace": true})).unwrap();
+    assert_eq!(r["created"], 1);
+    assert!(names(&s).contains(&named("N", "Sheet1!$B$2:$B$3")));
+    assert!(names(&s).contains(&named("North", "Sheet1!$B$2:$C$2")));
+}
+
+#[test]
 fn names_that_look_like_references_are_refused() {
     let mut s = s();
     for bad in ["R1C1", "r2", "C3", "RC", "R", "c", "rc12", "A1", "XFD1048576", "1st"] {
